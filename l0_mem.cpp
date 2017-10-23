@@ -160,7 +160,7 @@ uint64_t allocReserved(char** buf, uint64_t size2need)
     {
         sprintf(logbuf, "Error: Not enough memory for writing buffer.\n");
         logprintb();
-        exit(EXIT_FAILURE);
+        TERMINATE();
     }
     if(base>size2need) base=size2need;
     mem_left-=base/1048576;

@@ -16,7 +16,7 @@ namespace BFILE{
         {
             sprintf(logbuf, "Error: can not open the file %s to read.\n", famfile.c_str());
             logprintb();
-            exit(EXIT_FAILURE);
+           TERMINATE();
 
         }
         sprintf(logbuf, "Reading PLINK FAM file from %s .\n", famfile.c_str());
@@ -61,7 +61,7 @@ namespace BFILE{
             {
                 sprintf(logbuf, "Error: Duplicate individual ID found: \" %s \t %s \".\n", bdata->_fid[i].c_str(), bdata->_pid[i].c_str());
                 logprintb();
-                exit(EXIT_FAILURE);
+               TERMINATE();
             }
             size = bdata->_id_map.size();
         }
@@ -161,7 +161,7 @@ namespace BFILE{
         {
             sprintf(logbuf, "Error: can not open the file %s to read.\n", bimfile.c_str());
             logprintb();
-            exit(EXIT_FAILURE);
+           TERMINATE();
         }
         sprintf(logbuf, "Reading PLINK BIM file from %s .\n", bimfile.c_str());
         logprintb();
@@ -207,7 +207,7 @@ namespace BFILE{
             {
                 sprintf(logbuf, "Error: Duplicated SNP IDs found: %s .\n", bdata->_snp_name[i].c_str());
                 logprintb();
-                exit(EXIT_FAILURE);
+               TERMINATE();
             }
             size =  bdata->_snp_name_map.size();
         }
@@ -237,13 +237,13 @@ namespace BFILE{
         {
             sprintf(logbuf, "Error: No SNP is retained for analysis.\n");
             logprintb();
-            exit(EXIT_FAILURE);
+           TERMINATE();
         }
         if (bdata->_keep.size() == 0)
         {
             sprintf(logbuf, "Error: No individual is retained for analysis.\n");
             logprintb();
-            exit(EXIT_FAILURE);
+           TERMINATE();
         }
         
         // Read bed file
@@ -259,7 +259,7 @@ namespace BFILE{
         if (!BIT) {
             sprintf(logbuf, "Error: can not open the file %s to read.\n", bedfile.c_str());
             logprintb();
-            exit(EXIT_FAILURE);
+           TERMINATE();
         }
         sprintf(logbuf, "Reading PLINK BED file from  %s in SNP-major format ...\n", bedfile.c_str());
         logprintb();
@@ -276,7 +276,7 @@ namespace BFILE{
                 {
                     sprintf(logbuf, "Error: problem with the BED file ... has the FAM/BIM file been changed?\n" );
                     logprintb();
-                    exit(EXIT_FAILURE);
+                   TERMINATE();
                 }
                 b = ch[0];
                 k = 0;
@@ -305,7 +305,7 @@ namespace BFILE{
         if(!i_indi_list) {
             sprintf(logbuf, "Error: can not open the file %s to read.\n", indi_list_file.c_str());
             logprintb();
-            exit(EXIT_FAILURE);
+           TERMINATE();
         }
         string str_buf, id_buf;
         indi_list.clear();
@@ -421,7 +421,7 @@ namespace BFILE{
         {
             sprintf(logbuf, "Error: No SNP is retained for analysis.\n");
             logprintb();
-            exit(EXIT_FAILURE);
+           TERMINATE();
         }
         else{
             stable_sort(bdata->_include.begin(), bdata->_include.end());
@@ -431,6 +431,7 @@ namespace BFILE{
     }
     void make_XMat(bInfo* bdata,vector<uint32_t> &snpids, MatrixXd &X, bool minus_2p) {
         // Eigen is column-major by default. here row of X is individual, column of X is SNP.
+        if (minus_2p && bdata->_mu.empty()) calcu_mu(bdata);
         uint64_t snpNum=snpids.size();
         X.resize(bdata->_keep.size(),snpNum);
         #pragma omp parallel for
@@ -450,6 +451,35 @@ namespace BFILE{
             }
         }
     }
-
-
+    bool make_XMat(bInfo* bdata, int start, int slide_wind, MatrixXf &X, bool mu)
+    {
+        if (mu && bdata->_mu.empty()) calcu_mu(bdata);
+        
+        bool have_mis = false;
+        long  snpNum = 0;
+        if(bdata->_include.size()-start>slide_wind) snpNum=slide_wind;
+        else snpNum=bdata->_include.size()-start;
+        X.resize(bdata->_keep.size(), snpNum);
+        #pragma omp parallel for
+        for (int i = 0; i < snpNum ; i++)
+        {
+            int idx=start+i;
+            for (int j = 0; j < bdata->_keep.size() ; j++)
+            {
+                
+                if (!bdata->_snp_1[bdata->_include[idx]][bdata->_keep[j]] || bdata->_snp_2[bdata->_include[idx]][bdata->_keep[j]])
+                {
+                    if (bdata->_allele1[bdata->_include[idx]] == bdata->_ref_A[bdata->_include[idx]]) X(j,i)= bdata->_snp_1[bdata->_include[idx]][bdata->_keep[j]] + bdata->_snp_2[bdata->_include[idx]][bdata->_keep[j]];
+                    else X(j,i)= 2.0 - (bdata->_snp_1[bdata->_include[idx]][bdata->_keep[j]] + bdata->_snp_2[bdata->_include[idx]][bdata->_keep[j]]);
+                } else {
+                    if(mu) X(j,i) = bdata->_mu[bdata->_include[idx]];
+                    else X(j,i)=1e6;
+                    have_mis = true;
+                }
+            }
+        }
+        //cout<<"["<<start<<","<<(start+snpNum-1)<<"]"<<":"<<(have_mis?"havemiss":"nomiss")<<":"<<X.cols()<<":"<<X.rows()<<endl;
+        return have_mis;
+    }
+    
 }

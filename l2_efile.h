@@ -24,6 +24,7 @@ namespace EFILE {
         
         uint32_t _eType;
         // epi file
+        uint32_t autosome_num;
         uint32_t _epi_num;
         vector<int> _epi_chr;
         vector<string> _epi_prb;
@@ -160,6 +161,7 @@ namespace EFILE {
     void extract_probe(eInfo* einfo, string fromprbname, string toprbname);
     void extract_probe(eInfo* einfo, int fromprbkb, int toprbkb, int chr);
     void extract_probe_by_single_gene(eInfo* einfo, string genename);
+    void extract_probe(eInfo* einfo, int tsk_ttl, int tsk_id);
     void exclude_probe(eInfo* einfo, string problstName);
     void exclude_single_probe(eInfo* einfo, string prbname);
     void epi_man(eInfo* einfo,char* problstName,char* problst2exclde,char* genelistName, int chr,char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* probe2exclde);
@@ -187,9 +189,11 @@ namespace EFILE {
     void filtering_with_detpval(eInfo* einfo, char* dpvalfName, double dp_thresh, double prb_thresh, double spl_thresh,int mth, bool no_fid_flag);
     void filtering_with_missingratio(eInfo* einfo,double missratioprobe);
     void cal_var_mean(eInfo* einfo, bool mean_flag, bool var_flag);
+    void load_workspace(eInfo* einfo,char* efileName, char* befileName, bool transposed, int efileType,char* problstName,char* problst2exclde,char* genelistName, int chr,char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* probe2exclde,char* indilstName,char* indilst2remove, bool no_fid_flag,int valueType,bool beta2m,bool m2beta, double std_thresh,double upperBeta,double lowerBeta,char* dpvalfName, double dp_thresh, double prb_thresh, double spl_thresh, int filter_mth, double mssratio_prob, int autosome_num);
     
     void free_indilist(vector<indiinfolst> &a);
     void free_probelist(vector<probeinfolst> &a);
     void free_assoclist(vector<ASSOCRLT> &a);
+    
 }
 #endif /* defined(__osc__l2_efile__) */

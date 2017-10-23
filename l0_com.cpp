@@ -25,6 +25,7 @@ struct IncGenerator {
 void logstr(const char* ss) {
     if (!g_debug_on) {
         fputs(ss, logfile);
+        fflush(stdout);
         if (ferror(logfile)) {
             printf("\nWarning: Logging failure on:\n%s\nFurther logging will not be attempted in this run.\n", ss);
             g_log_failed = 1;
@@ -54,7 +55,13 @@ void logprintb() {
     logstr(logbuf);
     fputs(logbuf, stdout);
 }
-
+void TERMINATE() {
+    if(logfile) {
+        fflush(logfile);
+        fclose(logfile);
+    }
+    exit(EXIT_FAILURE);
+}
 void to_upper(char* str, int len)
 {
     int i=0;
@@ -227,18 +234,6 @@ int split_string(const string &str, vector<string> &vec_str, string separator)
     return (int)vec_str.size();
 }
 
-
-
-void getRank(vector<int> &a, vector<int> &b)
-{
-    b.resize(a.size());
-    for (long i = a.size()-1; i >= 0; i--)
-    {
-        int count = 0;
-        for (int j = 0; j < a.size(); j++) if (a[j] < a[i]) count++;
-        b[i] = count;
-    }
-}
 void get_bottom_indices(vector<int> &b, vector<double> &a, int num)
 {
     vector<double> c;
@@ -246,7 +241,7 @@ void get_bottom_indices(vector<int> &b, vector<double> &a, int num)
     if(asize==0)
     {
         LOGPRINTF("Error: no element found in the vector.\n");
-        exit(EXIT_FAILURE);
+        TERMINATE();
     }
    
     if(num>=asize)
@@ -325,7 +320,7 @@ void FileExist(char* filename)
     ifstream ifile(filename);
     if(!ifile){
         LOGPRINTF("Error: can not open the file %s to read.",filename);
-        exit(EXIT_FAILURE);
+        TERMINATE();
     }
 }
 bool FloatEqual(double lhs, double rhs)
@@ -383,3 +378,62 @@ void free2(char** to)
         *to=NULL;
     }
 }
+void removeRow(MatrixXd &matrix, unsigned int rowToRemove)
+{
+    unsigned long numRows = matrix.rows()-1;
+    unsigned long numCols = matrix.cols();
+    
+    if( rowToRemove < numRows )
+        matrix.block(rowToRemove,0,numRows-rowToRemove,numCols) = matrix.block(rowToRemove+1,0,numRows-rowToRemove,numCols);
+    
+    matrix.conservativeResize(numRows,numCols);
+}
+
+void removeColumn(MatrixXd &matrix, unsigned int colToRemove)
+{
+    unsigned long numRows = matrix.rows();
+    unsigned long numCols = matrix.cols()-1;
+    
+    if( colToRemove < numCols )
+        matrix.block(0,colToRemove,numRows,numCols-colToRemove) = matrix.block(0,colToRemove+1,numRows,numCols-colToRemove);
+    
+    matrix.conservativeResize(numRows,numCols);
+}
+void removeRow(MatrixXf &matrix, unsigned int rowToRemove)
+{
+    unsigned long numRows = matrix.rows()-1;
+    unsigned long numCols = matrix.cols();
+    
+    if( rowToRemove < numRows )
+        matrix.block(rowToRemove,0,numRows-rowToRemove,numCols) = matrix.block(rowToRemove+1,0,numRows-rowToRemove,numCols);
+    
+    matrix.conservativeResize(numRows,numCols);
+}
+
+void removeColumn(MatrixXf &matrix, unsigned int colToRemove)
+{
+    unsigned long numRows = matrix.rows();
+    unsigned long numCols = matrix.cols()-1;
+    
+    if( colToRemove < numCols )
+        matrix.block(0,colToRemove,numRows,numCols-colToRemove) = matrix.block(0,colToRemove+1,numRows,numCols-colToRemove);
+    
+    matrix.conservativeResize(numRows,numCols);
+}
+
+void inverse_V(MatrixXd &Vi, bool &determinant_zero)
+{
+    SelfAdjointEigenSolver<MatrixXd> eigensolver(Vi);
+    VectorXd eval = eigensolver.eigenvalues();
+    for(int i=0;i<eval.size();i++)
+    {
+        if(abs(eval(i))<1e-6) {
+            determinant_zero=true;
+            eval(i)=0;
+        } else {
+            eval(i) = 1.0 / eval(i);
+        }
+    }
+    Vi = eigensolver.eigenvectors() * DiagonalMatrix<double, Dynamic, Dynamic>(eval) * eigensolver.eigenvectors().transpose();
+}
+

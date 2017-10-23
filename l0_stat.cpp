@@ -72,7 +72,7 @@ double betai(double a, double b, double x)
     {
         sprintf(logbuf, "Bad x in routine betai!.\n");
         logprintb();
-        exit(EXIT_FAILURE);
+        TERMINATE();
     }
     if(x == 0.0 || x == 1.0) bt=0.0;
     else bt=exp(gammln(a+b)-gammln(a)-gammln(b)+a*log(x)+b*log(1.0-x));
@@ -81,6 +81,9 @@ double betai(double a, double b, double x)
     else return 1.0-bt*betacf(b,a,1.0-x)/b;
 }
 
+double F_prob(double df_1, double df_2, double F_value) {
+    return betai(df_2 * 0.5, df_1 * 0.5, df_2 / (df_2 + df_1 * F_value));
+}
 
 double t_prob(double df, double t_value, bool two_tail)
 {

@@ -73,6 +73,7 @@ extern uintptr_t wkspace_left;
 
 
 extern void logprintb();
+extern void TERMINATE();
 extern void to_upper(char* str, int len);
 extern void to_upper(string &str);
 extern void to_lower(string &str);
@@ -84,6 +85,14 @@ extern string dtos(double value);
 template <typename T>
 extern inline string atos (T const& a)
 {
+    stringstream ss;
+    ss << a;
+    return(ss.str());
+}
+template <typename T>
+extern inline string atosm (T const& a)
+{
+    if(a==-9) return("NA");
     stringstream ss;
     ss << a;
     return(ss.str());
@@ -102,7 +111,18 @@ static inline int32_t fputs_checked(const char* ss, FILE* outfile) {
 extern void split_str(char* tbuf, vector<string> &strs, uint32_t skip);
 extern uint64_t split_string_skip(const string &str, vector<string> &vec_str, string separator, int num2skip);
 extern int split_string(const string &str, vector<string> &vec_str, string separator=" ,\t;\n");
-extern void getRank(vector<int> &a, vector<int> &b);
+template <typename T>
+extern void getRank(vector<T> &a, vector<T> &b)
+{
+    b.resize(a.size());
+    //#pragma omp parallel for
+    for (long i = a.size()-1; i >= 0; i--)
+    {
+        int count = 0;
+        for (int j = 0; j < a.size(); j++) if (a[j] < a[i]) count++;
+        b[i] = count;
+    }
+}
 extern void getUnique(vector<int> &a);
 extern void strarr2strvec(const char **a, int sizea, vector<string> &b);
 extern void match(const vector<string> &VecA, const vector<string> &VecB, vector<int> &VecC);
@@ -114,4 +134,9 @@ extern double var(const vector<double> &x);
 extern void get_bottom_indices(vector<int> &b, vector<double> &a, int num);
 extern void strcpy2(char** to, string from);
 extern void free2(char** to);
+extern void removeRow(MatrixXd &matrix, unsigned int rowToRemove);
+extern void removeColumn(MatrixXd &matrix, unsigned int colToRemove);
+extern void removeRow(MatrixXf &matrix, unsigned int rowToRemove);
+extern void removeColumn(MatrixXf &matrix, unsigned int colToRemove);
+extern void inverse_V(MatrixXd &Vi, bool &determinant_zero);
 #endif /* defined(__osc__l0_com__) */

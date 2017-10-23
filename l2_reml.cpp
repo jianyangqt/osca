@@ -290,7 +290,7 @@ void calcu_Hi(eInfo* einfo, MatrixXd &P, MatrixXd &Hi, vector<MatrixXd> &_A)
             cout << "Warning: the information matrix is not invertible." << endl;
             einfo->_reml_AI_not_invertible = true;
         }
-        else {LOGPRINTF("Error: the information matrix is not invertible."); exit(EXIT_FAILURE);}
+        else {LOGPRINTF("Error: the information matrix is not invertible."); TERMINATE();}
     }
 }
 
@@ -300,7 +300,7 @@ double calcu_P(MatrixXd &Vi, MatrixXd &Vi_X, MatrixXd &Xt_Vi_X_i, MatrixXd &P, M
     Vi_X = Vi*_X;
     Xt_Vi_X_i = _X.transpose() * Vi_X;
     double logdet_Xt_Vi_X = 0.0;
-    if(!comput_inverse_logdet_LU(Xt_Vi_X_i, logdet_Xt_Vi_X)) {LOGPRINTF("\nError: the X^t * V^-1 * X matrix is not invertible. Please check the covariate(s) and/or the environmental factor(s)."); exit(EXIT_FAILURE);}
+    if(!comput_inverse_logdet_LU(Xt_Vi_X_i, logdet_Xt_Vi_X)) {LOGPRINTF("\nError: the X^t * V^-1 * X matrix is not invertible. Please check the covariate(s) and/or the environmental factor(s)."); TERMINATE();}
     P = Vi - Vi_X * Xt_Vi_X_i * Vi_X.transpose();
     return logdet_Xt_Vi_X;
 }
@@ -416,7 +416,7 @@ void ai_reml(eInfo* einfo, MatrixXd &P, MatrixXd &Hi, VectorXd &Py, VectorXd &pr
             einfo->_reml_AI_not_invertible = true;
             return;
         }
-        else { LOGPRINTF("Error: the information matrix is not invertible."); exit(EXIT_FAILURE);}
+        else { LOGPRINTF("Error: the information matrix is not invertible."); TERMINATE();}
     }
     
     VectorXd delta(einfo->_r_indx.size());
@@ -534,14 +534,14 @@ double reml_iteration(eInfo* einfo, MatrixXd &Vi_X, MatrixXd &Xt_Vi_X_i, MatrixX
             }
             else {
                 einfo->_reml_mtd = 2;
-                cout << "Calculating prior values of variance components by EM-REML ..." << endl;
+                LOGPRINTF("Calculating prior values of variance components by EM-REML ...\n");
             }
         }
         if (iter == 1) {
             einfo->_reml_mtd = reml_mtd_tmp;
-            cout << "Running " << mtd_str[einfo->_reml_mtd] << " algorithm ..." << "\nIter.\tlogL\t";
-            for (i = 0; i < einfo->_r_indx.size(); i++) cout << einfo->_var_name[einfo->_r_indx[i]] << "\t";
-            cout << endl;
+            LOGPRINTF("Running %s algorithm ...\nIter.\tlogL\t",mtd_str[einfo->_reml_mtd]);
+            for (i = 0; i < einfo->_r_indx.size(); i++) {LOGPRINTF("%s\t",einfo->_var_name[einfo->_r_indx[i]].c_str())};
+            LOGPRINTF("\n");
         }
         if (einfo->_bivar_reml) calcu_Vi_bivar(einfo, _Vi, prev_varcmp, logdet, iter); // Calculate Vi, bivariate analysis
         else if (einfo->_within_family) calcu_Vi_within_family(einfo, _Vi, prev_varcmp, logdet, iter); // within-family REML
@@ -549,7 +549,7 @@ double reml_iteration(eInfo* einfo, MatrixXd &Vi_X, MatrixXd &Xt_Vi_X_i, MatrixX
             if (!calcu_Vi(einfo, _Vi, prev_varcmp, logdet, iter, _A )){ // Calculate Vi
                 cout<<"Warning: V matrix is not positive-definite.\n";
                 varcmp = prev_prev_varcmp;
-                if(!calcu_Vi(einfo, _Vi, varcmp, logdet, iter,_A)) {LOGPRINTF("Error: V matrix is not positive-definite."); exit(EXIT_FAILURE);}
+                if(!calcu_Vi(einfo, _Vi, varcmp, logdet, iter,_A)) {LOGPRINTF("Error: V matrix is not positive-definite."); TERMINATE();}
                 calcu_Hi(einfo, einfo->_P, Hi,_A);
                 Hi = 2 * Hi;
                 break;
@@ -567,13 +567,24 @@ double reml_iteration(eInfo* einfo, MatrixXd &Vi_X, MatrixXd &Xt_Vi_X_i, MatrixX
         if (!no_constrain) constrain_num = constrain_varcmp(einfo, varcmp);
         if (einfo->_bivar_reml && !einfo->_bivar_no_constrain) constrain_rg(einfo, varcmp);
         if (iter > 0) {
-            cout << iter << "\t" << setiosflags(ios::fixed) << setprecision(2) << lgL << "\t";
-            for (i = 0; i < einfo->_r_indx.size(); i++) cout << setprecision(5) << varcmp[i] << "\t";
-            if (constrain_num > 0) cout << "(" << constrain_num << " component(s) constrained)" << endl;
-            else cout << endl;
+            //cout << iter << "\t" << setiosflags(ios::fixed) << setprecision(2) << lgL << "\t";
+            LOGPRINTF("%d\t%.2f\t",iter,lgL);
+            for (i = 0; i < einfo->_r_indx.size(); i++) {LOGPRINTF("%.5f\t",varcmp[i]); }//cout << setprecision(5) << varcmp[i] << "\t";
+            if (constrain_num > 0) {
+                LOGPRINTF("(%d component(s) constrained)\n",constrain_num);
+            } else {
+                LOGPRINTF("\n");
+            }
         } else {
-            if (!prior_var_flag) cout << "Updated prior values: " << varcmp.transpose() << endl;
-            cout << "logL: " << lgL << endl;
+            if (!prior_var_flag) //cout << "Updated prior values: " << varcmp.transpose() << endl;
+            {
+                LOGPRINTF("Updated prior values: ");
+                for(int k=0;k<varcmp.size();k++) {
+                    LOGPRINTF("%f\t",varcmp(k));
+                }
+                LOGPRINTF("\n");
+            }
+            LOGPRINTF("logL: %.3f\n", lgL);
             //if(_reml_max_iter==1) cout<<"logL: "<<lgL<<endl;
         }
         if(einfo->_reml_fixed_var){
@@ -581,7 +592,7 @@ double reml_iteration(eInfo* einfo, MatrixXd &Vi_X, MatrixXd &Xt_Vi_X_i, MatrixX
             break;
         }
         if (constrain_num * 2 > einfo->_r_indx.size()) { LOGPRINTF("Error: analysis stopped because more than half of the variance components are constrained. The result would be unreliable.\n Please have a try to add the option --reml-no-constrain.\n");
-            exit(EXIT_FAILURE);
+            TERMINATE();
         }
         // added by Jian Yang on 22 Oct 2014
         //if (constrain_num == _r_indx.size()) throw ("Error: analysis stopped because all variance components are constrained. You may have a try of adding the option --reml-no-constrain.");
@@ -608,15 +619,21 @@ double reml_iteration(eInfo* einfo, MatrixXd &Vi_X, MatrixXd &Xt_Vi_X_i, MatrixX
         prev_lgL = lgL;
     }
     
-    if(einfo->_reml_fixed_var) cout << "Warning: the model is evaluated at fixed variance components. The likelihood might not be maximised." <<endl;
+    if(einfo->_reml_fixed_var) {
+        LOGPRINTF("Warning: the model is evaluated at fixed variance components. The likelihood might not be maximised.\n");
+    }
     else {
-        if(converged_flag) cout << "Log-likelihood ratio converged." << endl;
+        if(converged_flag) {
+            LOGPRINTF( "Log-likelihood ratio converged.\n" );
+        }
         else {
-            if(einfo->_reml_force_converge || einfo->_reml_no_converge) cout << "Warning: Log-likelihood not converged. Results are not reliable." <<endl;
+            if(einfo->_reml_force_converge || einfo->_reml_no_converge) {
+                LOGPRINTF( "Warning: Log-likelihood not converged. Results are not reliable.\n" );
+            }
             else if(iter == einfo->_reml_max_iter){
                 if (einfo->_reml_max_iter > 1) {
                     LOGPRINTF("Error: Log-likelihood not converged (stop after %d iteractions). \nYou can specify the option --reml-maxit to allow for more iterations.\n",einfo->_reml_max_iter);
-                    exit(EXIT_FAILURE);
+                    TERMINATE();
                 }
             }
         }
@@ -815,21 +832,21 @@ void reml( eInfo* einfo, bool pred_rand_eff, bool est_fix_eff, vector<double> &r
     VectorXd y_tmp = _y.array() - _y.mean();
     if (!einfo->_bivar_reml) {
         einfo->_y_Ssq = y_tmp.squaredNorm() / (_n - 1.0);
-        if (!(fabs(einfo->_y_Ssq) < 1e30)) {LOGPRINTF ("Error: the phenotypic variance is infinite. Please check the missing data in your phenotype file. Missing values should be represented by \"NA\" or \"-9\"."); exit(EXIT_FAILURE);}
+        if (!(fabs(einfo->_y_Ssq) < 1e30)) {LOGPRINTF ("Error: the phenotypic variance is infinite. Please check the missing data in your phenotype file. Missing values should be represented by \"NA\" or \"-9\"."); TERMINATE();}
     }
     bool reml_priors_flag = !reml_priors.empty(), reml_priors_var_flag = !reml_priors_var.empty();
     if (reml_priors_flag && reml_priors.size() < einfo->_r_indx.size() - 1) {
-        LOGPRINTF ("Error: in option --reml-priors. There are %ld variance components. At least %ld prior values should be specified.\n", einfo->_r_indx.size(),einfo->_r_indx.size() - 1 );
-        exit(EXIT_FAILURE);
+        LOGPRINTF("Error: in option --reml-priors. There are %ld variance components. At least %ld prior values should be specified.\n", einfo->_r_indx.size(),einfo->_r_indx.size() - 1 );
+        TERMINATE();
     }
     if (reml_priors_var_flag && reml_priors_var.size() < einfo->_r_indx.size() - 1) {
-         LOGPRINTF ("Error: in option --reml-priors-var. There are %ld variance components. At least %ld prior values should be specified.\n", einfo->_r_indx.size(),einfo->_r_indx.size() - 1 );
-        exit(EXIT_FAILURE);
+         LOGPRINTF("Error: in option --reml-priors-var. There are %ld variance components. At least %ld prior values should be specified.\n", einfo->_r_indx.size(),einfo->_r_indx.size() - 1 );
+        TERMINATE();
     }
     
-    cout << "\nPerforming " << (einfo->_bivar_reml ? "bivariate" : "") << " REML analysis ... (Note: may take hours depending on sample size)." << endl;
+    LOGPRINTF("\nPerforming %s REML analysis ... (Note: may take hours depending on sample size).\n",(einfo->_bivar_reml ? "bivariate" : ""));
     if (_n < 10) {LOGPRINTF ("Error: sample size is too small.");exit(EXIT_FAILURE);}
-    cout << _n << " observations, " << _X_c << " fixed effect(s), and " << einfo->_r_indx.size() << " variance component(s)(including residual variance)." << endl;
+    LOGPRINTF("%d observations, %d fixed effect(s), and %ld variance component(s)(including residual variance).\n",_n,_X_c,einfo->_r_indx.size());
     MatrixXd Vi_X(_n, _X_c), Xt_Vi_X_i(_X_c, _X_c), Hi(einfo->_r_indx.size(), einfo->_r_indx.size());
     VectorXd Py(_n), varcmp;
     init_varcomp(einfo,reml_priors_var, reml_priors, varcmp);
@@ -921,12 +938,12 @@ void reml( eInfo* einfo, bool pred_rand_eff, bool est_fix_eff, vector<double> &r
         }
     }
     if (est_fix_eff) {
-        cout << "Estimate" << (_X_c > 1 ? "s" : "") << "of fixed effect" << (_X_c > 1 ? "s" : "") << ":" << endl;
-        cout << "\nSource\tEstimate\tSE" << endl;
+        LOGPRINTF("Estimate of fixed effect %s:\n",(_X_c > 1 ? "s" : ""))
+        LOGPRINTF("\nSource\tEstimate\tSE\n");
         for (i = 0; i < _X_c; i++) {
-            if (i == 0) cout << "mean\t";
-            else cout << "X_" << i + 1 << "\t";
-            cout << setiosflags(ios::fixed) << einfo->_b[i] << "\t" << sqrt(Xt_Vi_X_i(i, i)) << endl;
+            if (i == 0){ LOGPRINTF("mean\t");}
+            else { LOGPRINTF( "X_%d\t", i+1);}
+            LOGPRINTF("%f\t%f\n", einfo->_b[i] , sqrt(Xt_Vi_X_i(i, i)));
         }
     }
     
@@ -1006,8 +1023,14 @@ void coeff_mat(const vector<string> &vec, MatrixXd &coeff_mat, string errmsg1, s
     vector<string> value(vec);
     stable_sort(value.begin(), value.end());
     value.erase(unique(value.begin(), value.end()), value.end());
-    if (value.size() > 0.5 * vec.size()) throw (errmsg1); // throw("Error: too many classes for the envronmental factor. \nPlease make sure you input a discrete variable as the environmental factor.");
-    if (value.size() == 1) throw (errmsg2); //throw("Error: the envronmental factor should has more than one classes.");
+    if (value.size() > 0.5 * vec.size()) {
+        printf("%s\n",errmsg1.c_str());
+        exit(EXIT_FAILURE);
+    } // throw("Error: too many classes for the envronmental factor. \nPlease make sure you input a discrete variable as the environmental factor.");
+    if (value.size() == 1) {
+        printf("%s\n",errmsg2.c_str());
+        exit(EXIT_FAILURE);
+    } //throw("Error: the envronmental factor should has more than one classes.");
     
     int i = 0, j = 0, row_num = vec.size(), column_num = value.size();
     map<string, int> val_map;
@@ -1038,7 +1061,7 @@ int construct_X(eInfo* einfo, vector<MatrixXd> &E_float, MatrixXd &qE_float, Mat
         for (i = 0; i < n; i++) {
             for (j = 0; j < einfo->_eii_qcov_num; j++) X_q(i, j) = einfo->_eii_qcov[j*einfo->_eii_num+einfo->_eii_include[i]];
         }
-        cout << einfo->_eii_qcov_num << " quantitative variable(s) included as covariate(s)." << endl;
+        LOGPRINTF("%d quantitative variable(s) included as covariate(s).\n",einfo->_eii_qcov_num);
         _X_c += einfo->_eii_qcov_num;
     }
 
@@ -1050,7 +1073,7 @@ int construct_X(eInfo* einfo, vector<MatrixXd> &E_float, MatrixXd &qE_float, Mat
         for (i = 0; i < n; i++) {
             for (j = 0; j < einfo->_eii_cov_num; j++) covar_tmp[j][i] = einfo->_eii_cov[j*einfo->_eii_num+einfo->_eii_include[i]];
         }
-        
+        LOGPRINTF("%d discrete variable(s) included as covariate(s).\n",einfo->_eii_cov_num);
         X_d.resize(einfo->_eii_cov_num);
         for (i = 0; i < einfo->_eii_cov_num; i++) {
             stringstream errmsg;
@@ -1088,13 +1111,12 @@ int construct_X(eInfo* einfo, vector<MatrixXd> &E_float, MatrixXd &qE_float, Mat
         _X.block(0, col, n, (E_float[i]).cols() - 1) = (E_float[i]).block(0, 1, n, (E_float[i]).cols() - 1);
         col += (E_float[i]).cols() - 1;
     }
-    
     return _X_c;
 }
 
 void detect_family(eInfo* einfo,  vector<MatrixXd> &_A)
     {
-        cout<<"Detecting sub-matrix for each family from the ERM ..."<<endl;
+        cout<<"Detecting sub-matrix for each family from the ORM ..."<<endl;
         int _n=(int)einfo->_eii_include.size();
         int i=0, j=0, k=0, l=0, prev_pnt=0;
         double d_buf1=0.0, d_buf2=0.0;
@@ -1154,7 +1176,7 @@ void mlma_calcu_stat_covar(VectorXd &_Y, double *predictor, unsigned long n, uns
         beta.resize(m);
         se=VectorXd::Zero(m);
         pval=VectorXd::Constant(m,2);
-        cout<<"\nRunning association tests for "<<m<<" probes ..."<<endl;
+        LOGPRINTF("\nRunning association tests for %ld probes ...\n",m);
         
         
         for(int i = 0; i < m; i++ ){
@@ -1197,7 +1219,7 @@ void mlma_calcu_stat_covar(VectorXd &_Y, eInfo* einfo, int _X_c,  MatrixXd &_Vi,
         beta.resize(m);
         se=VectorXd::Zero(m);
         pval=VectorXd::Constant(m,2);
-        cout<<"\nRunning association tests for "<<m<<" probes ..."<<endl;
+        LOGPRINTF("\nRunning association tests for %llu probes ...\n",m);
      
        
         for(int i = 0; i < m; i++ ){
@@ -1250,7 +1272,7 @@ void mlma_calcu_stat(VectorXd &_Y, eInfo* einfo, MatrixXd &_Vi, VectorXd &beta, 
         beta.resize(m);
         se=VectorXd::Zero(m);
         pval=VectorXd::Constant(m,2);
-        cout<<"\nRunning association tests for "<<m<<" probes ..."<<endl;
+        LOGPRINTF("\nRunning association tests for %llu probes ...\n",m);
         
         for(int i = 0; i < m; i++){
             double nonmiss=0.0;
@@ -1294,7 +1316,7 @@ void mlma_calcu_stat(VectorXd &_Y, eInfo* einfo, MatrixXd &_Vi, VectorXd &beta, 
         beta.resize(m);
         se=VectorXd::Zero(m);
         pval=VectorXd::Constant(m,2);
-        cout<<"\nRunning association tests for "<<m<<" probes ..."<<endl;
+        LOGPRINTF("\nRunning association tests for %ld probes ...\n",m);
         
         for(int i = 0; i < m; i++){
             for(int j = 0; j < n; j++) X(j) = predictor[j*m+i];
@@ -1352,14 +1374,14 @@ void mlma_calcu_stat(VectorXd &_Y, eInfo* einfo, MatrixXd &_Vi, VectorXd &beta, 
         ofstream o_b_snp(o_b_snp_file.c_str());
         if (!o_b_snp) throw ("Error: can not open the file " + o_b_snp_file + " to write.");
         long col_num = b_probe.cols();
-        cout << "Writing BLUP solutions of SNP effects for " << einfo->_epi_include.size() << " SNPs to [" + o_b_snp_file + "]." << endl;
+        cout << "Writing BLUP solutions of probe effects for " << einfo->_epi_include.size() << " probes to [" + o_b_snp_file + "]." << endl;
         for (int i = 0; i < einfo->_epi_include.size(); i++) {
             o_b_snp << einfo->_epi_prb[einfo->_epi_include[i]] << "\t" ;
-            for (int j = 0; j < col_num; j++) o_b_snp << b_probe(i, j) << "\t";
+            for (int j = 0; j < 1; j++) o_b_snp << b_probe(i, j) << "\t"; // not output the residual effect
             o_b_snp << endl;
         }
         o_b_snp.close();
-        cout << "BLUP solutions of SNP effects for " << einfo->_epi_include.size() << " SNPs have been saved in the file [" + o_b_snp_file + "]." << endl;
+        cout << "BLUP solutions of probe effects for " << einfo->_epi_include.size() << " probes have been saved in the file [" + o_b_snp_file + "]." << endl;
     }
     
     

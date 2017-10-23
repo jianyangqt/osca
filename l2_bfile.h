@@ -10,6 +10,7 @@
 #define __osc__l2_bfile__
 
 #include "l1_op_geno.h"
+#include "l2_efile.h"
 
 namespace BFILE{
 
@@ -57,12 +58,17 @@ namespace BFILE{
         vector<double> _mu;
     } bInfo;
     
+    void keep_indi(bInfo* bdata,string indi_list_file);
     void remove_indi(bInfo* bdata, string indi_list_file);
     void extract_snp(bInfo* bdata,string snplistfile);
     void exclude_snp(bInfo* bdata,string snplistfile);
     void calcu_mu(bInfo* bdata, bool ssq_flag=false);
     void make_XMat(bInfo* bdata,vector<uint32_t> &snpids, MatrixXd &X, bool minus_2p = false);
-     
+    bool make_XMat(bInfo* bdata, int start, int slide_wind, MatrixXf &X, bool mu=false);
+    void read_famfile(bInfo* bdata, string famfile);
+    void read_bimfile(bInfo* bdata,string bimfile);
+    void read_bedfile(bInfo* bdata, string bedfile);
+    void filter_snp_maf(bInfo* bdata,double maf);
 }
 
 #endif /* defined(__osc__l2_bfile__) */

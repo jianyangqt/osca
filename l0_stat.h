@@ -13,6 +13,7 @@
 #include "l0_com.h"
 
 double t_prob(double df, double t_value, bool two_tail);
+double F_prob(double df_1, double df_2, double F_value);
 double pchisq(double x, double df);
 double median(vector<double> vec);
 double pnorm(double x);

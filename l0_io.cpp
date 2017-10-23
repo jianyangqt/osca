@@ -17,12 +17,12 @@ void read_msglist(string msglistfile, vector<string> &msglist, string msg)
     ifstream i_msglist(msglistfile.c_str());
     if(!i_msglist)
     {
-        sprintf(logbuf, "Error: can not open the file %s to read.\n", msglistfile.c_str());
-        logprintb();
-        exit(EXIT_FAILURE);
+        
+        LOGPRINTF("Error: can not open the file %s to read.\n",msglistfile.c_str());
+        TERMINATE();
     }
-    sprintf(logbuf, "Reading a list of %s from %s .\n", msg.c_str() ,msglistfile.c_str());
-    logprintb();   
+    LOGPRINTF( "Reading a list of %s from %s .\n", msg.c_str() ,msglistfile.c_str());
+  
     while(i_msglist>>StrBuf){
         msglist.push_back(StrBuf);
         getline(i_msglist, StrBuf);
@@ -77,7 +77,7 @@ void read_indi_list(string indi_list_file, vector<string> &indi_list)
     if(!i_indi_list)
     {
         LOGPRINTF("ERROR: can not open the file %s to read.\n", indi_list_file.c_str());
-        exit(EXIT_FAILURE);
+        TERMINATE();
     }
     string str_buf, id_buf;
     indi_list.clear();
@@ -95,14 +95,14 @@ void read_indi_list(string indi_list_file, vector<string> &indi_list)
 void write_msglist(char* outFileName, vector<string> &msg)
 {
     FILE* efile=NULL;
-    if(fopen_checked(&efile, outFileName,"w")) exit(EXIT_FAILURE);
+    if(fopen_checked(&efile, outFileName,"w")) TERMINATE();
     
     for (int i = 0; i <msg.size(); i++) {
         string str=msg[i]+'\n';
         if(fputs_checked(str.c_str(),efile))
         {
             LOGPRINTF("ERROR: in writing file %s .\n", outFileName);
-            exit(EXIT_FAILURE);
+            TERMINATE();
         }
     }
     fclose(efile);
