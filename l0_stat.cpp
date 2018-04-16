@@ -111,6 +111,28 @@ double pchisq(double x, double df) {
     // Return p-value
     return q;
 }
+// q is not good to be less than 1e-161
+double qchisq(double q, double df) {
+    if (q < 0) return -9;
+    else if (q >= 1) return 0;
+    
+    double x;
+    double p = 1 - q;
+    int st = 0; // error variable
+    int w = 2; // function variable
+    double bnd = 1; // boundary function
+    
+    // NCP is set to 0
+    cdfchi(&w, &p, &q, &x, &df, &st, &bnd);
+    
+    // Check status
+    if (st != 0) return -9;
+    
+    // Return p-value
+    return x;
+}
+
+
 double median(vector<double> vec)
 {
     // Computes approxiamte median of elements in a vector

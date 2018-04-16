@@ -65,7 +65,7 @@ MatrixXd reg(vector<double> &y, vector<double> &x, vector<double> &rst, bool tab
     return(reg_sum);
 }
 
-void lin(VectorXd &y, MatrixXd &C, VectorXd &x, vector<double> &rst)
+bool lin(VectorXd &y, MatrixXd &C, VectorXd &x, vector<double> &rst)
 {
     long N=y.size();
     if(N!=x.size() || N<1) {
@@ -97,7 +97,35 @@ void lin(VectorXd &y, MatrixXd &C, VectorXd &x, vector<double> &rst)
     //double p=t_prob(Y.size()-2.0, fabs(t(x_idx)), true);
     rst.clear();
     rst.push_back(b_hat(x_idx)); rst.push_back(se(x_idx)); rst.push_back(p);
+    return determinant_zero;
 }
+void lin2(VectorXd &y, MatrixXd &X, vector<double> &rst) // the last column of X is x, other columns are covariates
+{
+    long N=y.size();
+    
+    if(N!=X.rows() || N<1) {
+        LOGPRINTF("Error: The row number of C and the length of y do not match.\n");
+        TERMINATE();
+    }
+    
+    long x_idx=X.cols()-1;
+    MatrixXd XtX_i;
+    XtX_i=X.transpose()*X;
+    bool determinant_zero=false;
+    inverse_V(XtX_i, determinant_zero);
+    VectorXd b_hat=XtX_i*X.transpose()*y;
+    VectorXd residual=(y-X*b_hat);
+    residual=residual.array()*residual.array();
+    double sy=sqrt(residual.sum()/(y.size()-X.cols()));
+    VectorXd se=sy*XtX_i.diagonal().array().sqrt();
+    VectorXd t=b_hat.array()/se.array();
+    double z=t(x_idx)*t(x_idx);
+    double p=pchisq(z,1);
+    //double p=t_prob(Y.size()-2.0, fabs(t(x_idx)), true);
+    rst.clear();
+    rst.push_back(b_hat(x_idx)); rst.push_back(se(x_idx)); rst.push_back(p);
+}
+
 void cov(MatrixXd &mat, MatrixXd &covar)
 {
     MatrixXd centered = mat.rowwise() - mat.colwise().mean();
@@ -132,7 +160,7 @@ double mean( vector<double> &x)
     return x_mu ;
 }
 
-int bartlett(vector<double> &y,vector<double> &x, vector<double> &rst) //norm: rutrun 1; k=1 return -1; n[i]=1 return -2; N=k return -3
+int bartlett(vector<double> &y,vector<double> &x, vector<double> &rst, double freq) //norm: rutrun 1; k=1 return -1; n[i]=1 return -2; N=k return -3
 {
     int N=(int)y.size();
     vector<int> cat(N);
@@ -142,10 +170,11 @@ int bartlett(vector<double> &y,vector<double> &x, vector<double> &rst) //norm: r
     int k=(int)cat.size();
     if(k==1) return -1;
     vector<int> n(k);
-    vector<double> sigmai(k);
+    vector<double> sigmai(k),catd(k);
     for(int i=0;i<k;i++) {
         n[i]=0;
         int category=cat[i];
+        catd[i]=(double)cat[i];
         vector<double> tmp;
         for(int j=0;j<N;j++) if((int)x[j]==category) {n[i]++; tmp.push_back(y[j]);}
         sigmai[i]=var(tmp);
@@ -163,14 +192,22 @@ int bartlett(vector<double> &y,vector<double> &x, vector<double> &rst) //norm: r
     b=1+ (1.0/(3*(k-1)))*(b-1.0/(N-k));
     double z2=a/b;
     double p=pchisq(z2, k-1);
-    rst.push_back(z2);
-    rst.push_back(k-1);
+    
+    double zest=sqrt(qchisq(p,1));
+    double domin=sqrt(2*freq*(1-freq)*(N+zest*zest)); //can't be zero here
+    double best=zest/domin;
+    double seest=1/domin;
+    reg(sigmai,catd,rst);
+    if(rst[0]<0) best *= -1.0; //updated by futao.zhang 20180321
+    rst.clear();
+    rst.push_back(best);
+    rst.push_back(seest);
     rst.push_back(p);
     
     return 1;
 }
 
-int leveneTest_mean(vector<double> &y,vector<double> &x, vector<double> &rst) //norm: rutrun 1; k=1 return -1;
+int leveneTest_mean(vector<double> &y,vector<double> &x, vector<double> &rst,double freq) //norm: rutrun 1; k=1 return -1;
 {
     int N=(int)y.size();
     vector<int> cat(N);
@@ -180,6 +217,7 @@ int leveneTest_mean(vector<double> &y,vector<double> &x, vector<double> &rst) //
     int k=(int)cat.size();
     if(k==1) return -1;
     vector<int> n(k);
+    vector<double> sigmai(k),catd(k);
     vector<double> ymean(k);
     vector<int> idx;
     vector<double> tmp;
@@ -189,7 +227,9 @@ int leveneTest_mean(vector<double> &y,vector<double> &x, vector<double> &rst) //
         tmp.clear();
         n[i]=0;
         int category=cat[i];
+        catd[i]=(double)cat[i];
         for(int j=0;j<N;j++) if((int)x[j]==category) { n[i]++; idx.push_back(j); tmp.push_back(y[j]);}
+        sigmai[i]=var(tmp);
         ymean[i]=mean(tmp);
         double zit=0.0;
         for(int j=0;j<idx.size();j++) {
@@ -211,13 +251,20 @@ int leveneTest_mean(vector<double> &y,vector<double> &x, vector<double> &rst) //
     int df1=k-1;
     int df2=N-k;
     double p=F_prob(df1,df2,stat);
-    rst.push_back(stat);
-    rst.push_back(df1);
-    rst.push_back(df2);
+    
+    double zest=sqrt(qchisq(p,1));
+    double domin=sqrt(2*freq*(1-freq)*(N+zest*zest));
+    double best=zest/domin;
+    double seest=1/domin;
+    reg(sigmai,catd,rst);
+    if(rst[0]<0) best *= -1.0; //updated by futao.zhang 20180321
+    rst.clear();
+    rst.push_back(best);
+    rst.push_back(seest);
     rst.push_back(p);
     return 1;
 }
-int leveneTest_median(vector<double> &y,vector<double> &x, vector<double> &rst) //norm: rutrun 1; k=1 return -1;
+int leveneTest_median(vector<double> &y,vector<double> &x, vector<double> &rst,double freq) //norm: rutrun 1; k=1 return -1;
 {
     // a little different with the R when the individual number is even.
     //in R, the mean of the middle two is taken as the median
@@ -229,6 +276,7 @@ int leveneTest_median(vector<double> &y,vector<double> &x, vector<double> &rst) 
     int k=(int)cat.size();
     if(k==1) return -1;
     vector<int> n(k);
+    vector<double> sigmai(k),catd(k);
     vector<double> ymedian(k);
     vector<int> idx;
     vector<double> tmp;
@@ -238,7 +286,9 @@ int leveneTest_median(vector<double> &y,vector<double> &x, vector<double> &rst) 
         tmp.clear();
         n[i]=0;
         int category=cat[i];
+        catd[i]=(double)cat[i];
         for(int j=0;j<N;j++) if((int)x[j]==category) { n[i]++; idx.push_back(j); tmp.push_back(y[j]);}
+        sigmai[i]=var(tmp);
         ymedian[i]=median(tmp);
         double zit=0.0;
         for(int j=0;j<idx.size();j++) {
@@ -260,13 +310,20 @@ int leveneTest_median(vector<double> &y,vector<double> &x, vector<double> &rst) 
     int df1=k-1;
     int df2=N-k;
     double p=F_prob(df1,df2,stat);
-    rst.push_back(stat);
-    rst.push_back(df1);
-    rst.push_back(df2);
+    
+    double zest=sqrt(qchisq(p,1));
+    double domin=sqrt(2*freq*(1-freq)*(N+zest*zest));
+    double best=zest/domin;
+    double seest=1/domin;
+    reg(sigmai,catd,rst);
+    if(rst[0]<0) best *= -1.0; //updated by futao.zhang 20180321
+    rst.clear();
+    rst.push_back(best);
+    rst.push_back(seest);
     rst.push_back(p);
     return 1;
 }
-int flignerTest(vector<double> &y,vector<double> &x, vector<double> &rst) //norm: rutrun 1
+int flignerTest(vector<double> &y,vector<double> &x, vector<double> &rst,double freq) //norm: rutrun 1
 {
     // a little different from R. Because of median and rank.
     //in R. rank(c(1,2,2,3,4,5)) should be c(1,2.5,2.5,3,4,5)
@@ -280,6 +337,7 @@ int flignerTest(vector<double> &y,vector<double> &x, vector<double> &rst) //norm
     int k=(int)cat.size();
     if(k==1) return -1;
     vector<int> n(k);
+    vector<double> sigmai(k),catd(k);
     vector<double> ymedian(k);
     vector<int> idx;
     vector<double> tmp;
@@ -288,7 +346,9 @@ int flignerTest(vector<double> &y,vector<double> &x, vector<double> &rst) //norm
         tmp.clear();
         n[i]=0;
         int category=cat[i];
+        catd[i]=(double)cat[i];
         for(int j=0;j<N;j++) if((int)x[j]==category) { n[i]++; idx.push_back(j); tmp.push_back(y[j]);}
+        sigmai[i]=var(tmp);
         ymedian[i]=median(tmp);
         #pragma omp parallel for
         for(int j=0;j<idx.size();j++) {
@@ -316,10 +376,17 @@ int flignerTest(vector<double> &y,vector<double> &x, vector<double> &rst) //norm
     }
     stat/=var(y);
     double p=pchisq(stat, k-1);
-    rst.push_back(stat);
-    rst.push_back(k-1);
-    rst.push_back(p);
     
+    double zest=sqrt(qchisq(p,1));
+    double domin=sqrt(2*freq*(1-freq)*(N+zest*zest));
+    double best=zest/domin;
+    double seest=1/domin;
+    reg(sigmai,catd,rst);
+    if(rst[0]<0) best *= -1.0; //updated by futao.zhang 20180321
+    rst.clear();
+    rst.push_back(best);
+    rst.push_back(seest);
+    rst.push_back(p);
     return 1;
 }
 

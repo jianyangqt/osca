@@ -63,7 +63,7 @@ namespace BFILE{
     void extract_snp(bInfo* bdata,string snplistfile);
     void exclude_snp(bInfo* bdata,string snplistfile);
     void calcu_mu(bInfo* bdata, bool ssq_flag=false);
-    void make_XMat(bInfo* bdata,vector<uint32_t> &snpids, MatrixXd &X, bool minus_2p = false);
+    bool make_XMat(bInfo* bdata,vector<uint32_t> &snpids, MatrixXf &X, bool mu=false);
     bool make_XMat(bInfo* bdata, int start, int slide_wind, MatrixXf &X, bool mu=false);
     void read_famfile(bInfo* bdata, string famfile);
     void read_bimfile(bInfo* bdata,string bimfile);

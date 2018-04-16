@@ -107,3 +107,18 @@ void write_msglist(char* outFileName, vector<string> &msg)
     }
     fclose(efile);
 }
+uint32_t readuint32(FILE *f) {
+    uint32_t v;
+    fread((void*)(&v), sizeof(v), 1, f);
+    return v;
+}
+uint64_t readuint64(FILE *f) {
+    uint64_t v;
+    fread((void*)(&v), sizeof(v), 1, f);
+    return v;
+}
+float readfloat(FILE *f) {
+    float v;
+    fread((void*)(&v), sizeof(v), 1, f);
+    return v;
+}

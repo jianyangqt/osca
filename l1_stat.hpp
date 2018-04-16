@@ -13,10 +13,11 @@
 #endif /* l1_stat_hpp */
 
 MatrixXd reg(vector<double> &y, vector<double> &x, vector<double> &rst, bool table = false);
-void lin(VectorXd &y, MatrixXd &C, VectorXd &x, vector<double> &rst);
+bool lin(VectorXd &y, MatrixXd &C, VectorXd &x, vector<double> &rst);
+void lin2(VectorXd &y, MatrixXd &X, vector<double> &rst);
 double var(VectorXd &x);
 void cov(MatrixXd &mat, MatrixXd &covar);
-int bartlett(vector<double> &y,vector<double> &x, vector<double> &rst);
-int leveneTest_mean(vector<double> &y,vector<double> &x, vector<double> &rst);
-int leveneTest_median(vector<double> &y,vector<double> &x, vector<double> &rst) ;
-int flignerTest(vector<double> &y,vector<double> &x, vector<double> &rst);
+int bartlett(vector<double> &y,vector<double> &x, vector<double> &rst, double freq);
+int leveneTest_mean(vector<double> &y,vector<double> &x, vector<double> &rst, double freq);
+int leveneTest_median(vector<double> &y,vector<double> &x, vector<double> &rst, double freq) ;
+int flignerTest(vector<double> &y,vector<double> &x, vector<double> &rst, double freq);

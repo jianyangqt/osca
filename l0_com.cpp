@@ -10,11 +10,14 @@
 
 int thread_num=1;
 FILE* logfile = NULL;
+char* outfileName=NULL;
+int remlstatus = 0; // -1: matrix is not invertible. -2:more than half of the variance components are constrained. -3: variance is 0 or 1 . -4: not coverge
 uint32_t g_debug_on = 0;
 uint32_t g_log_failed = 0;
 long long mem_left=0;
 char logbuf[MAX_LINE_SIZE];
 char Tbuf[MAX_LINE_SIZE];
+bool prt_mid_rlt=false;
 
 struct IncGenerator {
     int current_;
@@ -370,12 +373,21 @@ void strcpy2(char** to, string from)
     tmp[from.size()]='\0';
     *to=tmp;
 }
-void free2(char** to)
+void subMatrix_symm(MatrixXd &to,MatrixXd &from,vector<int> &idx)
 {
-    if(*to)
+    long num = idx.size();
+    if(num>from.cols())
     {
-        delete(*to);
-        *to=NULL;
+        LOGPRINTF("ERROR: to extract sub-matrix. the size of index %ld is larger than the matrix dimension (%ld,%ld).\n",num, from.rows(),from.cols());
+        exit(EXIT_FAILURE);
+    } else if(num==0) {
+        LOGPRINTF("ERROR: the size of index is 0.\n");
+        exit(EXIT_FAILURE);
+    } else {
+        to.resize(num,num);
+        for(int i=0;i<num;i++)
+            for(int j=i;j<num;j++)
+                to(i,j)=to(j,i)=from(idx[i],idx[j]);
     }
 }
 void removeRow(MatrixXd &matrix, unsigned int rowToRemove)
@@ -383,10 +395,15 @@ void removeRow(MatrixXd &matrix, unsigned int rowToRemove)
     unsigned long numRows = matrix.rows()-1;
     unsigned long numCols = matrix.cols();
     
-    if( rowToRemove < numRows )
+    if( rowToRemove < numRows ) {
         matrix.block(rowToRemove,0,numRows-rowToRemove,numCols) = matrix.block(rowToRemove+1,0,numRows-rowToRemove,numCols);
-    
-    matrix.conservativeResize(numRows,numCols);
+        matrix.conservativeResize(numRows,numCols);
+    } else if(rowToRemove == numRows) {
+        matrix.conservativeResize(numRows,numCols);
+    } else {
+        LOGPRINTF("ERROR: out of bound. row id %u is no less than total row numbers %ld \n",rowToRemove, matrix.rows());
+        exit(EXIT_FAILURE);
+    }
 }
 
 void removeColumn(MatrixXd &matrix, unsigned int colToRemove)
@@ -394,20 +411,34 @@ void removeColumn(MatrixXd &matrix, unsigned int colToRemove)
     unsigned long numRows = matrix.rows();
     unsigned long numCols = matrix.cols()-1;
     
-    if( colToRemove < numCols )
+    if( colToRemove < numCols ) {
         matrix.block(0,colToRemove,numRows,numCols-colToRemove) = matrix.block(0,colToRemove+1,numRows,numCols-colToRemove);
+        
+        matrix.conservativeResize(numRows,numCols);
+    } else if(colToRemove == numCols) {
+        matrix.conservativeResize(numRows,numCols);
+    } else {
+        LOGPRINTF("ERROR: out of bound. column id %u is no less than total column numbers %ld \n",colToRemove, matrix.cols());
+        exit(EXIT_FAILURE);
+    }
     
-    matrix.conservativeResize(numRows,numCols);
 }
 void removeRow(MatrixXf &matrix, unsigned int rowToRemove)
 {
     unsigned long numRows = matrix.rows()-1;
     unsigned long numCols = matrix.cols();
     
-    if( rowToRemove < numRows )
+    if( rowToRemove < numRows ) {
         matrix.block(rowToRemove,0,numRows-rowToRemove,numCols) = matrix.block(rowToRemove+1,0,numRows-rowToRemove,numCols);
+        
+        matrix.conservativeResize(numRows,numCols);
+    } else if(rowToRemove == numRows) {
+        matrix.conservativeResize(numRows,numCols);
+    } else {
+        LOGPRINTF("ERROR: out of bound. row id %u is no less than total row numbers %ld \n",rowToRemove, matrix.rows());
+        exit(EXIT_FAILURE);
+    }
     
-    matrix.conservativeResize(numRows,numCols);
 }
 
 void removeColumn(MatrixXf &matrix, unsigned int colToRemove)
@@ -415,10 +446,17 @@ void removeColumn(MatrixXf &matrix, unsigned int colToRemove)
     unsigned long numRows = matrix.rows();
     unsigned long numCols = matrix.cols()-1;
     
-    if( colToRemove < numCols )
+    if( colToRemove < numCols ) {
         matrix.block(0,colToRemove,numRows,numCols-colToRemove) = matrix.block(0,colToRemove+1,numRows,numCols-colToRemove);
+        
+        matrix.conservativeResize(numRows,numCols);
+    } else if(colToRemove == numCols) {
+        matrix.conservativeResize(numRows,numCols);
+    } else {
+        LOGPRINTF("ERROR: out of bound. column id %u is no less than total column numbers %ld \n",colToRemove, matrix.cols());
+        exit(EXIT_FAILURE);
+    }
     
-    matrix.conservativeResize(numRows,numCols);
 }
 
 void inverse_V(MatrixXd &Vi, bool &determinant_zero)
@@ -428,6 +466,7 @@ void inverse_V(MatrixXd &Vi, bool &determinant_zero)
     for(int i=0;i<eval.size();i++)
     {
         if(abs(eval(i))<1e-6) {
+         //if(eval(i)<1e-6) {
             determinant_zero=true;
             eval(i)=0;
         } else {
@@ -436,4 +475,75 @@ void inverse_V(MatrixXd &Vi, bool &determinant_zero)
     }
     Vi = eigensolver.eigenvectors() * DiagonalMatrix<double, Dynamic, Dynamic>(eval) * eigensolver.eigenvectors().transpose();
 }
+double mean(const vector<double> &x)
+{
+    long size = x.size();
+    int i=0;
+    double d_buf=0.0;
+    for(i=0; i<size; i++) d_buf+=x[i];
+    d_buf/=(double)size;
+    return (double)d_buf;
+}
+double cov(const vector<double> &x, const vector<double> &y)
+{
+    long size = x.size();
+    int i=0;
+    double mu1=0.0, mu2=0.0, c=0.0;
+    for(i=0; i<size; i++){
+        mu1+=x[i];
+        mu2+=y[i];
+    }
+    mu1/=(double)size;
+    mu2/=(double)size;
+    
+    for(i=0; i<size; i++) c+=(x[i]-mu1)*(y[i]-mu2);
+    c/=(double)(size-1);
+    return c;
+}
+
+double cor(vector<double> &y, vector<double> &x)
+{
+    long N = x.size();
+    if (N != y.size() || N < 1) {
+        LOGPRINTF("Error: The lengths of x and y do not match.\n");
+        TERMINATE();
+    }
+    
+    int i = 0;
+    double d_buf = 0.0, y_mu = 0.0, x_mu = 0.0, x_var = 0.0, y_var = 0.0, cov = 0.0;
+    for (i = 0; i < N; i++) {
+        x_mu += x[i];
+        y_mu += y[i];
+    }
+    x_mu /= (double) N;
+    y_mu /= (double) N;
+    for (i = 0; i < N; i++) {
+        d_buf = (x[i] - x_mu);
+        x_var += d_buf*d_buf;
+        d_buf = (y[i] - y_mu);
+        y_var += d_buf*d_buf;
+    }
+    x_var /= (double) (N - 1.0);
+    y_var /= (double) (N - 1.0);
+    for (i = 0; i < N; i++) cov += (x[i] - x_mu)*(y[i] - y_mu);
+    cov /= (double) (N - 1);
+    double a = 0.0, b = 0.0, sse = 0.0, a_se = 0.0, b_se = 0.0, r = 0.0;
+    if (x_var > 0.0) b = cov / x_var;
+    a = y_mu - b*x_mu;
+    for (i = 0; i < N; i++) {
+        d_buf = y[i] - a - b * x[i];
+        sse += d_buf*d_buf;
+    }
+    if (x_var > 0.0) {
+        a_se = sqrt((sse / (N - 2.0))*(1.0 / N + x_mu * x_mu / (x_var * (N - 1.0))));
+        b_se = sqrt(sse / x_var / (N - 1.0) / (N - 2.0));
+    }
+    if (x_var > 0.0 && y_var > 0.0) {
+        r = cov / sqrt(y_var * x_var);
+    }
+    
+    return (r);
+}
+
+
 

@@ -20,6 +20,7 @@ double pnorm(double x);
 double qnorm(double p, bool upper = true);
 double dnorm(double x);
 double chi_prob(double df, double chi_sqr_val);
+double qchisq(double q, double df);
 double gasdev(int &idum);
 double pT(double T, double df);
 #endif /* defined(__osc__l0_stat__) */

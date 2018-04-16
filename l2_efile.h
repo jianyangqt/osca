@@ -175,7 +175,7 @@ namespace EFILE {
     void read_grm_bin(eInfo* einfo, string grm_file, vector<string> &grm_id, bool out_id_log, bool read_id_only, bool dont_read_N);
     void read_grm(eInfo* einfo, string grm_file, vector<string> &grm_id, bool out_id_log, bool read_id_only, bool dont_read_N, bool grm_bin_flag);
     void merge_grm(eInfo* einfo, char* merge_grm_file);
-    void rm_cor_indi(eInfo* einfo, double grm_cutoff);
+    void rm_cor_indi(eInfo* einfo, double grm_cutoff,bool erm_cutoff_2sides);
     void update_sex(eInfo* einfo, char* sex_file);
     void adj_grm(eInfo* einfo, double adj_grm_fac);
     void dc(eInfo* einfo, int dosage_compen);

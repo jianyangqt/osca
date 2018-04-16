@@ -429,10 +429,11 @@ namespace BFILE{
             logprintb();
         }
     }
-    void make_XMat(bInfo* bdata,vector<uint32_t> &snpids, MatrixXd &X, bool minus_2p) {
+    bool make_XMat(bInfo* bdata,vector<uint32_t> &snpids, MatrixXf &X, bool mu) {
         // Eigen is column-major by default. here row of X is individual, column of X is SNP.
-        if (minus_2p && bdata->_mu.empty()) calcu_mu(bdata);
-        uint64_t snpNum=snpids.size();
+        if (mu && bdata->_mu.empty()) calcu_mu(bdata);
+        bool have_mis = false;
+        long snpNum=snpids.size();
         X.resize(bdata->_keep.size(),snpNum);
         #pragma omp parallel for
         for (int i = 0; i < snpNum ; i++)
@@ -445,11 +446,14 @@ namespace BFILE{
                 {
                     if (bdata->_allele1[bdata->_include[snpid]] == bdata->_ref_A[bdata->_include[snpid]]) X(j,i)= bdata->_snp_1[bdata->_include[snpid]][bdata->_keep[j]] + bdata->_snp_2[bdata->_include[snpid]][bdata->_keep[j]];
                     else X(j,i)= 2.0 - (bdata->_snp_1[bdata->_include[snpid]][bdata->_keep[j]] + bdata->_snp_2[bdata->_include[snpid]][bdata->_keep[j]]);
-                } else X(j,i) = bdata->_mu[bdata->_include[snpid]];
-                if (minus_2p) X(j,i) -= bdata->_mu[bdata->_include[snpid]];
-                
+                } else {
+                    if(mu) X(j,i) = bdata->_mu[bdata->_include[snpid]];
+                    else X(j,i)=1e6;
+                    have_mis = true;
+                }
             }
         }
+        return have_mis;
     }
     bool make_XMat(bInfo* bdata, int start, int slide_wind, MatrixXf &X, bool mu)
     {

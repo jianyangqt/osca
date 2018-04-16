@@ -34,6 +34,7 @@
 #include <Eigen/SVD>
 #include <iomanip>
 #include <limits>
+#include <random>
 
 using namespace std;
 using namespace Eigen;
@@ -48,9 +49,11 @@ using namespace Eigen;
 #define MAXLINEBUFLEN 0x4000000
 #define MAXPROBENUM 0x100000 // >850k
 
+#define MISSING_PHENO -1e10
+#define MISSING_PROFILE 1e10
 
-typedef unsigned int uint32_t;
-typedef unsigned long long uint64_t;
+//typedef unsigned int uint32_t;
+//typedef unsigned long long uint64_t;
 typedef unsigned long		uintptr_t;
 
 #define ONELU 1LLU
@@ -69,8 +72,10 @@ extern uint32_t g_log_failed;
 extern long long mem_left;
 
 extern unsigned char* wkspace_base;
+extern char* outfileName;
+extern int remlstatus;
 extern uintptr_t wkspace_left;
-
+extern bool prt_mid_rlt;
 
 extern void logprintb();
 extern void TERMINATE();
@@ -133,10 +138,23 @@ extern int rand_seed();
 extern double var(const vector<double> &x);
 extern void get_bottom_indices(vector<int> &b, vector<double> &a, int num);
 extern void strcpy2(char** to, string from);
-extern void free2(char** to);
+
+template <typename T>
+extern void free2(T** to)
+{
+    if(*to)
+    {
+        delete(*to);
+        *to=NULL;
+    }
+}
 extern void removeRow(MatrixXd &matrix, unsigned int rowToRemove);
 extern void removeColumn(MatrixXd &matrix, unsigned int colToRemove);
 extern void removeRow(MatrixXf &matrix, unsigned int rowToRemove);
 extern void removeColumn(MatrixXf &matrix, unsigned int colToRemove);
 extern void inverse_V(MatrixXd &Vi, bool &determinant_zero);
+extern void subMatrix_symm(MatrixXd &to,MatrixXd &from,vector<int> &idx);
+extern double mean(const vector<double> &x);
+extern double cov(const vector<double> &x, const vector<double> &y);
+extern double cor(vector<double> &y, vector<double> &x);
 #endif /* defined(__osc__l0_com__) */

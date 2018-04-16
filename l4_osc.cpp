@@ -11,10 +11,93 @@
 using namespace EFILE;
 using namespace VQTL;
 
-
 int main(int argc, char * argv[])
 {
+    /*
+    FILE* fptr=fopen("test.rs10501886.S.mat","r");
+    vector<string> strlist;
+    vector<double> val;
+    while(fgets(Tbuf, MAX_LINE_SIZE, fptr))
+    {
+        split_str(Tbuf,strlist,0);
+        for(int i=0;i<strlist.size();i++) val.push_back(atof(strlist[i].c_str()));;
+    }
+    fclose(fptr);
+    long dim=sqrt(val.size());
+    Map<MatrixXd> raw(&val[0],dim,dim);
+    cout<<raw.cols()<<":"<<raw.rows()<<endl;
+     cout<<raw.determinant()<<endl;
+
+    //inverse using eigen
+    MatrixXd iraw=raw;
+    bool determinant_zero = false;
+    SelfAdjointEigenSolver<MatrixXd> eigensolver(iraw);
+    VectorXd eval = eigensolver.eigenvalues();
+    cout<<eval<<endl;
+    for(int i=0;i<eval.size();i++)
+    {
+        if(abs(eval(i))<1e-3) {
+            determinant_zero=true;
+            eval(i)=0;
+        } else {
+            eval(i) = 1.0 / eval(i);
+        }
+    }
+    iraw = eigensolver.eigenvectors() * DiagonalMatrix<double, Dynamic, Dynamic>(eval) * eigensolver.eigenvectors().transpose();
+    MatrixXd Iden=raw*iraw;
+    string filename="test.rs10501886.eigen.inv.mat";
+    FILE* tmpfile=fopen(filename.c_str(),"w");
+    if(!tmpfile)
+    {
+        LOGPRINTF("error open file.\n");
+        TERMINATE();
+    }
+    for(int t=0;t<iraw.rows();t++)
+    {
+        string str="";
+        for(int k=0;k<iraw.cols();k++)
+        {
+            str +=atos(iraw(t,k)) + '\t';
+        }
+        str += '\n';
+        fputs(str.c_str(),tmpfile);
+    }
+    fclose(tmpfile);
     
+    //inverse using SVD
+    iraw=raw;
+    JacobiSVD<MatrixXd> svd(iraw, ComputeThinU | ComputeThinV);
+    VectorXd sin=svd.singularValues();
+    cout<<sin<<endl;
+    for(int i=0;i<sin.size();i++) {
+        if(abs(sin[i])<1e-6) {
+            sin[i] =0;
+        } else {
+            sin[i] = 1/sin[i];
+        }
+    }
+    MatrixXd dd=svd.matrixU()*sin.asDiagonal()*svd.matrixV().transpose();
+    Iden=raw*dd;
+    filename="test.rs10501886.svd.inv.mat";
+    tmpfile=fopen(filename.c_str(),"w");
+    if(!tmpfile)
+    {
+        LOGPRINTF("error open file.\n");
+        TERMINATE();
+    }
+    for(int t=0;t<dd.rows();t++)
+    {
+        string str="";
+        for(int k=0;k<dd.cols();k++)
+        {
+            str +=atos(dd(t,k)) + '\t';
+        }
+        str += '\n';
+        fputs(str.c_str(),tmpfile);
+    }
+    fclose(tmpfile);
+     */
+
     /*
      MatrixXd A = MatrixXd::Random(3,3);
      cout << "Here is a random 6x6 matrix, A:" << endl << A << endl << endl;
@@ -29,7 +112,7 @@ int main(int argc, char * argv[])
      MatrixXcd D = es.eigenvalues().asDiagonal();
      MatrixXcd V = es.eigenvectors();
      cout << "Finally, V * D * V^(-1) = " << endl << V * D * V.inverse() << endl;
-     */
+    */
     
     /*
     MatrixXf m = MatrixXf::Random(3,8);
@@ -47,13 +130,12 @@ int main(int argc, char * argv[])
     */
     cout << "*******************************************************************" << endl;
     cout << "* OmicS-data-based Complex trait Analysis (OSCA)" << endl;
-    cout << "* version 0.32" << endl;
+    cout << "* version 0.392" << endl;
     cout << "* (C) 2016 Futao Zhang, Zhihong Zhu and Jian Yang" << endl;
     cout << "* The University of Queensland" << endl;
     cout << "* MIT License" << endl;
     cout << "*******************************************************************" << endl;
     
-
     char tmpname[5]="osca";
     char* outname=tmpname;
     string logfname=string(outname)+".log";
@@ -64,7 +146,7 @@ int main(int argc, char * argv[])
     }
     printf("Logging to %s.\n", logfname.c_str());
     
-    
+
     /**************************/
     /*
     MatrixXf m1 = MatrixXf::Random(2,6);
@@ -123,7 +205,6 @@ void option(int option_num, char* option_str[])
     char* efileName=NULL;
     char* befileName=NULL;
     char* befileName2=NULL;
-    char* outfileName=NULL;
     char* indilstName=NULL;
     char* snplstName=NULL;
     char* indilst2remove=NULL;
@@ -174,6 +255,7 @@ void option(int option_num, char* option_str[])
     char* priors_var= NULL;
     bool reml_fixed_var_flag=false;
     double erm_cutoff = -2.0;
+    bool erm_cutoff_2sides = false;
     //for MLMA
     bool mlma_flag=false;
     bool mlma_loco_flag=false;
@@ -253,8 +335,62 @@ void option(int option_num, char* option_str[])
     char* bFileName = NULL;
     bool adjprb=false;
     
+    //
+    bool eqtl=false;
+    
     bool prt_residiual=false;
     bool simu_residual_only=false;
+    
+    bool besd_snp_major = false;
+    
+    //for smr
+    bool queryBesd = false;
+    double pQueryBesd = 5e-8;
+    char* beqtlFileName = NULL;
+    char* beqtlFileName2 = NULL;
+    int prbchr = -9;
+    int snpchr = -9;
+    char* snprs = NULL;
+    char* fromsnprs = NULL;
+    char* tosnprs = NULL;
+    int snpWind=50;   //Kb
+    bool snpwindFlag = false;
+    int fromsnpkb = -9;
+    int tosnpkb = -9;
+    char* snp2rm=NULL;
+    bool cis_flag=false;
+    int cis_itvl=2000;
+    char* besdflstName = NULL;
+    bool combineFlg =false;
+    bool metaflg = false;
+    bool smr_flag= false;
+    char* gwasflstName = NULL;
+    
+    
+    int meta_mtd = 0; //0 for traditional meta, 1 for MeCS
+    double pmecs = 0.01;
+    int mecs_mth = 0; // 1 for est_cor, 0 for pcc
+    char* corMatFName = NULL;
+    bool zflag = false; // estimate pcc with z
+    
+    bool make_besd_flag = false;
+    bool save_dense_flag = false;
+    bool to_smr_flag = false;
+    bool besd_shrink_flag = false; //remove null probes and null SNPs
+    
+    
+    
+    //private use
+    bool enveff = false;
+    char* efffname = NULL;
+    char* effproblstName = NULL;
+    
+    bool stdprb =false;
+    char* freqFName = NULL;
+    char* varFName =NULL;
+    
+    double lambda_wind = 0.01;
+    bool fastlinear =false;
     for(int i=0;i<option_num;i++)
     {
         if(0==strcmp(option_str[i],"--efile")){
@@ -386,10 +522,15 @@ void option(int option_num, char* option_str[])
         }
         else if(strcmp(option_str[i],"--chr")==0){
             char* tmpstr=option_str[++i];
-            if(strncmp(tmpstr,"X",1)==0) chr=23;
-            else if(strncmp(tmpstr,"Y",1)==0) chr=24;
+            if(strncmp(tmpstr,"X",1)==0 || strncmp(tmpstr,"x",1)==0) chr=23;
+            else if(strncmp(tmpstr,"Y",1)==0 || strncmp(tmpstr,"y",1)==0) chr=24;
             else chr=atoi(tmpstr);
             FLAG_VALID_CK("--chr", tmpstr);
+            if(chr<=0)
+            {
+                LOGPRINTF("Error: --chr should be over 0.\n");
+                TERMINATE();
+            }
             LOGPRINTF("--chr %s\n",tmpstr);
         }
         else if (0 == strcmp(option_str[i], "--probe")){
@@ -470,9 +611,9 @@ void option(int option_num, char* option_str[])
         }
         else if(0==strcmp(option_str[i],"--orm-alg")){
             erm_alg=atoi(option_str[++i])-1;
-            if(erm_alg<0 || erm_alg>3)
+            if(erm_alg<0 || erm_alg>2)
             {
-                LOGPRINTF("Error: --orm-alg should be 1, 2, 3 or 4.\n");
+                LOGPRINTF("Error: --orm-alg should be 1, 2 or 3.\n");
                 TERMINATE();
             }
             LOGPRINTF("--orm-alg %d\n",erm_alg+1);
@@ -483,7 +624,10 @@ void option(int option_num, char* option_str[])
             {
                 LOGPRINTF("--orm-cutoff %f\n",erm_cutoff);
             } else erm_cutoff=-2;
-            
+        }
+        else if(0==strcmp(option_str[i],"--orm-cutoff-2sides")){
+            erm_cutoff_2sides=true;
+            LOGPRINTF("--orm-cutoff-2sides\n");
         }
         else if(0==strcmp(option_str[i],"--mlma")){
             reml_flag = false;
@@ -562,9 +706,9 @@ void option(int option_num, char* option_str[])
             LOGPRINTF("--reml-no-constrain\n");
         } else if (0==strcmp(option_str[i], "--reml-maxit") ) {
             MaxIter = atoi(option_str[++i]);
-            if (MaxIter < 1 || MaxIter > 10000)
+            if (MaxIter < 1 || MaxIter > 100000)
             {
-                LOGPRINTF("Error: --reml-maxit should be within the range from 1 to 10000.\n");
+                LOGPRINTF("Error: --reml-maxit should be within the range from 1 to 100000.\n");
                 TERMINATE();
             }
             LOGPRINTF("--reml-maxit %d\n",MaxIter);
@@ -662,12 +806,12 @@ void option(int option_num, char* option_str[])
         else if(0==strcmp(option_str[i],"--linear")){
             linear_flag=true;
             LOGPRINTF("--linear \n");
-        } else if(strcmp(option_str[i],"--std")==0){
+        } else if(strcmp(option_str[i],"--sd-min")==0){
             std_thresh=atof(option_str[++i]);
-            LOGPRINTF("--std %lf\n",std_thresh);
-            if(std_thresh<0 || std_thresh>0.5)
+            LOGPRINTF("--sd-min %lf\n",std_thresh);
+            if(std_thresh<0 || std_thresh>1)
             {
-                LOGPRINTF("Error: --std should be within the range from 0 to 1.\n");
+                LOGPRINTF("Error: --sd-min should be within the range from 0 to 1.\n");
                 TERMINATE();
             }
         } else if (strcmp(option_str[i], "--simu-qt") == 0) {
@@ -927,7 +1071,7 @@ void option(int option_num, char* option_str[])
             adjprb = true;
             LOGPRINTF( "--adj-probe \n");
         }
-        else if (strcmp(option_str[i], "--output-residual") == 0) { // should be with --reml
+        else if (strcmp(option_str[i], "--output-residual") == 0) {
             prt_residiual = true;
             LOGPRINTF( "--output-residual \n");
         }
@@ -935,8 +1079,242 @@ void option(int option_num, char* option_str[])
             simu_residual_only = true;
             LOGPRINTF( "--simu-residua \n");
         }
-
-
+        else if (strcmp(option_str[i], "--eqtl") == 0) {
+            eqtl = true;
+            LOGPRINTF( "--eqtl \n");
+        }
+        else if (strcmp(option_str[i], "--besd-snp-major") == 0) {
+            besd_snp_major = true;
+            LOGPRINTF( "--besd-snp-major \n");
+        }
+        else if(strcmp(option_str[i], "--query")==0) {
+            queryBesd=true;
+            if(i+1==option_num || has_prefix(option_str[i+1],"--"))  pQueryBesd = 5.0e-8;
+            else pQueryBesd = atof (option_str[++i]);
+            LOGPRINTF("--query %10.2e\n", pQueryBesd);
+            if(pQueryBesd<0 || pQueryBesd>1)
+            {
+                LOGPRINTF("Error: --query should be within the range from 0 to 1.\n");
+                TERMINATE();
+            }
+        }
+        else if(strcmp(option_str[i],"--beqtl-summary")==0){
+            if(beqtlFileName==NULL)
+            {
+                beqtlFileName=option_str[++i];
+                FLAG_VALID_CK("--beqtl-summary", beqtlFileName);
+                LOGPRINTF("--beqtl-summary %s\n",beqtlFileName);
+            }else{
+                beqtlFileName2=option_str[++i];
+                FLAG_VALID_CK("--beqtl-summary", beqtlFileName2);
+                LOGPRINTF("--beqtl-summary %s\n",beqtlFileName2);
+            }
+        }
+        else if(strcmp(option_str[i],"--probe-chr")==0){
+            char* tmpstr=option_str[++i];
+            if(strncmp(tmpstr,"X",1)==0 || strncmp(tmpstr,"x",1)==0) prbchr=23;
+            else if(strncmp(tmpstr,"Y",1)==0 || strncmp(tmpstr,"y",1)==0) prbchr=24;
+            else prbchr=atoi(tmpstr);
+            FLAG_VALID_CK("--probe-chr", tmpstr);
+            if(chr<=0)
+            {
+                LOGPRINTF("Error: --probe-chr should be over 0.\n");
+                TERMINATE();
+            }
+            LOGPRINTF("--probe-chr %s\n",tmpstr);
+        }
+        else if(strcmp(option_str[i],"--snp-chr")==0){
+            char* tmpstr=option_str[++i];
+            if(strncmp(tmpstr,"X",1)==0 || strncmp(tmpstr,"x",1)==0) snpchr=23;
+            else if(strncmp(tmpstr,"Y",1)==0 || strncmp(tmpstr,"y",1)==0) snpchr=24;
+            else snpchr=atoi(tmpstr);
+            FLAG_VALID_CK("--snp-chr", tmpstr);
+            if(chr<=0)
+            {
+                LOGPRINTF("Error: --snp-chr should be over 0.\n");
+                TERMINATE();
+            }
+            LOGPRINTF("--snp-chr %s\n",tmpstr);
+        }
+        else if (strcmp(option_str[i], "--snp")==0){
+            snprs = option_str[++i];
+            FLAG_VALID_CK("--snp", snprs);
+            LOGPRINTF("--snp %s\n", snprs);
+        }
+        else if (0 == strcmp(option_str[i], "--from-snp")){
+            fromsnprs = option_str[++i];
+            FLAG_VALID_CK("--from-snp", fromsnprs);
+            printf("--from-snp %s\n", fromsnprs);
+        }
+        else if (0 == strcmp(option_str[i], "--to-snp")){
+            tosnprs = option_str[++i];
+            FLAG_VALID_CK("--to-snp", tosnprs);
+            printf("--to-snp %s\n", tosnprs);
+        }
+        else if(strcmp(option_str[i],"--snp-wind")==0){
+            
+            snpwindFlag=true;
+            char* tmpstr=option_str[++i];
+            if(tmpstr==NULL || has_prefix(tmpstr, "--")) i--;
+            else snpWind=atoi(tmpstr);
+            LOGPRINTF("--snp-wind %d Kb\n", snpWind);
+            if(snpWind<0 )
+            {
+                LOGPRINTF ("Error: --snp-wind should be over 0.\n");
+                TERMINATE();
+            }
+        }
+        else if(strcmp(option_str[i],"--from-snp-kb")==0){
+            fromsnpkb=atoi(option_str[++i]);
+            printf("--from-snp-kb %d Kb\n", fromsnpkb);
+            if(fromsnpkb<0 )
+            {
+                LOGPRINTF("Error: --from-snp-kb should be over 0.\n");
+                TERMINATE();
+            }
+        }
+        else if(strcmp(option_str[i],"--to-snp-kb")==0){
+            tosnpkb=atoi(option_str[++i]);
+            printf("--to-snp-kb %d Kb\n", tosnpkb);
+            if(tosnpkb<0 )
+            {
+                LOGPRINTF("Error: --to-snp-kb should be over 0.\n");
+                TERMINATE();
+            }
+        }
+        else if(strcmp(option_str[i],"--snp-rm")==0){
+            snp2rm=option_str[++i];
+            FLAG_VALID_CK("--snp-rm", snp2rm);
+            LOGPRINTF("--snp-rm %s\n", snp2rm);
+        }
+        else if(strcmp(option_str[i],"--cis-wind")==0){
+            cis_flag=true;
+            cis_itvl=atoi(option_str[++i]);
+            LOGPRINTF("--cis-wind %d Kb\n", cis_itvl);
+            if(cis_itvl<=0 )
+            {
+                LOGPRINTF("Error: --cis-wind should be over 0.\n");
+                TERMINATE();
+            }
+        }
+        else if (strcmp(option_str[i], "--besd-flist")==0){
+            combineFlg=true;
+            besdflstName = option_str[++i];
+            FLAG_VALID_CK("--besd-flist", besdflstName);
+            LOGPRINTF("--besd-flist %s\n", besdflstName);
+            FileExist(besdflstName);
+        }
+        else if (strcmp(option_str[i], "--gwas-flist")==0){
+            gwasflstName = option_str[++i];
+            FLAG_VALID_CK("--gwas-flist", gwasflstName);
+            LOGPRINTF("--gwas-flist %s\n", gwasflstName);
+            FileExist(gwasflstName);
+        }
+        else if(strcmp(option_str[i],"--meta")==0){
+            metaflg=true;
+            combineFlg=false;
+            smr_flag=false;
+            LOGPRINTF("--meta\n");
+        }
+        else if(0==strcmp(option_str[i],"--mecs")){
+            metaflg=true;
+            meta_mtd=1;
+            LOGPRINTF("--mecs\n");
+        }
+        else if(0==strcmp(option_str[i],"--pmecs")){
+            pmecs=atof(option_str[++i]);
+            if (pmecs < 0 || pmecs > 1) {
+                LOGPRINTF("\nError: --pmecs should be between 0 to 1.\n");
+                TERMINATE();
+            }
+            LOGPRINTF("--pmecs %0.2e\n", pmecs);
+        }
+        else if(0==strcmp(option_str[i],"--mecs-mth")){
+            mecs_mth=atoi(option_str[++i]);
+            LOGPRINTF( "--mecs-mth %d\n",  mecs_mth);
+            if (mecs_mth !=0 && mecs_mth != 1) {
+                LOGPRINTF("\nError: --mecs-mth should be 0 or 1.\n");
+                TERMINATE();
+            }
+        }
+        else if(0==strcmp(option_str[i],"--make-besd")){
+            make_besd_flag=true;
+            LOGPRINTF("--make-besd\n");
+        }
+        else if(0==strcmp(option_str[i],"--to-smr")){
+            make_besd_flag=true;
+            to_smr_flag=true;
+            LOGPRINTF("--to-smr\n");
+        }
+        else if (0 == strcmp(option_str[i], "--make-besd-dense")){
+            make_besd_flag=true;
+            save_dense_flag=true;
+            LOGPRINTF("--make-besd-dense \n");
+        }
+        else if (0 == strcmp(option_str[i], "--besd-shrink")){
+            make_besd_flag=true;
+            besd_shrink_flag=true;
+            LOGPRINTF("--besd-shrink \n");
+        }
+        else if (0 == strcmp(option_str[i], "--add-eff")){
+            enveff=true;
+            LOGPRINTF("--add-eff \n");
+            LOGPRINTF("NOTE: Private use to add an environmental effect ( N(0,sd) ) to each probe. \n");
+        }
+        else if (strcmp(option_str[i], "--cor-mat")==0){
+            corMatFName = option_str[++i];
+            FLAG_VALID_CK("--cor-mat", corMatFName);
+            LOGPRINTF("--cor-mat %s\n", corMatFName);
+            FileExist(corMatFName);
+        }
+        else if (strcmp(option_str[i], "--eff-file")==0){
+            efffname = option_str[++i];
+            FLAG_VALID_CK("--eff-file", efffname);
+            LOGPRINTF("--eff-file %s\n", efffname);
+            FileExist(efffname);
+        }
+        else if(strcmp(option_str[i],"--eff-probe")==0){
+            effproblstName=option_str[++i];
+            FLAG_VALID_CK("--eff-probe", effproblstName);
+            FileExist(effproblstName);
+            LOGPRINTF("--eff-probe %s\n",effproblstName);
+        }
+        else if(0==strcmp(option_str[i],"--pcc-z")){
+            zflag=true;
+            LOGPRINTF("--pcc-z\n");
+        }
+        else if (0 == strcmp(option_str[i], "--prt-mid")){
+            prt_mid_rlt=true;
+            LOGPRINTF("--prt-mid \n");
+        }
+        else if (strcmp(option_str[i], "--std-probe") == 0) {
+            stdprb = true;
+            LOGPRINTF( "--std-probe \n");
+        }
+        else if(strcmp(option_str[i],"--freq-file")==0){
+            freqFName=option_str[++i];
+            FLAG_VALID_CK("--freq-file", freqFName);
+            FileExist(freqFName);
+            LOGPRINTF("--freq-file %s\n",freqFName);
+        }
+        else if(strcmp(option_str[i],"--var-file")==0){
+            varFName=option_str[++i];
+            FLAG_VALID_CK("--var-file", varFName);
+            FileExist(varFName);
+            LOGPRINTF("--var-file %s\n",varFName);
+        }
+        else if(0==strcmp(option_str[i],"--lambda-wind")){
+            lambda_wind=atof(option_str[++i]);
+            if (lambda_wind < 0 ) {
+                LOGPRINTF("\nError: --lambda-wind should be over 0 .\n");
+                TERMINATE();
+            }
+            LOGPRINTF("--lambda-wind %0.2e\n", lambda_wind);
+        }
+        else if(0==strcmp(option_str[i],"--fast-linear")){
+            fastlinear=true;
+            LOGPRINTF("--fast-linear \n");
+        }
     }
     
 #ifndef __APPLE__
@@ -955,24 +1333,36 @@ void option(int option_num, char* option_str[])
     if(outfileName == NULL) outfileName=tmpch;
     
     if(merge_beed_flag) merge_beed( outfileName, befileFlstName, problstName, problst2exclde,genelistName,  chr, prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName,indilst2remove, beta2m, m2beta);
-    else if(make_beed_flag) make_beed( outfileName, efileName,  befileName, transposedin,  efileType, problstName, problst2exclde,genelistName,  chr, prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName,indilst2remove, no_fid_flag,valueType, beta2m, m2beta, std_thresh,upperBeta,lowerBeta, dpvalfName,  thresh_det_pval,  thresh_prpt_prb,  thresh_prpt_spl,  filter_det_pval_mth,missing_ratio_prob, adjprb,  covfileName, qcovfileName);
+    else if(make_beed_flag) make_beed( outfileName, efileName,  befileName, transposedin,  efileType, problstName, problst2exclde,genelistName,  chr, prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName,indilst2remove, no_fid_flag,valueType, beta2m, m2beta, std_thresh,upperBeta,lowerBeta, dpvalfName,  thresh_det_pval,  thresh_prpt_prb,  thresh_prpt_spl,  filter_det_pval_mth,missing_ratio_prob, adjprb,  covfileName, qcovfileName,enveff, effproblstName, efffname);
     else if(make_efile_flag) make_efile(outfileName, efileName,  befileName, transposedin,  efileType, problstName, problst2exclde,genelistName,  chr, prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName,indilst2remove, no_fid_flag,valueType, beta2m, m2beta,std_thresh,upperBeta,lowerBeta,transposedout,impute_mean_flag);
     else if(make_erm_flag) make_erm(outfileName, efileName,befileName, problstName, problst2exclde, genelistName,  chr,prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName, indilst2remove,phenofileName,mpheno,erm_bin_flag, erm_alg, beta2m, m2beta,std_thresh,upperBeta,lowerBeta, transposedin, efileType, no_fid_flag, valueType);
-    else if(mlma_flag) mlma(outfileName, befileName, problstName, problst2exclde, genelistName,  chr,prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName, indilst2remove,phenofileName,mpheno, erm_bin_flag,  erm_alg,  covfileName, qcovfileName,  erm_file,  subtract_erm_file,  m_erm_flag,within_family,priors,priors_var,no_constrain,reml_mtd,MaxIter,reml_fixed_var_flag,reml_force_inv_fac_flag,reml_force_converge_flag, reml_no_converge_flag, mlma_no_adj_covar,percentage_out);
-    else if(mlma_loco_flag) mlma_loco(outfileName, befileName,problstName,problst2exclde,genelistName, chr,prbname, fromprbname, toprbname,prbWind,fromprbkb, toprbkb, prbwindFlag, genename, probe2rm, indilstName, indilst2remove, phenofileName, mpheno, covfileName, qcovfileName, MaxIter, priors, priors_var, no_constrain, mlma_no_adj_covar, reml_mtd, reml_fixed_var_flag, reml_force_inv_fac_flag, reml_force_converge_flag,  reml_no_converge_flag, autosome_num,percentage_out);
-    else if(pca_flag) pca(outfileName, erm_file, indilstName, indilst2remove,  erm_cutoff,  m_erm_flag,  out_pc_num);
+    else if(mlma_flag) mlma(outfileName, befileName, problstName, problst2exclde, genelistName,  chr,prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName, indilst2remove,phenofileName,mpheno, erm_bin_flag,  erm_alg,  covfileName, qcovfileName,  erm_file,  subtract_erm_file,  m_erm_flag,within_family,priors,priors_var,no_constrain,reml_mtd,MaxIter,reml_fixed_var_flag,reml_force_inv_fac_flag,reml_force_converge_flag, reml_no_converge_flag, mlma_no_adj_covar,percentage_out, lambda_wind,fastlinear);
+    else if(mlma_loco_flag) mlma_loco(outfileName, befileName,problstName,problst2exclde,genelistName, chr,prbname, fromprbname, toprbname,prbWind,fromprbkb, toprbkb, prbwindFlag, genename, probe2rm, indilstName, indilst2remove, phenofileName, mpheno, covfileName, qcovfileName, MaxIter, priors, priors_var, no_constrain, mlma_no_adj_covar, reml_mtd, reml_fixed_var_flag, reml_force_inv_fac_flag, reml_force_converge_flag,  reml_no_converge_flag, autosome_num,percentage_out,lambda_wind,fastlinear);
+    else if(pca_flag) pca(outfileName, erm_file, indilstName, indilst2remove,  erm_cutoff,erm_cutoff_2sides, m_erm_flag,  out_pc_num);
     else if(diffflag) diff(befileName,befileName2);
     else if(update_epi_file_flag) update_epifile(befileName, epifname);
     else if(refacotr_flag) getRefactor(outfileName, befileName,problstName, problst2exclde, genelistName,  chr, prbname, fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm,indilstName,indilst2remove, covfileName, qcovfileName, celltype_num,dmr_num,out_pc_num);
     else if(assoc_flag) assoc(outfileName, befileName, problstName, problst2exclde, genelistName,  chr,prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName, indilst2remove,phenofileName,mpheno,  covfileName, qcovfileName,std_thresh ,upperBeta,lowerBeta,estn_flag);
-    else if(linear_flag) linear(outfileName, befileName, problstName, problst2exclde, genelistName,  chr,prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName, indilst2remove,phenofileName,mpheno,  covfileName, qcovfileName,std_thresh ,upperBeta,lowerBeta,tsk_ttl,tsk_id);
+    else if(linear_flag) linear(outfileName, befileName, problstName, problst2exclde, genelistName,  chr,prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName, indilst2remove,phenofileName,mpheno,  covfileName, qcovfileName,std_thresh ,upperBeta,lowerBeta,tsk_ttl,tsk_id,fastlinear);
     else if(simu_qt_flag || simu_cc) EWAS_simu(outfileName, befileName, simu_rep, simu_causal,  simu_case_num,  simu_control_num,  simu_h2,  simu_K,  simu_seed, simu_eff_mod,simu_residual_only);
-    else if(reml_flag) fit_reml(outfileName, phenofileName, mpheno, erm_bin_flag, grm_bin_flag, erm_alg, covfileName, qcovfileName, erm_file, grm_file, m_erm_flag, within_family, priors, priors_var, no_constrain, reml_mtd, MaxIter, reml_fixed_var_flag, reml_force_inv_fac_flag, reml_force_converge_flag, reml_no_converge_flag, mlma_no_adj_covar, pred_rand_eff, est_fix_eff, no_lrt, prevalence, mlma_flag,reml_drop,indilstName,indilst2remove,  NULL, erm_cutoff, -2.0,-2,prt_residiual);
+    else if(reml_flag) fit_reml(outfileName, phenofileName, mpheno, erm_bin_flag, grm_bin_flag, erm_alg, covfileName, qcovfileName, erm_file, grm_file, m_erm_flag, within_family, priors, priors_var, no_constrain, reml_mtd, MaxIter, reml_fixed_var_flag, reml_force_inv_fac_flag, reml_force_converge_flag, reml_no_converge_flag, mlma_no_adj_covar, pred_rand_eff, est_fix_eff, no_lrt, prevalence, mlma_flag,reml_drop,indilstName,indilst2remove,  NULL, erm_cutoff,erm_cutoff_2sides, -2.0,-2,prt_residiual);
     else if (ext_inde_flag)  extract_inden_probes(outfileName, befileName, inde_num, ldrsq,   simu_seed, problstName, problst2exclde, genelistName,  chr,prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName, indilst2remove);
     else if(getvariance_flag || getmean_flag) getPrbVarianceMean(outfileName, efileName,  befileName, transposedin,  efileType, problstName, problst2exclde,genelistName,  chr, prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName,indilst2remove, no_fid_flag,valueType,getvariance_flag,getmean_flag);
     else if(blup_probe_flag) blup_probe(outfileName, efileName,  befileName, transposedin,  efileType, problstName, problst2exclde,genelistName,  chr, prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName,indilst2remove, no_fid_flag,valueType, std_thresh,upperBeta,lowerBeta,blup_indi_file);
     else if(score_flag) scoreIndividuals(outfileName,befileName, score_file, col_prb, col_score, hasHeader, phenofileName,  mpheno, problstName, problst2exclde,genelistName, chr, prbname,  fromprbname, toprbname, prbWind,fromprbkb, toprbkb,prbwindFlag, genename, probe2rm, indilstName, indilst2remove,  std_thresh, impute_mean_flag);
-    else if (vqtl) V_QTL(outfileName,  efileName, befileName,  bFileName,  transposedin, efileType, problstName, problst2exclde, genelistName,  chr, prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag, genename,problst2exclde, indilstName, indilst2remove,  no_fid_flag, valueType, beta2m, m2beta,  std_thresh, upperBeta, lowerBeta, dpvalfName,  thresh_det_pval,  thresh_prpt_prb,  thresh_prpt_spl,  filter_det_pval_mth,  missing_ratio_prob, autosome_num,  maf, snplstName, snplst2exclde, tsk_ttl, tsk_id,vqtl_mtd);
+    else if (vqtl) V_QTL(outfileName,  efileName, befileName,  bFileName,  transposedin, efileType, problstName, problst2exclde, genelistName,  chr, prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag, genename,problst2exclde, indilstName, indilst2remove,  no_fid_flag, valueType, beta2m, m2beta,  std_thresh, upperBeta, lowerBeta, dpvalfName,  thresh_det_pval,  thresh_prpt_prb,  thresh_prpt_spl,  filter_det_pval_mth,  missing_ratio_prob, autosome_num,  maf, snplstName, snplst2exclde, tsk_ttl, tsk_id,vqtl_mtd,covfileName, qcovfileName,besd_snp_major, cis_flag,  cis_itvl);
+    else if(eqtl) eQTL(outfileName,  efileName, befileName,  bFileName,  transposedin, efileType, problstName, problst2exclde, genelistName,  chr, prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag, genename,problst2exclde, indilstName, indilst2remove,  no_fid_flag, valueType, beta2m, m2beta,  std_thresh, upperBeta, lowerBeta, dpvalfName,  thresh_det_pval,  thresh_prpt_prb,  thresh_prpt_spl,  filter_det_pval_mth,  missing_ratio_prob, autosome_num,  maf, snplstName, snplst2exclde, tsk_ttl, tsk_id,covfileName, qcovfileName,besd_snp_major);
+    else if(queryBesd) query_besd(outfileName, beqtlFileName,  snplstName,  snplst2exclde,  problstName,problst2exclde,  genelistName,  pQueryBesd,  chr,   prbchr, snpchr,  snprs,  fromsnprs, tosnprs,  prbname,  fromprbname,  toprbname,snpWind,  prbWind, genename, fromsnpkb,  tosnpkb,  fromprbkb,  toprbkb,  snpwindFlag,  prbwindFlag, cis_flag,  cis_itvl,  probe2rm, snp2rm);
+    else if (metaflg) {
+        if(besdflstName != NULL) meta( besdflstName ,outfileName,meta_mtd,pmecs, cis_flag,  cis_itvl);
+        else if(gwasflstName != NULL) meta_gwas(gwasflstName, outfileName, meta_mtd, pmecs,mecs_mth,corMatFName,snplstName, zflag);
+        else {
+            LOGPRINTF("ERROR: please input a file list using --besd-flist or --gwas-flist.\n");
+            TERMINATE();
+        }
+    }
+    else if(make_besd_flag) make_besd(outfileName, beqtlFileName,  snplstName,  snplst2exclde,  problstName,problst2exclde,  genelistName,  pQueryBesd,  chr,   prbchr, snpchr,  snprs,  fromsnprs, tosnprs,  prbname,  fromprbname,  toprbname,snpWind,  prbWind, genename, fromsnpkb,  tosnpkb,  fromprbkb,  toprbkb,  snpwindFlag,  prbwindFlag, cis_flag,  cis_itvl,  probe2rm, snp2rm,save_dense_flag,to_smr_flag,besd_shrink_flag, stdprb, freqFName, varFName);
+
    /* unsigned char* wkspace_ua = NULL;
     
     unsigned char* wkspace;

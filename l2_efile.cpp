@@ -734,7 +734,8 @@ namespace EFILE {
     }
     void read_beed(char* beedFileName,eInfo* einfo)
     {
-        //all the read procedure is using _esi_include and _epi_include
+        bool sorted = is_sorted(einfo->_eii_include.begin(), einfo->_eii_include.end()) && is_sorted(einfo->_epi_include.begin(), einfo->_epi_include.end());
+        //all the read procedure is using _eii_include and _epi_include
         FILE* beedfile=NULL;
         if(fopen_checked(&beedfile,beedFileName,"rb")) TERMINATE();
         uint32_t indicator;
@@ -777,7 +778,7 @@ namespace EFILE {
         uint64_t val_ttl_icld=einfo->_epi_include.size()*einfo->_eii_include.size();
         if(!sudoAllocReserved( val_ttl_icld*sizeof(double), typestr)) TERMINATE();
         einfo->_val.resize(val_ttl_icld);
-        if(einfo->_eii_include.size()==einfo->_eii_num && einfo->_epi_include.size()==einfo->_epi_num )
+        if(einfo->_eii_include.size()==einfo->_eii_num && einfo->_epi_include.size()==einfo->_epi_num && sorted)
         {
             if(fread(&einfo->_val[0], sizeof(double),val_ttl_icld, beedfile)!=val_ttl_icld)
             {
@@ -792,7 +793,6 @@ namespace EFILE {
             if(!allocReserved(&readBuf, einfo->_eii_num*sizeof(double),msg)) TERMINATE();
             for(int i=0; i<einfo->_epi_include.size();i++)
             {
-                memset(readBuf,0,sizeof(double)*(einfo->_eii_num));
                 int prbid=einfo->_epi_include[i];
                 uint64_t readpos=3*sizeof(uint32_t)+prbid*einfo->_eii_num*sizeof(double);
                 fseek( beedfile, readpos, SEEK_SET );
@@ -1106,8 +1106,8 @@ namespace EFILE {
         einfo->_epi_include.clear();
         einfo->_epi_map.clear();
         einfo->_epi_include.push_back((int)idx);
-        einfo->_epi_map.insert(pair<string,int>(prbname,0));
-        cout << prbname << " is extracted. " << endl;
+        einfo->_epi_map.insert(pair<string,int>(prbname,(int)idx));
+        LOGPRINTF( "%s is extracted.\n",prbname.c_str());
     }
     void extract_probe(eInfo* einfo, int tsk_ttl, int tsk_id)
     {
@@ -2104,10 +2104,10 @@ namespace EFILE {
         }
         
         einfo->_eii_pheno_num=(int)pheno_ids.size();
-        if(!sudoAllocReserved( (pheno_ids.size()-1)*einfo->_eii_num*sizeof(double), "phenotype")) TERMINATE();
+        if(!sudoAllocReserved( (pheno_ids.size()-1)*einfo->_eii_num*sizeof(double), "phenotype")) {TERMINATE();}
         einfo->_eii_pheno.resize(pheno_ids.size()*einfo->_eii_num);
         LOGPRINTF("There are %d traits in the file %s and %ld trait(s) specified. \n",phen_num, phen_file.c_str(),pheno_ids.size());
-        for(int i=0;i<pheno_ids.size()*einfo->_eii_num;i++) einfo->_eii_pheno[i]=-9;
+        for(int i=0;i<pheno_ids.size()*einfo->_eii_num;i++) einfo->_eii_pheno[i]=MISSING_PHENO;
         in_phen.seekg(ios::beg);
         int line = 1;
         map<string,int> missindi;
@@ -2140,7 +2140,7 @@ namespace EFILE {
         
         for(int i=0;i<pheno_ids.size();i++)
             for(int j=0;j<einfo->_eii_num;j++)
-                if(einfo->_eii_pheno[i*einfo->_eii_num+j]==-9) missindi.insert(pair<string,int>(einfo->_eii_fid[j] + ":" + einfo->_eii_iid[j],j));
+                if(einfo->_eii_pheno[i*einfo->_eii_num+j]==MISSING_PHENO) missindi.insert(pair<string,int>(einfo->_eii_fid[j] + ":" + einfo->_eii_iid[j],j));
         
         for (iter = missindi.begin(); iter != missindi.end(); iter++) indi_list.push_back(iter->first);        
         update_map_rm(indi_list, einfo->_eii_map, einfo->_eii_include);
@@ -2377,7 +2377,7 @@ namespace EFILE {
             else if(erm_mtd == 1) divid_by_std = false;
             std_probe(einfo, X_bool, divid_by_std, _probe_data, output_profile);
         }
-        else if(erm_mtd ==2)  std_probe_ind(einfo, X_bool, false, _probe_data, output_profile);
+        //else if(erm_mtd ==2)  std_probe_ind(einfo, X_bool, false, _probe_data, output_profile);
         else std_iteration(einfo, X_bool, _probe_data, output_profile);
         /*
         FILE* tmpfile=fopen("std.txt","w");
@@ -2718,8 +2718,14 @@ namespace EFILE {
         LOGPRINTF("\n%ld ORMs have been merged together.\n",grm_files.size());
     }
     
-    void rm_cor_indi(eInfo* einfo, double grm_cutoff) {
-        cout << "Pruning the ORM with a cutoff of " << grm_cutoff << " ..." << endl;
+    void rm_cor_indi(eInfo* einfo, double grm_cutoff,bool erm_cutoff_2sides) {
+        if(erm_cutoff_2sides){
+            LOGPRINTF( "Pruning the ORM with a cutoff of %f and %f...\n",grm_cutoff, -1.0*grm_cutoff);
+        }
+        else
+        {
+            LOGPRINTF( "Pruning the ORM with a cutoff of %f...\n",grm_cutoff);
+        }
         
         int i = 0, j = 0, i_buf = 0;
         
@@ -2727,10 +2733,21 @@ namespace EFILE {
         vector<int> rm_grm_ID1, rm_grm_ID2;
         for (i = 0; i < einfo->_eii_include.size(); i++) {
             for (j = 0; j < i; j++) {
-                if (einfo->_grm(einfo->_eii_include[i], einfo->_eii_include[j]) > grm_cutoff) {
-                    rm_grm_ID1.push_back(einfo->_eii_include[i]);
-                    rm_grm_ID2.push_back(einfo->_eii_include[j]);
+                if(erm_cutoff_2sides)
+                {
+                    if (abs(einfo->_grm(einfo->_eii_include[i], einfo->_eii_include[j])) > grm_cutoff) {
+                        rm_grm_ID1.push_back(einfo->_eii_include[i]);
+                        rm_grm_ID2.push_back(einfo->_eii_include[j]);
+                    }
                 }
+                else
+                {
+                    if (einfo->_grm(einfo->_eii_include[i], einfo->_eii_include[j]) > grm_cutoff) {
+                        rm_grm_ID1.push_back(einfo->_eii_include[i]);
+                        rm_grm_ID2.push_back(einfo->_eii_include[j]);
+                    }
+                }
+                
             }
         }
         
