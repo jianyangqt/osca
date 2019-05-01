@@ -25,7 +25,7 @@ namespace EFILE {
         uint32_t _eType;
         // epi file
         uint32_t autosome_num;
-        uint32_t _epi_num;
+        uint64_t _epi_num;
         vector<int> _epi_chr;
         vector<string> _epi_prb;
         vector<int> _epi_gd;
@@ -36,7 +36,7 @@ namespace EFILE {
         map<string,int> _epi_map;
         
         // eii file
-        uint32_t _eii_num;
+        uint64_t _eii_num;
         vector<string> _eii_fid;
         vector<string> _eii_iid;
         vector<string> _eii_fa_id;
@@ -85,6 +85,7 @@ namespace EFILE {
         vector<double> _fixed_rg_val;
         bool _reml_fixed_var;
         VectorXd _b;
+        VectorXd _se;
         
         //reserved
         bool _bivar_reml;
@@ -104,6 +105,7 @@ namespace EFILE {
     } eInfo;
     
     typedef struct{
+        int* itr;
         char* fid;
         char* iid;
         char* fa_id;
@@ -113,9 +115,10 @@ namespace EFILE {
     } indiinfolst;
     
     typedef struct{
-        vector<string> bepath;
+        int* ptr;
         char* probeId;
         char* genename;
+        
         int probechr;
         int gd;
         int bp;
@@ -140,6 +143,7 @@ namespace EFILE {
     string getFileType(uint32_t tid);
     string getValType(uint32_t tid);
     void  read_efile(char* eFileName, eInfo* einfo,uint32_t filetype, bool no_fid_flag, int valueType);
+    void  read_pheno2(char* eFileName, eInfo* einfo,int colid);
     void  read_efile_t(char* eFileName, eInfo* einfo,uint32_t filetype, bool no_fid_flag,int valueType);
     void read_eii(char* eiiFileName,eInfo* einfo);
     void read_epi(char* epiFileName,eInfo* einfo);
@@ -169,7 +173,9 @@ namespace EFILE {
     void write_efile(char* outFileName, eInfo* einfo,bool impute_mean_flag);
     void write_tefile(char* outFileName, eInfo* einfo,bool impute_mean_flag);
     void read_phen(eInfo* einfo, string phen_file, char* mpheno, bool mvFlg=false);
+    void read_cc(eInfo* einfo, string phen_file, char* mpheno, bool mvFlg=false);
     void make_erm(eInfo* einfo, int erm_mtd=0, bool output_bin=true, char* outFileName=NULL, bool output_profile=false);
+    void output_grm(eInfo* einfo, string _out, bool output_grm_bin);
     void read_cov(eInfo* einfo, string cov_file, bool qcovFlg);
     void read_grm_gz(eInfo* einfo, string grm_file, vector<string> &grm_id, bool out_id_log, bool read_id_only);
     void read_grm_bin(eInfo* einfo, string grm_file, vector<string> &grm_id, bool out_id_log, bool read_id_only, bool dont_read_N);
@@ -179,7 +185,7 @@ namespace EFILE {
     void update_sex(eInfo* einfo, char* sex_file);
     void adj_grm(eInfo* einfo, double adj_grm_fac);
     void dc(eInfo* einfo, int dosage_compen);
-    
+    bool moment_eligibility_ck(eInfo* einfo);
     void std_probe(eInfo* einfo, vector< vector<bool> > &X_bool, bool divid_by_std, MatrixXd &_probe_data,bool output_profile=false);
     void std_probe_in_place( bool divid_by_std, MatrixXd &_probe_data);
     void beta_2_m(eInfo* einfo);
@@ -188,12 +194,17 @@ namespace EFILE {
     void filtering_constitutive_probes( eInfo* einfo, double upper_beta_thresh,double lower_beta_thresh);
     void filtering_with_detpval(eInfo* einfo, char* dpvalfName, double dp_thresh, double prb_thresh, double spl_thresh,int mth, bool no_fid_flag);
     void filtering_with_missingratio(eInfo* einfo,double missratioprobe);
+    void filtering_indi_missingratio(eInfo* einfo,double missratioindi);
     void cal_var_mean(eInfo* einfo, bool mean_flag, bool var_flag);
     void load_workspace(eInfo* einfo,char* efileName, char* befileName, bool transposed, int efileType,char* problstName,char* problst2exclde,char* genelistName, int chr,char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* probe2exclde,char* indilstName,char* indilst2remove, bool no_fid_flag,int valueType,bool beta2m,bool m2beta, double std_thresh,double upperBeta,double lowerBeta,char* dpvalfName, double dp_thresh, double prb_thresh, double spl_thresh, int filter_mth, double mssratio_prob, int autosome_num);
-    
+    void  adjprobe(eInfo* einfo);
+    void  fast_adjprobe(eInfo* einfo);
+    void  fast_adjprobe(eInfo* einfo, MatrixXd &X,  MatrixXd &XtXi);
+    int construct_X(eInfo* einfo, vector<MatrixXd> &E_float, MatrixXd &qE_float, MatrixXd &_X);
     void free_indilist(vector<indiinfolst> &a);
     void free_probelist(vector<probeinfolst> &a);
     void free_assoclist(vector<ASSOCRLT> &a);
-    
+    bool check_case_control(double &ncase,  VectorXd &y) ;
+    void update_startend(int length, int tsk_ttl, int tsk_id, int &start, int &end);
 }
 #endif /* defined(__osc__l2_efile__) */

@@ -13,124 +13,9 @@ using namespace VQTL;
 
 int main(int argc, char * argv[])
 {
-    /*
-    FILE* fptr=fopen("test.rs10501886.S.mat","r");
-    vector<string> strlist;
-    vector<double> val;
-    while(fgets(Tbuf, MAX_LINE_SIZE, fptr))
-    {
-        split_str(Tbuf,strlist,0);
-        for(int i=0;i<strlist.size();i++) val.push_back(atof(strlist[i].c_str()));;
-    }
-    fclose(fptr);
-    long dim=sqrt(val.size());
-    Map<MatrixXd> raw(&val[0],dim,dim);
-    cout<<raw.cols()<<":"<<raw.rows()<<endl;
-     cout<<raw.determinant()<<endl;
-
-    //inverse using eigen
-    MatrixXd iraw=raw;
-    bool determinant_zero = false;
-    SelfAdjointEigenSolver<MatrixXd> eigensolver(iraw);
-    VectorXd eval = eigensolver.eigenvalues();
-    cout<<eval<<endl;
-    for(int i=0;i<eval.size();i++)
-    {
-        if(abs(eval(i))<1e-3) {
-            determinant_zero=true;
-            eval(i)=0;
-        } else {
-            eval(i) = 1.0 / eval(i);
-        }
-    }
-    iraw = eigensolver.eigenvectors() * DiagonalMatrix<double, Dynamic, Dynamic>(eval) * eigensolver.eigenvectors().transpose();
-    MatrixXd Iden=raw*iraw;
-    string filename="test.rs10501886.eigen.inv.mat";
-    FILE* tmpfile=fopen(filename.c_str(),"w");
-    if(!tmpfile)
-    {
-        LOGPRINTF("error open file.\n");
-        TERMINATE();
-    }
-    for(int t=0;t<iraw.rows();t++)
-    {
-        string str="";
-        for(int k=0;k<iraw.cols();k++)
-        {
-            str +=atos(iraw(t,k)) + '\t';
-        }
-        str += '\n';
-        fputs(str.c_str(),tmpfile);
-    }
-    fclose(tmpfile);
-    
-    //inverse using SVD
-    iraw=raw;
-    JacobiSVD<MatrixXd> svd(iraw, ComputeThinU | ComputeThinV);
-    VectorXd sin=svd.singularValues();
-    cout<<sin<<endl;
-    for(int i=0;i<sin.size();i++) {
-        if(abs(sin[i])<1e-6) {
-            sin[i] =0;
-        } else {
-            sin[i] = 1/sin[i];
-        }
-    }
-    MatrixXd dd=svd.matrixU()*sin.asDiagonal()*svd.matrixV().transpose();
-    Iden=raw*dd;
-    filename="test.rs10501886.svd.inv.mat";
-    tmpfile=fopen(filename.c_str(),"w");
-    if(!tmpfile)
-    {
-        LOGPRINTF("error open file.\n");
-        TERMINATE();
-    }
-    for(int t=0;t<dd.rows();t++)
-    {
-        string str="";
-        for(int k=0;k<dd.cols();k++)
-        {
-            str +=atos(dd(t,k)) + '\t';
-        }
-        str += '\n';
-        fputs(str.c_str(),tmpfile);
-    }
-    fclose(tmpfile);
-     */
-
-    /*
-     MatrixXd A = MatrixXd::Random(3,3);
-     cout << "Here is a random 6x6 matrix, A:" << endl << A << endl << endl;
-     EigenSolver<MatrixXd> es(A);
-     cout << "The eigenvalues of A are:" << endl << es.eigenvalues() << endl;
-     cout << "The matrix of eigenvectors, V, is:" << endl << es.eigenvectors() << endl << endl;
-     complex<double> lambda = es.eigenvalues()[0];
-     cout << "Consider the first eigenvalue, lambda = " << lambda << endl;
-     VectorXcd v = es.eigenvectors().col(0);
-     cout << "If v is the corresponding eigenvector, then lambda * v = " << endl << lambda * v << endl;
-     cout << "... and A * v = " << endl << A.cast<complex<double> >() * v << endl << endl;
-     MatrixXcd D = es.eigenvalues().asDiagonal();
-     MatrixXcd V = es.eigenvectors();
-     cout << "Finally, V * D * V^(-1) = " << endl << V * D * V.inverse() << endl;
-    */
-    
-    /*
-    MatrixXf m = MatrixXf::Random(3,8);
-    cout << "Here is the matrix m:" << endl << m << endl;
-    JacobiSVD<MatrixXf> svd(m, ComputeThinU | ComputeThinV);
-    cout << "Its singular values are:" << endl << svd.singularValues() << endl;
-    cout << "Its left singular vectors are the columns of the thin U matrix:" << endl << svd.matrixU() << endl;
-    cout << "Its right singular vectors are the columns of the thin V matrix:" << endl << svd.matrixV() << endl;
-    Vector3f rhs(1, 0, 0);
-    cout << "Now consider this rhs vector:" << endl << rhs << endl;
-    cout << "A least-squares solution of m*x = rhs is:" << endl << svd.solve(rhs) << endl;
-
-    MatrixXf ff=svd.singularValues().asDiagonal();
-    cout<<ff<<endl;
-    */
     cout << "*******************************************************************" << endl;
     cout << "* OmicS-data-based Complex trait Analysis (OSCA)" << endl;
-    cout << "* version 0.392" << endl;
+    cout << "* version 0.43" << endl;
     cout << "* (C) 2016 Futao Zhang, Zhihong Zhu and Jian Yang" << endl;
     cout << "* The University of Queensland" << endl;
     cout << "* MIT License" << endl;
@@ -146,28 +31,6 @@ int main(int argc, char * argv[])
     }
     printf("Logging to %s.\n", logfname.c_str());
     
-
-    /**************************/
-    /*
-    MatrixXf m1 = MatrixXf::Random(2,6);
-    srand((unsigned int) time(0));
-    MatrixXf m2 = MatrixXf::Random(2,6);
-    cout<<m1<<endl;
-    cout<<m2<<endl;
-    m1=m1-m2;
-    cout<<m1<<endl;
-    m1=m1.array()*m1.array();
-    cout<<m1<<endl;
-    VectorXf n1=m1.colwise().sum();
-    cout<<n1<<endl;
-    
-    vector<double> a;
-    for(int i=0;i<n1.size();i++) a.push_back(n1[i]);
-    vector<int> b;
-    get_bottom_indices(b,a,10);
-   */
-    /***************************/
-    
     
     FLAGS_VALID_CK(argc, argv);
     
@@ -182,8 +45,8 @@ int main(int argc, char * argv[])
     uint64_t llxx=getMemSize_Plink();
     mem_left=getAllocMB_Plink(llxx);
     if (llxx) {
-        sprintf(logbuf, "%llu MB RAM detected; reserving %lld MB for main workspace.\n", llxx, mem_left);
-        logprintb();
+        //sprintf(logbuf, "%llu MB RAM detected; reserving %lld MB for main workspace.\n", llxx, mem_left);
+        //logprintb();
     }
     
     LOGPRINTF("\nOptions:\n");
@@ -258,7 +121,8 @@ void option(int option_num, char* option_str[])
     bool erm_cutoff_2sides = false;
     //for MLMA
     bool mlma_flag=false;
-    bool mlma_loco_flag=false;
+    bool mlma_exact_flag=false;
+    bool moment_exact_flag = false;
     char* qcovfileName=NULL;
     char* covfileName=NULL;
     bool within_family = false;
@@ -268,7 +132,8 @@ void option(int option_num, char* option_str[])
     bool reml_force_inv_fac_flag = false;
     bool reml_force_converge_flag = false;
     bool  reml_no_converge_flag = false;
-    bool mlma_no_adj_covar = false;
+    bool mlma_preadj_covar = false;
+    bool force_mlm = false; //if constrain or variace explianed >1 or <0, if this flag applied, MLM would not switch to LG
     
     bool ignore_Ce=false; // bivar
     bool bivar_no_constrain = false;
@@ -286,13 +151,15 @@ void option(int option_num, char* option_str[])
     //for assoc
     bool assoc_flag = false;
     bool linear_flag = false;
-    bool simu_qt_flag = false, simu_cc = false;
+    bool logistic_flag = false;
+    bool out_comm_flag = false;
+    bool simu_qt_flag = false, simu_cc = false, rev_simu = false;
     int simu_rep = 1, simu_case_num = 0, simu_control_num = 0, simu_eff_mod = 0;  // 0 standarise the probes. 1 use raw probe profiles.
     char* simu_causal = NULL;
     double simu_h2 = 0.1, simu_K = 0.1, simu_seed = -rand_seed();
-    
+    char* simu_causal2 = NULL;double simu_h22 = 0.0;
     bool reml_flag = false, pred_rand_eff = false, est_fix_eff = false, no_lrt = false;
-    double prevalence = -2.0, prevalence2 = -2.0;
+    double prevalence = -2.0;
     vector<int> reml_drop;
     reml_drop.push_back(1);
 
@@ -311,6 +178,7 @@ void option(int option_num, char* option_str[])
     int filter_det_pval_mth=0;
     
     double missing_ratio_prob=1.0; // missing value rate threshold to QC probes. 1.0 means filtering out no probe. 0.0 means filtering out probes even with 1 missing value.
+    double missing_ratio_indi=1.0;
     //
     bool estn_flag=false;
     
@@ -337,11 +205,12 @@ void option(int option_num, char* option_str[])
     
     //
     bool eqtl=false;
+    bool mlmeqtl=false;
     
     bool prt_residiual=false;
     bool simu_residual_only=false;
     
-    bool besd_snp_major = false;
+    //bool besd_snp_major = false;
     
     //for smr
     bool queryBesd = false;
@@ -365,7 +234,9 @@ void option(int option_num, char* option_str[])
     bool metaflg = false;
     bool smr_flag= false;
     char* gwasflstName = NULL;
-    
+    char* ewasflstName = NULL;
+    char* ewasfileName = NULL;
+    bool gc_flag = false;
     
     int meta_mtd = 0; //0 for traditional meta, 1 for MeCS
     double pmecs = 0.01;
@@ -378,19 +249,41 @@ void option(int option_num, char* option_str[])
     bool to_smr_flag = false;
     bool besd_shrink_flag = false; //remove null probes and null SNPs
     
-    
-    
+    int nbin = -9; // variance bin
+    int binmth = 0; //stratergy to divide the bin. 0 for sample size, 1 for weight of individual
+    int normeigvec = -9; // number of top PCs to generate ORM
+    bool fixpc = false; // when bc_mth is 2, the normeigvec of PCs as fixed effect
+    bool slectDominantPCs = false; // regess the phenotype on each PC, select the significant PCs under bonferroni correction
+    int clusteringmth = 0; // 0 for clustering probes with bonforroni correction. 1 for clustering probes between 0.05 and bonforroni correction. 2 for clustering probes with 0.05
+    double bcthresh=-9; // the upper p value threshold for  bc_mth 0, clusteringmth 2
+    double swthresh=-9; // p-value threshold for stepwise in moment
+    double r2thresh = -9;
+    bool moment_flag = false;
+    int nrandcomp =2;
+    //bool expect_all = false;
+    int moment_wind = 100; //kb
+    int moment_num = -9; // max number in the sig set to moment, -9 means all
+    int moment_pcs = 32; // number of PCs to use when moment fails
     //private use
     bool enveff = false;
     char* efffname = NULL;
     char* effproblstName = NULL;
     
     bool stdprb =false;
+    bool rint = false;
     char* freqFName = NULL;
     char* varFName =NULL;
     
     double lambda_wind = 0.01;
     bool fastlinear =false;
+    bool nofastlinear =false;
+    
+    bool bcflag=false;
+    int slctmtd =0; //0 for linear, 1 for MOA
+    double momentpercent = -9;
+    //int bc_mth=0; // 0 for bonferroni, 1 for variance bin, 2 for seperating ORM
+    bool approximate_flag = false; // stepwise only for excluding the targets
+    bool approximate_stepwise = false; // stepwise for both components and excluding the targets
     for(int i=0;i<option_num;i++)
     {
         if(0==strcmp(option_str[i],"--efile")){
@@ -399,46 +292,46 @@ void option(int option_num, char* option_str[])
             FileExist(efileName);
             LOGPRINTF("--efile %s\n",efileName);
         }
-        else if(0==strcmp(option_str[i],"--tefile")){
+        if(0==strcmp(option_str[i],"--tefile")){
             efileName=option_str[++i];
             transposedin=true;
             FLAG_VALID_CK("--tefile", efileName);
             FileExist(efileName);
             LOGPRINTF("--tefile %s\n",efileName);
         }
-        else if(0==strcmp(option_str[i],"--gene-expression")){
+        if(0==strcmp(option_str[i],"--gene-expression")){
             efileType=GENEEXPRESSION;
             LOGPRINTF("--gene-expression\n");
         }
-        else if(0==strcmp(option_str[i],"--methylation")){
+        if(0==strcmp(option_str[i],"--methylation")){
             efileType=METHYLATION;
             valueType=BETAVALUE;
             LOGPRINTF("--methylation\n");
         }
-        else if(0==strcmp(option_str[i],"--methylation-beta")){
+        if(0==strcmp(option_str[i],"--methylation-beta")){
             efileType=METHYLATION;
             valueType=BETAVALUE;
             LOGPRINTF("--methylation-beta\n");
         }
-        else if(0==strcmp(option_str[i],"--methylation-m")){
+        if(0==strcmp(option_str[i],"--methylation-m")){
             efileType=METHYLATION;
             valueType=MVALUE;
             LOGPRINTF("--methylation-m\n");
         }
-        else if(0==strcmp(option_str[i],"--make-bod")){
+        if(0==strcmp(option_str[i],"--make-bod")){
             make_beed_flag=true;
             LOGPRINTF("--make-bod\n");
         }
-        else if(0==strcmp(option_str[i],"--make-efile")){
+        if(0==strcmp(option_str[i],"--make-efile")){
             make_efile_flag=true;
             LOGPRINTF("--make-efile\n");
         }
-        else if(0==strcmp(option_str[i],"--make-tefile")){
+        if(0==strcmp(option_str[i],"--make-tefile")){
             make_efile_flag=true;
             transposedout=true;
             LOGPRINTF("--make-tefile\n");
         }
-        else if (0 == strcmp(option_str[i], "--out")){
+        if (0 == strcmp(option_str[i], "--out")){
             outfileName =option_str[++i];;
             if(outfileName !=NULL && has_prefix(outfileName, "--"))
             {
@@ -447,7 +340,7 @@ void option(int option_num, char* option_str[])
             }
             LOGPRINTF("--out %s\n", outfileName);
         }
-        else if(0==strcmp(option_str[i],"--befile")){
+        if(0==strcmp(option_str[i],"--befile")){
             if(befileName==NULL) {
                 befileName=option_str[++i];
                 FLAG_VALID_CK("--befile", befileName);
@@ -459,49 +352,49 @@ void option(int option_num, char* option_str[])
             }
            
         }
-        else if(0==strcmp(option_str[i],"--befile-flist")){
+        if(0==strcmp(option_str[i],"--befile-flist")){
             befileFlstName=option_str[++i];
             merge_beed_flag=true;
             FLAG_VALID_CK("--befile-flist", befileFlstName);
             LOGPRINTF("--befile-flist %s\n",befileFlstName);
         }
-        else if(strcmp(option_str[i],"--keep")==0){
+        if(strcmp(option_str[i],"--keep")==0){
             indilstName=option_str[++i];
             FLAG_VALID_CK("--keep", indilstName);           
             FileExist(indilstName);
             LOGPRINTF("--keep %s\n", indilstName);
         }
-        else if(strcmp(option_str[i],"--remove")==0){
+        if(strcmp(option_str[i],"--remove")==0){
             indilst2remove=option_str[++i];
             FLAG_VALID_CK("--remove", indilst2remove);
             FileExist(indilst2remove);
             LOGPRINTF("--remove %s\n",indilst2remove);
         }
-        else if(strcmp(option_str[i],"--extract-snp")==0){
+        if(strcmp(option_str[i],"--extract-snp")==0){
             snplstName=option_str[++i];
             FLAG_VALID_CK("--extract-snp", snplstName);
             FileExist(snplstName);
             LOGPRINTF("--extract-snp %s\n",snplstName);
         }
-        else if(strcmp(option_str[i],"--exclude-snp")==0){
+        if(strcmp(option_str[i],"--exclude-snp")==0){
             snplst2exclde=option_str[++i];
             FLAG_VALID_CK("--exclude-snp", snplst2exclde);
             LOGPRINTF("--exclude-snp %s\n",snplst2exclde);
             FileExist(snplst2exclde);
         }
-        else if(strcmp(option_str[i],"--extract-probe")==0){
+        if(strcmp(option_str[i],"--extract-probe")==0){
             problstName=option_str[++i];
             FLAG_VALID_CK("--extract-probe", problstName);
             FileExist(problstName);
             LOGPRINTF("--extract-probe %s\n",problstName);
         }
-        else if(strcmp(option_str[i],"--exclude-probe")==0){
+        if(strcmp(option_str[i],"--exclude-probe")==0){
             problst2exclde=option_str[++i];
             FLAG_VALID_CK("--exclude-probe", problst2exclde);
             FileExist(problst2exclde);
             LOGPRINTF("--exclude-probe %s\n",problst2exclde);
         }
-        else if(strcmp(option_str[i],"--maf")==0){
+        if(strcmp(option_str[i],"--maf")==0){
             maf=atof(option_str[++i]);
             LOGPRINTF("--maf %lf\n",maf);
             if(maf<0 || maf>0.5)
@@ -510,17 +403,17 @@ void option(int option_num, char* option_str[])
                 TERMINATE();
             }
         }
-        else if(strcmp(option_str[i],"--genes")==0){
+        if(strcmp(option_str[i],"--genes")==0){
             genelistName=option_str[++i];
             FLAG_VALID_CK("--genes", genelistName);
             LOGPRINTF("--genes %s\n",genelistName);
             FileExist(genelistName);
         }
-        else if(0 == strcmp(option_str[i],"--thread-num")){
+        if(0 == strcmp(option_str[i],"--thread-num")){
             thread_num=atoi(option_str[++i]);
             LOGPRINTF("--thread-num %d\n",thread_num);
         }
-        else if(strcmp(option_str[i],"--chr")==0){
+        if(strcmp(option_str[i],"--chr")==0){
             char* tmpstr=option_str[++i];
             if(strncmp(tmpstr,"X",1)==0 || strncmp(tmpstr,"x",1)==0) chr=23;
             else if(strncmp(tmpstr,"Y",1)==0 || strncmp(tmpstr,"y",1)==0) chr=24;
@@ -533,22 +426,22 @@ void option(int option_num, char* option_str[])
             }
             LOGPRINTF("--chr %s\n",tmpstr);
         }
-        else if (0 == strcmp(option_str[i], "--probe")){
+        if (0 == strcmp(option_str[i], "--probe")){
             prbname = option_str[++i];
             FLAG_VALID_CK("--probe", prbname);
             LOGPRINTF("--probe %s\n", prbname);
         }
-        else if (0 == strcmp(option_str[i], "--from-probe")){
+        if (0 == strcmp(option_str[i], "--from-probe")){
             fromprbname = option_str[++i];
             FLAG_VALID_CK("--from-probe", fromprbname);
             LOGPRINTF("--from-probe %s\n", fromprbname);
         }
-        else if (0 == strcmp(option_str[i], "--to-probe")){
+        if (0 == strcmp(option_str[i], "--to-probe")){
             toprbname = option_str[++i];
             FLAG_VALID_CK("--to-probe", toprbname);
             LOGPRINTF("--to-probe %s\n", toprbname);
         }
-        else if(strcmp(option_str[i],"--probe-wind")==0){
+        if(strcmp(option_str[i],"--probe-wind")==0){
             prbwindFlag=true;
             char* tmpstr=option_str[++i];
             if(tmpstr==NULL || has_prefix(tmpstr, "--")) i--;
@@ -560,12 +453,12 @@ void option(int option_num, char* option_str[])
                 TERMINATE();
             }
         }
-        else if (0 == strcmp(option_str[i], "--gene")){
+        if (0 == strcmp(option_str[i], "--gene")){
             genename = option_str[++i];
             FLAG_VALID_CK("--gene", genename);
             LOGPRINTF("--gene %s\n", genename);
         }
-        else if(strcmp(option_str[i],"--from-probe-kb")==0){
+        if(strcmp(option_str[i],"--from-probe-kb")==0){
             fromprbkb=atoi(option_str[++i]);
             LOGPRINTF("--from-probe-kb %d Kb\n", fromprbkb);
             if(fromprbkb<0 )
@@ -574,7 +467,7 @@ void option(int option_num, char* option_str[])
                 TERMINATE();
             }
         }
-        else if(strcmp(option_str[i],"--to-probe-kb")==0){
+        if(strcmp(option_str[i],"--to-probe-kb")==0){
             toprbkb=atoi(option_str[++i]);
             LOGPRINTF("--to-probe-kb %d Kb\n", toprbkb);
             if(toprbkb<0 )
@@ -583,33 +476,33 @@ void option(int option_num, char* option_str[])
                 TERMINATE();
             }
         }
-        else if(strcmp(option_str[i],"--probe-rm")==0){
+        if(strcmp(option_str[i],"--probe-rm")==0){
             probe2rm=option_str[++i];
             FLAG_VALID_CK("--probe-rm", probe2rm);
             LOGPRINTF("--probe-rm %s\n", probe2rm);
         }
-        else if(0==strcmp(option_str[i],"--pheno")){
+        if(0==strcmp(option_str[i],"--pheno")){
             phenofileName=option_str[++i];
             FLAG_VALID_CK("--pheno", phenofileName);
             FileExist(phenofileName);
             LOGPRINTF("--pheno %s\n",phenofileName);
         }
-        else if(0==strcmp(option_str[i],"--mpheno")){
+        if(0==strcmp(option_str[i],"--mpheno")){
             mpheno=option_str[++i];
             FLAG_VALID_CK("--mpheno", mpheno);
             LOGPRINTF("--mpheno %s\n",mpheno);
         }
-        else if(0==strcmp(option_str[i],"--make-orm") || 0==strcmp(option_str[i],"--make-orm-bin")){
+        if(0==strcmp(option_str[i],"--make-orm") || 0==strcmp(option_str[i],"--make-orm-bin")){
             make_erm_flag=true;
             erm_bin_flag=true;
             LOGPRINTF("--make-orm\n");
         }
-        else if(0==strcmp(option_str[i],"--make-orm-gz")){
+        if(0==strcmp(option_str[i],"--make-orm-gz")){
             make_erm_flag=true;
             erm_bin_flag=false;
             LOGPRINTF("--make-orm-gz\n");
         }
-        else if(0==strcmp(option_str[i],"--orm-alg")){
+        if(0==strcmp(option_str[i],"--orm-alg")){
             erm_alg=atoi(option_str[++i])-1;
             if(erm_alg<0 || erm_alg>2)
             {
@@ -618,81 +511,83 @@ void option(int option_num, char* option_str[])
             }
             LOGPRINTF("--orm-alg %d\n",erm_alg+1);
         }
-        else if(0==strcmp(option_str[i],"--orm-cutoff")){
+        if(0==strcmp(option_str[i],"--orm-cutoff")){
             erm_cutoff=atof(option_str[++i]);
             if(erm_cutoff>=-1 || erm_cutoff<=2)
             {
                 LOGPRINTF("--orm-cutoff %f\n",erm_cutoff);
             } else erm_cutoff=-2;
         }
-        else if(0==strcmp(option_str[i],"--orm-cutoff-2sides")){
+        if(0==strcmp(option_str[i],"--orm-cutoff-2sides")){
             erm_cutoff_2sides=true;
             LOGPRINTF("--orm-cutoff-2sides\n");
         }
-        else if(0==strcmp(option_str[i],"--mlma")){
+        if(0==strcmp(option_str[i],"--moa")){
             reml_flag = false;
             mlma_flag=true;
-            LOGPRINTF("--mlma\n");
+            LOGPRINTF("--moa\n");
         }
-        else if(0==strcmp(option_str[i],"--mlma-loco")){
-            mlma_loco_flag=true;
+        if(0==strcmp(option_str[i],"--moa-exact")){
             reml_flag = false;
-            LOGPRINTF("--mlma_loco\n");
+            mlma_exact_flag=true;
+            LOGPRINTF("--moa-exact\n");
         }
-        else if(0==strcmp(option_str[i],"--no-fid")){
+        if(0==strcmp(option_str[i],"--no-fid")){
             no_fid_flag=true;
             LOGPRINTF("--no-fid\n");
         }
-        else if (0 == strcmp(option_str[i], "--covar")){
+        if (0 == strcmp(option_str[i], "--covar")){
             covfileName = option_str[++i];
             FLAG_VALID_CK("--covar", covfileName);
             LOGPRINTF("--covar %s\n", covfileName);
         }
-        else if (0 == strcmp(option_str[i], "--qcovar")){
+        if (0 == strcmp(option_str[i], "--qcovar")){
             qcovfileName = option_str[++i];
             FLAG_VALID_CK("--qcovar", qcovfileName);
             LOGPRINTF("--qcovar %s\n", qcovfileName);
         }
-        else if(0==strcmp(option_str[i],"--orm") || 0==strcmp(option_str[i],"--orm-bin")){
+        if(0==strcmp(option_str[i],"--orm") || 0==strcmp(option_str[i],"--orm-bin")){
             erm_file= option_str[++i];
             erm_bin_flag=true;
             FLAG_VALID_CK("--orm", erm_file);
             LOGPRINTF("--orm %s\n",erm_file);
         }
-        else if(0==strcmp(option_str[i],"--grm") || 0==strcmp(option_str[i],"--grm-bin")){
+        if(0==strcmp(option_str[i],"--grm") || 0==strcmp(option_str[i],"--grm-bin")){
             grm_file= option_str[++i];
             grm_bin_flag=true;
             FLAG_VALID_CK("--grm", grm_file);
             LOGPRINTF("--grm %s\n",grm_file);
         }
-        else if(0==strcmp(option_str[i],"--subtract-orm")){
+        if(0==strcmp(option_str[i],"--subtract-orm")){
             subtract_erm_file= option_str[++i];
             erm_bin_flag=true;
             FLAG_VALID_CK("--subtract-orm", subtract_erm_file);
             LOGPRINTF("--subtract-orm %s\n",subtract_erm_file);
         }
-        else if(0==strcmp(option_str[i],"--merge-orm")){
+        if(0==strcmp(option_str[i],"--multi-orm")){
             erm_file= option_str[++i];
             m_erm_flag=true;
-            FLAG_VALID_CK("--merge-orm", erm_file);
-            LOGPRINTF("--merge-orm %s\n",erm_file);
+            FLAG_VALID_CK("--multi-orm", erm_file);
+            LOGPRINTF("--multi-orm %s\n",erm_file);
         }
-        else if (0==strcmp(option_str[i], "--reml-wfam") ) {
+        if (0==strcmp(option_str[i], "--reml-wfam") ) {
             within_family = true;
             LOGPRINTF("--reml-wfam \n");
         }
-        else if (0==strcmp(option_str[i],"--reml-priors") ) {
+        if (0==strcmp(option_str[i],"--reml-priors") ) {
             priors=option_str[++i];
             FLAG_VALID_CK("--reml-priors", priors);
             LOGPRINTF("--reml-priors %s\n",priors);
             
-        } else if (0==strcmp(option_str[i], "--reml-priors-var")  || 0==strcmp(option_str[i], "--reml-fixed-var")) {
+        }
+        if (0==strcmp(option_str[i], "--reml-priors-var")  || 0==strcmp(option_str[i], "--reml-fixed-var")) {
             string s_buf = option_str[i];
             if(s_buf == "--reml-fixed-var") reml_fixed_var_flag = true;
             priors_var=option_str[++i];
             FLAG_VALID_CK(s_buf, priors_var);
             LOGPRINTF("%s %s\n",s_buf.c_str(),priors_var);
-        } else if (0==strcmp(option_str[i], "--reml-alg") ) {
+        }
+        if (0==strcmp(option_str[i], "--reml-alg") ) {
             reml_mtd = atoi(option_str[++i]);
             if (reml_mtd < 0 || reml_mtd > 2)
             {
@@ -701,10 +596,12 @@ void option(int option_num, char* option_str[])
             }
             LOGPRINTF("--reml-alg %d\n",reml_mtd);
           
-        } else if (0==strcmp(option_str[i], "--reml-no-constrain")) {
+        }
+        if (0==strcmp(option_str[i], "--reml-no-constrain")) {
             no_constrain = true;
             LOGPRINTF("--reml-no-constrain\n");
-        } else if (0==strcmp(option_str[i], "--reml-maxit") ) {
+        }
+        if (0==strcmp(option_str[i], "--reml-maxit") ) {
             MaxIter = atoi(option_str[++i]);
             if (MaxIter < 1 || MaxIter > 100000)
             {
@@ -712,29 +609,37 @@ void option(int option_num, char* option_str[])
                 TERMINATE();
             }
             LOGPRINTF("--reml-maxit %d\n",MaxIter);
-        } else if (0 == strcmp(option_str[i], "--reml-bendV") ) {
+        }
+        if (0 == strcmp(option_str[i], "--reml-bendV") ) {
             reml_force_inv_fac_flag = true;
             LOGPRINTF("--reml-bendV \n");
-        } else if (0 == strcmp(option_str[i], "--reml-force-converge")) {
+        }
+        if (0 == strcmp(option_str[i], "--reml-force-converge")) {
             reml_force_converge_flag = true;
              LOGPRINTF("--reml-force-converge \n");
-        } else if (0==strcmp(option_str[i], "--reml-allow-no-converge") ) {
+        }
+        if (0==strcmp(option_str[i], "--reml-allow-no-converge") ) {
             reml_no_converge_flag = true;
             LOGPRINTF("--reml-allow-no-converge \n");
-        }  else if (0==strcmp(option_str[i], "--reml-bivar-nocove") ) {
+        }
+        if (0==strcmp(option_str[i], "--reml-bivar-nocove") ) {
             ignore_Ce = true;
             LOGPRINTF("--reml-bivar-nocove \n");
-        } else if (0==strcmp(option_str[i], "--reml-bivar-no-constrain")) {
+        }
+        if (0==strcmp(option_str[i], "--reml-bivar-no-constrain")) {
             bivar_no_constrain = true;
             LOGPRINTF("--reml-bivar-no-constrain \n");            
-        } else if (0==strcmp(option_str[i], "--mlma-no-adj-covar")) {
-            mlma_no_adj_covar = true;
-            LOGPRINTF("--mlma-no-adj-covar \n");
-        } else if (0==strcmp(option_str[i], "--m2beta")) {
+        }
+        if (0==strcmp(option_str[i], "--moa-preadj-covar")) {
+            mlma_preadj_covar = true;
+            LOGPRINTF("--moa-preadj-covar \n");
+        }
+        if (0==strcmp(option_str[i], "--m2beta")) {
             m2beta = true;
             beta2m = false;
             LOGPRINTF("--m2beta \n");
-        } else if (0==strcmp(option_str[i], "--beta2m")) {
+        }
+        if (0==strcmp(option_str[i], "--beta2m")) {
             if(m2beta) {
                 LOGPRINTF("Error: --m2beta should not be with --beta2m.\n");
                 TERMINATE();
@@ -742,10 +647,12 @@ void option(int option_num, char* option_str[])
             beta2m = true;
             m2beta = false;
             LOGPRINTF("--beta2m \n");
-        } else if(strcmp(option_str[i],"--diff")==0){
+        }
+        if(strcmp(option_str[i],"--diff")==0){
             diffflag=true;
             LOGPRINTF("--diff \n");
-        }  else if(0==strcmp(option_str[i],"--refactor")){
+        }
+        if(0==strcmp(option_str[i],"--refactor")){
             refacotr_flag=true;
             out_pc_num=atoi(option_str[++i]);
             if (out_pc_num <= 0 )
@@ -754,7 +661,8 @@ void option(int option_num, char* option_str[])
                 TERMINATE();
             }
             LOGPRINTF("--refactor %d\n",out_pc_num);
-        } else if(0==strcmp(option_str[i],"--celltype-num")){
+        }
+        if(0==strcmp(option_str[i],"--celltype-num")){
             celltype_num=atoi(option_str[++i]);
             if (celltype_num <= 0 )
             {
@@ -762,7 +670,8 @@ void option(int option_num, char* option_str[])
                 TERMINATE();
             }
             LOGPRINTF("--celltype-num %d\n",celltype_num);
-        } else if(0==strcmp(option_str[i],"--dmr-num")){
+        }
+        if(0==strcmp(option_str[i],"--dmr-num")){
             dmr_num=atoi(option_str[++i]);
             if (dmr_num <= 0 )
             {
@@ -770,7 +679,8 @@ void option(int option_num, char* option_str[])
                 TERMINATE();
             }
             LOGPRINTF("--dmr-num %d\n", dmr_num);
-        } else if(0==strcmp(option_str[i],"--autosome-num")){
+        }
+        if(0==strcmp(option_str[i],"--autosome-num")){
             autosome_num=atoi(option_str[++i]);
             if (autosome_num <= 0 || autosome_num > 100)
             {
@@ -778,13 +688,15 @@ void option(int option_num, char* option_str[])
                 TERMINATE();
             }
             LOGPRINTF("--autosome-num %d\n", autosome_num);
-        } else if(strcmp(option_str[i],"--update-opi")==0){
+        }
+        if(strcmp(option_str[i],"--update-opi")==0){
             update_epi_file_flag=true;
             epifname=option_str[++i];
             FLAG_VALID_CK("--update-opi", epifname);
             FileExist(epifname);
             LOGPRINTF("--update-opi %s\n",epifname);
-        } else if(0==strcmp(option_str[i],"--pca")){
+        }
+        if(0==strcmp(option_str[i],"--pca")){
             pca_flag=true;
             char* tmpstr=NULL;
             tmpstr=option_str[++i];
@@ -799,14 +711,16 @@ void option(int option_num, char* option_str[])
 
             }
             LOGPRINTF("--pca %d\n",out_pc_num);
-        } else if(0==strcmp(option_str[i],"--assoc")){
+        }
+        if(0==strcmp(option_str[i],"--assoc")){
             assoc_flag=true;
             LOGPRINTF("--assoc \n");
         }
-        else if(0==strcmp(option_str[i],"--linear")){
+        if(0==strcmp(option_str[i],"--linear")){
             linear_flag=true;
             LOGPRINTF("--linear \n");
-        } else if(strcmp(option_str[i],"--sd-min")==0){
+        }
+        if(strcmp(option_str[i],"--sd-min")==0){
             std_thresh=atof(option_str[++i]);
             LOGPRINTF("--sd-min %lf\n",std_thresh);
             if(std_thresh<0 || std_thresh>1)
@@ -814,10 +728,12 @@ void option(int option_num, char* option_str[])
                 LOGPRINTF("Error: --sd-min should be within the range from 0 to 1.\n");
                 TERMINATE();
             }
-        } else if (strcmp(option_str[i], "--simu-qt") == 0) {
+        }
+        if (strcmp(option_str[i], "--simu-qt") == 0) {
             simu_qt_flag = true;
             LOGPRINTF("--simu-qt\n");
-        } else if (strcmp(option_str[i], "--simu-cc") == 0) {
+        }
+        if (strcmp(option_str[i], "--simu-cc") == 0) {
             simu_cc = true;
             simu_case_num = atoi(option_str[++i]);
             simu_control_num = atoi(option_str[++i]);
@@ -830,53 +746,63 @@ void option(int option_num, char* option_str[])
                 LOGPRINTF("Error: --simu-cc, Invalid number of controls. Minimum number 10.\n");
                 TERMINATE();
             }
-        } else if (strcmp(option_str[i], "--simu-causal-loci") == 0) {
+        }
+        if (strcmp(option_str[i], "--simu-causal-loci") == 0) {
             simu_causal = option_str[++i];
             FLAG_VALID_CK("--simu-causal-loci",simu_causal);
             FileExist(simu_causal);
             LOGPRINTF("--simu-causal-loci %s\n",simu_causal);
-        } else if (strcmp(option_str[i], "--simu-hsq") == 0) { //heritability
+        }
+        if (strcmp(option_str[i], "--simu-hsq") == 0) { //heritability
             simu_h2 = atof(option_str[++i]);
             LOGPRINTF("--simu-hsq %f\n", simu_h2);
             if (simu_h2 > 1.0 || simu_h2 < 0.0) {
                 LOGPRINTF("Error: --simu-h2 should be within the range from 0 to 1.\n");
                 TERMINATE();
             }
-        } else if (strcmp(option_str[i], "--simu-k") == 0) {  // disease prevalence
+        }
+        if (strcmp(option_str[i], "--simu-k") == 0) {  // disease prevalence
             simu_K = atof(option_str[++i]);
             LOGPRINTF("--simu-k %f\n", simu_K);
             if (simu_K > 0.5 || simu_K < 0.0001) {
                 LOGPRINTF("Error: --simu-K should be within the range from 0.0001 to 0.5.\n");
                 TERMINATE();
             }
-        } else if (strcmp(option_str[i], "--simu-seed") == 0) {
+        }
+        if (strcmp(option_str[i], "--simu-seed") == 0) {
             simu_seed = atof(option_str[++i]);
             LOGPRINTF("--simu-seed %f\n", simu_seed);
             if (simu_seed <= 100) {
                 LOGPRINTF("Error: --simu-seed should be >100.\n");
                 TERMINATE();
             }
-        } else if (strcmp(option_str[i], "--simu-eff-mod") == 0) {
+        }
+        if (strcmp(option_str[i], "--simu-eff-mod") == 0) {
             simu_eff_mod = atoi(option_str[++i]);
             LOGPRINTF("--simu-eff-mod %d\n", simu_eff_mod);
             if (simu_eff_mod != 0 && simu_eff_mod !=1) {
                 LOGPRINTF("Error: --simu-eff-mod should be 0 or 1.\n");
                 TERMINATE();
             }
-        } else if (strcmp(option_str[i], "--reml") == 0) {
+        }
+        if (strcmp(option_str[i], "--reml") == 0) {
             reml_flag = true;
             LOGPRINTF( "--reml\n");
             if (m_erm_flag) no_lrt = true;
-        } else if (strcmp(option_str[i], "--reml-pred-rand") == 0) {
+        }
+        if (strcmp(option_str[i], "--reml-pred-rand") == 0) {
             pred_rand_eff = true;
             LOGPRINTF("--reml-pred-rand\n");
-        } else if (strcmp(option_str[i], "--reml-est-fix") == 0) {
+        }
+        if (strcmp(option_str[i], "--reml-est-fix") == 0) {
             est_fix_eff = true;
             LOGPRINTF("--reml-est-fix\n");
-        } else if (strcmp(option_str[i], "--reml-no-lrt") == 0) {
+        }
+        if (strcmp(option_str[i], "--reml-no-lrt") == 0) {
             no_lrt = true;
             LOGPRINTF("--reml-no-lrt\n");
-        } else if (strcmp(option_str[i], "--prevalence") == 0) {
+        }
+        if (strcmp(option_str[i], "--prevalence") == 0) {
             prevalence = atof(option_str[++i]);
             LOGPRINTF("--prevalence %f\n", prevalence);
             if (prevalence <= 0 || prevalence >= 1) {
@@ -884,7 +810,7 @@ void option(int option_num, char* option_str[])
                 TERMINATE();
             }
         }
-        else if (strcmp(option_str[i], "--probes-independent") == 0) {
+        if (strcmp(option_str[i], "--probes-independent") == 0) {
             inde_num = atoi(option_str[++i]);
             ext_inde_flag=true;
             LOGPRINTF("--probes-independent %d\n", inde_num);
@@ -893,7 +819,7 @@ void option(int option_num, char* option_str[])
                 TERMINATE();
             }
         }
-        else if (strcmp(option_str[i], "--ld-rsq") == 0) {
+        if (strcmp(option_str[i], "--ld-rsq") == 0) {
             ldrsq = atof(option_str[++i]);
           
             LOGPRINTF( "--ld-rsq %f\n", ldrsq);
@@ -902,7 +828,7 @@ void option(int option_num, char* option_str[])
                 TERMINATE();
             }
         }
-        else if (strcmp(option_str[i], "--lxpo") == 0) {
+        if (strcmp(option_str[i], "--lxpo") == 0) {
             percentage_out = atof(option_str[++i]);
             if (percentage_out < 0 || percentage_out > 100) {
                 LOGPRINTF("\nError: --lxpo should be between 0 to 100.\n");
@@ -911,7 +837,7 @@ void option(int option_num, char* option_str[])
             LOGPRINTF("--lxpo %f%%\n", percentage_out);
             percentage_out*=0.01;
         }
-        else if (strcmp(option_str[i], "--upper-beta") == 0) {
+        if (strcmp(option_str[i], "--upper-beta") == 0) {
             upperBeta = atof(option_str[++i]);
             LOGPRINTF("--upper-beta %f\n", upperBeta);
             if (upperBeta < 0 || upperBeta > 1) {
@@ -919,7 +845,7 @@ void option(int option_num, char* option_str[])
                 TERMINATE();
             }
         }
-        else if (strcmp(option_str[i], "--lower-beta") == 0) {
+        if (strcmp(option_str[i], "--lower-beta") == 0) {
             lowerBeta = atof(option_str[++i]);
             LOGPRINTF("--lower-beta %f\n", lowerBeta);
             if (lowerBeta < 0 || lowerBeta > 1) {
@@ -927,13 +853,13 @@ void option(int option_num, char* option_str[])
                 TERMINATE();
             }
         }
-        else if(0==strcmp(option_str[i],"--detection-pval-file")){
+        if(0==strcmp(option_str[i],"--detection-pval-file")){
             dpvalfName=option_str[++i];
             FLAG_VALID_CK("--detection-pval-file", dpvalfName);
             FileExist(dpvalfName);
             LOGPRINTF("--detection-pval-file %s\n",dpvalfName);
         }
-        else if (strcmp(option_str[i], "--dpval-thresh") == 0) {
+        if (strcmp(option_str[i], "--dpval-thresh") == 0) {
             thresh_det_pval = atof(option_str[++i]);
             LOGPRINTF("--dpval-thresh %f\n", thresh_det_pval );
             if (thresh_det_pval < 0 || thresh_det_pval > 1) {
@@ -941,7 +867,7 @@ void option(int option_num, char* option_str[])
                 TERMINATE();
             }
         }
-        else if (strcmp(option_str[i], "--ratio-probe") == 0) {
+        if (strcmp(option_str[i], "--ratio-probe") == 0) {
             thresh_prpt_prb = atof(option_str[++i]);
             LOGPRINTF("--ratio-probe %f\n", thresh_prpt_prb);
             if (thresh_prpt_prb < 0 || thresh_prpt_prb > 1) {
@@ -949,7 +875,7 @@ void option(int option_num, char* option_str[])
                 TERMINATE();
             }
         }
-        else if (strcmp(option_str[i], "--ratio-sample") == 0) {
+        if (strcmp(option_str[i], "--ratio-sample") == 0) {
             thresh_prpt_spl = atof(option_str[++i]);
             LOGPRINTF("--ratio-sample %f\n",  thresh_prpt_spl);
             if (thresh_prpt_spl < 0 || thresh_prpt_spl > 1) {
@@ -957,7 +883,7 @@ void option(int option_num, char* option_str[])
                 TERMINATE();
             }
         }
-        else if (strcmp(option_str[i], "--dpval-mth") == 0) {
+        if (strcmp(option_str[i], "--dpval-mth") == 0) {
             filter_det_pval_mth = atoi(option_str[++i]);
             LOGPRINTF( "--dpval-mth %d\n",  filter_det_pval_mth);
             if (filter_det_pval_mth !=0 && filter_det_pval_mth != 1) {
@@ -965,20 +891,20 @@ void option(int option_num, char* option_str[])
                 TERMINATE();
             }
         }
-        else if (strcmp(option_str[i], "--eff-n") == 0) {
+        if (strcmp(option_str[i], "--eff-n") == 0) {
             estn_flag = true;
             LOGPRINTF("--eff-n \n");
         }
-        else if (strcmp(option_str[i], "--get-variance") == 0) {
+        if (strcmp(option_str[i], "--get-variance") == 0) {
             getvariance_flag = true;
             LOGPRINTF("--get-variance \n");
         }
-        else if (strcmp(option_str[i], "--get-mean") == 0) {
+        if (strcmp(option_str[i], "--get-mean") == 0) {
             getmean_flag = true;
             LOGPRINTF("--get-mean \n");
             
         }
-        else if (strcmp(option_str[i], "--missing-ratio-probe") == 0) {
+        if (strcmp(option_str[i], "--missing-ratio-probe") == 0) {
             missing_ratio_prob = atof(option_str[++i]);
             LOGPRINTF( "--missing-ratio-probe %f\n", missing_ratio_prob );
             if (missing_ratio_prob < 0 || missing_ratio_prob > 1) {
@@ -986,13 +912,21 @@ void option(int option_num, char* option_str[])
                 TERMINATE();
             }
         }
-        else if (strcmp(option_str[i], "--blup-probe") == 0) {
+        if (strcmp(option_str[i], "--missing-ratio-indi") == 0) {
+            missing_ratio_indi = atof(option_str[++i]);
+            LOGPRINTF( "--missing-ratio-indi %f\n", missing_ratio_indi );
+            if (missing_ratio_indi < 0 || missing_ratio_indi > 1) {
+                LOGPRINTF("\nError: --missing-ratio-indi should be between 0 to 1.\n");
+                TERMINATE();
+            }
+        }
+        if (strcmp(option_str[i], "--blup-probe") == 0) {
             blup_probe_flag = true;
             blup_indi_file = option_str[++i];
             FileExist(blup_indi_file);
             LOGPRINTF( "--blup-probe %s\n", blup_indi_file);
         }
-        else if (strcmp(option_str[i], "--score") == 0) {
+        if (strcmp(option_str[i], "--score") == 0) {
             score_flag = true;
             score_file = option_str[++i];
             FileExist(score_file);
@@ -1018,24 +952,24 @@ void option(int option_num, char* option_str[])
                 }
             }
         }
-        else if (strcmp(option_str[i], "--impute-mean") == 0) {
+        if (strcmp(option_str[i], "--impute-mean") == 0) {
             impute_mean_flag = true;
             LOGPRINTF("--impute-mean \n");
         }
-        else if (strcmp(option_str[i], "--score-has-header") == 0) {
+        if (strcmp(option_str[i], "--score-has-header") == 0) {
             hasHeader = true;
             LOGPRINTF( "--score-has-header \n");
         }
-        else if (strcmp(option_str[i], "--task-total") == 0) {
+        if (strcmp(option_str[i], "--task-num") == 0) {
             tsk_ttl = atoi(option_str[++i]);
-            LOGPRINTF( "--task-total %d\n", tsk_ttl);
+            LOGPRINTF( "--task-num %d\n", tsk_ttl);
             if(tsk_ttl<1 )
             {
-                LOGPRINTF ("Error: --task-total should be over 1.\n");
+                LOGPRINTF ("Error: --task-num should be over 1.\n");
                 TERMINATE();
             }
         }
-        else if (strcmp(option_str[i], "--task-id") == 0) {
+        if (strcmp(option_str[i], "--task-id") == 0) {
             tsk_id = atoi(option_str[++i]);
             LOGPRINTF( "--task-id %d\n", tsk_id);
             if(tsk_id<1 )
@@ -1049,16 +983,16 @@ void option(int option_num, char* option_str[])
                 TERMINATE();
             }
         }
-        else if (strcmp(option_str[i], "--vqtl") == 0) {
+        if (strcmp(option_str[i], "--vqtl") == 0) {
             vqtl = true;
             LOGPRINTF( "--vqtl \n");
         }
-        else if(strcmp(option_str[i],"--bfile")==0){
+        if(strcmp(option_str[i],"--bfile")==0){
             bFileName=option_str[++i];
             FLAG_VALID_CK("--bfile", bFileName);
             LOGPRINTF("--bfile %s\n",bFileName);
         }
-        else if(0==strcmp(option_str[i],"--vqtl-mtd")){
+        if(0==strcmp(option_str[i],"--vqtl-mtd")){
             vqtl_mtd=atoi(option_str[++i]);
             if(vqtl_mtd<0 || vqtl_mtd>4)
             {
@@ -1067,27 +1001,27 @@ void option(int option_num, char* option_str[])
             }
             LOGPRINTF("--vqtl-mtd %d\n",vqtl_mtd);
         }
-        else if (strcmp(option_str[i], "--adj-probe") == 0) {
+        if (strcmp(option_str[i], "--adj-probe") == 0) {
             adjprb = true;
             LOGPRINTF( "--adj-probe \n");
         }
-        else if (strcmp(option_str[i], "--output-residual") == 0) {
+        if (strcmp(option_str[i], "--output-residual") == 0) {
             prt_residiual = true;
             LOGPRINTF( "--output-residual \n");
         }
-        else if (strcmp(option_str[i], "--simu-residual") == 0) {
+        if (strcmp(option_str[i], "--simu-residual") == 0) {
             simu_residual_only = true;
             LOGPRINTF( "--simu-residua \n");
         }
-        else if (strcmp(option_str[i], "--eqtl") == 0) {
+        if (strcmp(option_str[i], "--eqtl") == 0) {
             eqtl = true;
             LOGPRINTF( "--eqtl \n");
         }
-        else if (strcmp(option_str[i], "--besd-snp-major") == 0) {
-            besd_snp_major = true;
-            LOGPRINTF( "--besd-snp-major \n");
+        if (strcmp(option_str[i], "--mlm") == 0) {
+            mlmeqtl = true;
+            LOGPRINTF( "--mlm \n");
         }
-        else if(strcmp(option_str[i], "--query")==0) {
+        if(strcmp(option_str[i], "--query")==0) {
             queryBesd=true;
             if(i+1==option_num || has_prefix(option_str[i+1],"--"))  pQueryBesd = 5.0e-8;
             else pQueryBesd = atof (option_str[++i]);
@@ -1098,7 +1032,7 @@ void option(int option_num, char* option_str[])
                 TERMINATE();
             }
         }
-        else if(strcmp(option_str[i],"--beqtl-summary")==0){
+        if(strcmp(option_str[i],"--beqtl-summary")==0){
             if(beqtlFileName==NULL)
             {
                 beqtlFileName=option_str[++i];
@@ -1110,7 +1044,7 @@ void option(int option_num, char* option_str[])
                 LOGPRINTF("--beqtl-summary %s\n",beqtlFileName2);
             }
         }
-        else if(strcmp(option_str[i],"--probe-chr")==0){
+        if(strcmp(option_str[i],"--probe-chr")==0){
             char* tmpstr=option_str[++i];
             if(strncmp(tmpstr,"X",1)==0 || strncmp(tmpstr,"x",1)==0) prbchr=23;
             else if(strncmp(tmpstr,"Y",1)==0 || strncmp(tmpstr,"y",1)==0) prbchr=24;
@@ -1123,7 +1057,7 @@ void option(int option_num, char* option_str[])
             }
             LOGPRINTF("--probe-chr %s\n",tmpstr);
         }
-        else if(strcmp(option_str[i],"--snp-chr")==0){
+        if(strcmp(option_str[i],"--snp-chr")==0){
             char* tmpstr=option_str[++i];
             if(strncmp(tmpstr,"X",1)==0 || strncmp(tmpstr,"x",1)==0) snpchr=23;
             else if(strncmp(tmpstr,"Y",1)==0 || strncmp(tmpstr,"y",1)==0) snpchr=24;
@@ -1136,22 +1070,22 @@ void option(int option_num, char* option_str[])
             }
             LOGPRINTF("--snp-chr %s\n",tmpstr);
         }
-        else if (strcmp(option_str[i], "--snp")==0){
+        if (strcmp(option_str[i], "--snp")==0){
             snprs = option_str[++i];
             FLAG_VALID_CK("--snp", snprs);
             LOGPRINTF("--snp %s\n", snprs);
         }
-        else if (0 == strcmp(option_str[i], "--from-snp")){
+        if (0 == strcmp(option_str[i], "--from-snp")){
             fromsnprs = option_str[++i];
             FLAG_VALID_CK("--from-snp", fromsnprs);
             printf("--from-snp %s\n", fromsnprs);
         }
-        else if (0 == strcmp(option_str[i], "--to-snp")){
+        if (0 == strcmp(option_str[i], "--to-snp")){
             tosnprs = option_str[++i];
             FLAG_VALID_CK("--to-snp", tosnprs);
             printf("--to-snp %s\n", tosnprs);
         }
-        else if(strcmp(option_str[i],"--snp-wind")==0){
+        if(strcmp(option_str[i],"--snp-wind")==0){
             
             snpwindFlag=true;
             char* tmpstr=option_str[++i];
@@ -1164,7 +1098,7 @@ void option(int option_num, char* option_str[])
                 TERMINATE();
             }
         }
-        else if(strcmp(option_str[i],"--from-snp-kb")==0){
+        if(strcmp(option_str[i],"--from-snp-kb")==0){
             fromsnpkb=atoi(option_str[++i]);
             printf("--from-snp-kb %d Kb\n", fromsnpkb);
             if(fromsnpkb<0 )
@@ -1173,7 +1107,7 @@ void option(int option_num, char* option_str[])
                 TERMINATE();
             }
         }
-        else if(strcmp(option_str[i],"--to-snp-kb")==0){
+        if(strcmp(option_str[i],"--to-snp-kb")==0){
             tosnpkb=atoi(option_str[++i]);
             printf("--to-snp-kb %d Kb\n", tosnpkb);
             if(tosnpkb<0 )
@@ -1187,7 +1121,11 @@ void option(int option_num, char* option_str[])
             FLAG_VALID_CK("--snp-rm", snp2rm);
             LOGPRINTF("--snp-rm %s\n", snp2rm);
         }
-        else if(strcmp(option_str[i],"--cis-wind")==0){
+        if(strcmp(option_str[i],"--cis")==0){
+            cis_flag=true;
+            LOGPRINTF("--cis\n");
+        }
+        if(strcmp(option_str[i],"--cis-wind")==0){
             cis_flag=true;
             cis_itvl=atoi(option_str[++i]);
             LOGPRINTF("--cis-wind %d Kb\n", cis_itvl);
@@ -1197,31 +1135,47 @@ void option(int option_num, char* option_str[])
                 TERMINATE();
             }
         }
-        else if (strcmp(option_str[i], "--besd-flist")==0){
+        if (strcmp(option_str[i], "--besd-flist")==0){
             combineFlg=true;
             besdflstName = option_str[++i];
             FLAG_VALID_CK("--besd-flist", besdflstName);
             LOGPRINTF("--besd-flist %s\n", besdflstName);
             FileExist(besdflstName);
         }
-        else if (strcmp(option_str[i], "--gwas-flist")==0){
+        if (strcmp(option_str[i], "--gwas-flist")==0){
             gwasflstName = option_str[++i];
             FLAG_VALID_CK("--gwas-flist", gwasflstName);
             LOGPRINTF("--gwas-flist %s\n", gwasflstName);
             FileExist(gwasflstName);
         }
-        else if(strcmp(option_str[i],"--meta")==0){
+        if (strcmp(option_str[i], "--ewas-flist")==0){
+            ewasflstName = option_str[++i];
+            FLAG_VALID_CK("--ewas-flist", ewasflstName);
+            LOGPRINTF("--ewas-flist %s\n", ewasflstName);
+            FileExist(ewasflstName);
+        }
+        if (strcmp(option_str[i], "--ewas-summary")==0){
+            ewasfileName = option_str[++i];
+            FLAG_VALID_CK("--ewas-summary", ewasfileName);
+            LOGPRINTF("--ewas-summary %s\n", ewasfileName);
+            FileExist(ewasfileName);
+        }
+        if(strcmp(option_str[i],"--gc")==0){
+            gc_flag=true;
+            LOGPRINTF("--gc\n");
+        }
+        if(strcmp(option_str[i],"--meta")==0){
             metaflg=true;
             combineFlg=false;
             smr_flag=false;
             LOGPRINTF("--meta\n");
         }
-        else if(0==strcmp(option_str[i],"--mecs")){
+        if(0==strcmp(option_str[i],"--mecs")){
             metaflg=true;
             meta_mtd=1;
             LOGPRINTF("--mecs\n");
         }
-        else if(0==strcmp(option_str[i],"--pmecs")){
+        if(0==strcmp(option_str[i],"--pmecs")){
             pmecs=atof(option_str[++i]);
             if (pmecs < 0 || pmecs > 1) {
                 LOGPRINTF("\nError: --pmecs should be between 0 to 1.\n");
@@ -1229,7 +1183,7 @@ void option(int option_num, char* option_str[])
             }
             LOGPRINTF("--pmecs %0.2e\n", pmecs);
         }
-        else if(0==strcmp(option_str[i],"--mecs-mth")){
+        if(0==strcmp(option_str[i],"--mecs-mth")){
             mecs_mth=atoi(option_str[++i]);
             LOGPRINTF( "--mecs-mth %d\n",  mecs_mth);
             if (mecs_mth !=0 && mecs_mth != 1) {
@@ -1237,86 +1191,291 @@ void option(int option_num, char* option_str[])
                 TERMINATE();
             }
         }
-        else if(0==strcmp(option_str[i],"--make-besd")){
+        if(0==strcmp(option_str[i],"--make-besd")){
             make_besd_flag=true;
             LOGPRINTF("--make-besd\n");
         }
-        else if(0==strcmp(option_str[i],"--to-smr")){
+        if(0==strcmp(option_str[i],"--to-smr")){
             make_besd_flag=true;
             to_smr_flag=true;
             LOGPRINTF("--to-smr\n");
         }
-        else if (0 == strcmp(option_str[i], "--make-besd-dense")){
+        if (0 == strcmp(option_str[i], "--make-besd-dense")){
             make_besd_flag=true;
             save_dense_flag=true;
             LOGPRINTF("--make-besd-dense \n");
         }
-        else if (0 == strcmp(option_str[i], "--besd-shrink")){
+        if (0 == strcmp(option_str[i], "--besd-shrink")){
             make_besd_flag=true;
             besd_shrink_flag=true;
             LOGPRINTF("--besd-shrink \n");
         }
-        else if (0 == strcmp(option_str[i], "--add-eff")){
+        if (0 == strcmp(option_str[i], "--add-eff")){
             enveff=true;
             LOGPRINTF("--add-eff \n");
             LOGPRINTF("NOTE: Private use to add an environmental effect ( N(0,sd) ) to each probe. \n");
         }
-        else if (strcmp(option_str[i], "--cor-mat")==0){
+        if (strcmp(option_str[i], "--cor-mat")==0){
             corMatFName = option_str[++i];
             FLAG_VALID_CK("--cor-mat", corMatFName);
             LOGPRINTF("--cor-mat %s\n", corMatFName);
             FileExist(corMatFName);
         }
-        else if (strcmp(option_str[i], "--eff-file")==0){
+        if (strcmp(option_str[i], "--eff-file")==0){
             efffname = option_str[++i];
             FLAG_VALID_CK("--eff-file", efffname);
             LOGPRINTF("--eff-file %s\n", efffname);
             FileExist(efffname);
         }
-        else if(strcmp(option_str[i],"--eff-probe")==0){
+        if(strcmp(option_str[i],"--eff-probe")==0){
             effproblstName=option_str[++i];
             FLAG_VALID_CK("--eff-probe", effproblstName);
             FileExist(effproblstName);
             LOGPRINTF("--eff-probe %s\n",effproblstName);
         }
-        else if(0==strcmp(option_str[i],"--pcc-z")){
+        if(0==strcmp(option_str[i],"--pcc-z")){
             zflag=true;
             LOGPRINTF("--pcc-z\n");
         }
-        else if (0 == strcmp(option_str[i], "--prt-mid")){
+        if (0 == strcmp(option_str[i], "--prt-mid")){
             prt_mid_rlt=true;
             LOGPRINTF("--prt-mid \n");
         }
-        else if (strcmp(option_str[i], "--std-probe") == 0) {
+        if (strcmp(option_str[i], "--std-probe") == 0) {
             stdprb = true;
             LOGPRINTF( "--std-probe \n");
         }
-        else if(strcmp(option_str[i],"--freq-file")==0){
+        if (strcmp(option_str[i], "--rint-probe") == 0) {
+            rint = true;
+            LOGPRINTF( "--rint-probe \n");
+        }
+        if(strcmp(option_str[i],"--freq-file")==0){
             freqFName=option_str[++i];
             FLAG_VALID_CK("--freq-file", freqFName);
             FileExist(freqFName);
             LOGPRINTF("--freq-file %s\n",freqFName);
         }
-        else if(strcmp(option_str[i],"--var-file")==0){
+        if(strcmp(option_str[i],"--var-file")==0){
             varFName=option_str[++i];
             FLAG_VALID_CK("--var-file", varFName);
             FileExist(varFName);
             LOGPRINTF("--var-file %s\n",varFName);
         }
-        else if(0==strcmp(option_str[i],"--lambda-wind")){
+        if(0==strcmp(option_str[i],"--lambda-range")){
             lambda_wind=atof(option_str[++i]);
             if (lambda_wind < 0 ) {
-                LOGPRINTF("\nError: --lambda-wind should be over 0 .\n");
+                LOGPRINTF("\nError: --lambda-range should be over 0 .\n");
                 TERMINATE();
             }
-            LOGPRINTF("--lambda-wind %0.2e\n", lambda_wind);
+            LOGPRINTF("--lambda-range %0.2e\n", lambda_wind);
         }
-        else if(0==strcmp(option_str[i],"--fast-linear")){
+        if(0==strcmp(option_str[i],"--fast-linear")){
             fastlinear=true;
             LOGPRINTF("--fast-linear \n");
         }
+        if(0==strcmp(option_str[i],"--no-fast-linear")){
+            nofastlinear=true;
+            LOGPRINTF("--no-fast-linear \n");
+        }
+        
+        if(0==strcmp(option_str[i],"--bc")){
+            bcflag=true;
+            LOGPRINTF("--bc \n");
+        }
+        /*
+         //disabled
+        if(0==strcmp(option_str[i],"--bc-mth")){
+            bc_mth=atoi(option_str[++i]);
+            LOGPRINTF( "--bc-mth %d\n",  bc_mth);
+            if (bc_mth <0 || bc_mth > 2) {
+                LOGPRINTF("\nError: --bc-mth should be 0,1 or 2.\n");
+                TERMINATE();
+            }
+        }
+         */
+        if(0==strcmp(option_str[i],"--force-mlm")){
+            force_mlm=true;
+            LOGPRINTF("--force-mlm \n");
+        }
+        if(0==strcmp(option_str[i],"--bin-num")){
+            nbin=atoi(option_str[++i]);
+            LOGPRINTF( "--bin-num %d\n",  nbin);
+            if (nbin <= 0) {
+                LOGPRINTF("\nError: --bin-num should be >0.\n");
+                TERMINATE();
+            }
+        }
+        if(0==strcmp(option_str[i],"--bin-mth")){
+            binmth=atoi(option_str[++i]);
+            LOGPRINTF( "--bin-mth %d\n",  binmth);
+            if (binmth !=0 && binmth != 1) {
+                LOGPRINTF("\nError: --bin-mth should be 0 or 1.\n");
+                TERMINATE();
+            }
+        }
+        if(0==strcmp(option_str[i],"--npcs")){
+            normeigvec=atoi(option_str[++i]);
+            LOGPRINTF( "--npcs %d\n",  normeigvec);
+            if (normeigvec <= 0) {
+                LOGPRINTF("\nError: --npcs should be >0.\n");
+                TERMINATE();
+            }
+        }
+        if(0==strcmp(option_str[i],"--fixed-pc")){
+            fixpc=true;
+            LOGPRINTF("--fixed-pc \n");
+        }
+        if(0==strcmp(option_str[i],"--slct-dom-pc")){
+            slectDominantPCs=true;
+            LOGPRINTF("--slct-dom-pc \n");
+        }
+        if(0==strcmp(option_str[i],"--clustering-mth"))
+        {
+            clusteringmth=atoi(option_str[++i]);
+            LOGPRINTF( "--clustering-mth %d\n",  clusteringmth);
+            if (clusteringmth <0 && clusteringmth >2) {
+                LOGPRINTF("\nError: --clustering-mth should be 0, 1 or 2.\n");
+                TERMINATE();
+            }
+        }
+        if(0==strcmp(option_str[i],"--pthresh"))
+        {
+            bcthresh=atof(option_str[++i]);
+            if (bcthresh < 0 || bcthresh > 1) {
+                LOGPRINTF("\nError: --pthresh should be between 0 to 1.\n");
+                TERMINATE();
+            }
+            LOGPRINTF("--pthresh %0.2e\n", bcthresh);
+        }
+        if(0==strcmp(option_str[i],"--pstep"))
+        {
+            swthresh=atof(option_str[++i]);
+            if (swthresh < 0 || swthresh > 1) {
+                LOGPRINTF("\nError: --pstep should be between 0 to 1.\n");
+                TERMINATE();
+            }
+            LOGPRINTF("--pstep %0.2e\n", swthresh);
+        }
+        if(0==strcmp(option_str[i],"--r2-thresh"))
+        {
+            r2thresh=atof(option_str[++i]);
+            if (r2thresh < 0 || r2thresh > 1) {
+                LOGPRINTF("\nError: --r2-thresh should be between 0 to 1.\n");
+                TERMINATE();
+            }
+            LOGPRINTF("--r2-thresh %0.2e\n", r2thresh);
+        }
+        
+        if(0==strcmp(option_str[i],"--moment")){ // EXclude the ProbEs Centred at the Target probe
+            moment_flag=true;
+            LOGPRINTF("--moment \n");
+        }
+        if(0==strcmp(option_str[i],"--moment-exact")){
+            moment_exact_flag=true;
+            LOGPRINTF("--moment-exact\n");
+        }
+        if(0==strcmp(option_str[i],"--moment-wind")){
+            moment_wind=atof(option_str[++i]);
+            if (moment_wind < 0 ) {
+                LOGPRINTF("\nError: --moment-wind should be over 0 .\n");
+                TERMINATE();
+            }
+            LOGPRINTF("--moment-wind %d\n", moment_wind);
+        }
+        /*
+        if(0==strcmp(option_str[i],"--expect-all")){
+            expect_all=true;
+            LOGPRINTF("--expect-all \n");
+        }
+         */
+        if(0==strcmp(option_str[i],"--moment-num")){
+            moment_num=atoi(option_str[++i]);
+            if(moment_num<=0)
+            {
+                LOGPRINTF("Error: --moment-num should be over 0.\n");
+                TERMINATE();
+            }
+
+            LOGPRINTF("--moment-num %d\n",moment_num);
+        }
+        if(0==strcmp(option_str[i],"--moment-alt-pcs")){
+            moment_pcs=atoi(option_str[++i]);
+            if(moment_pcs<=0)
+            {
+                LOGPRINTF("Error: --moment-alt-pcs should be over 0.\n");
+                TERMINATE();
+            }
+            LOGPRINTF("--moment-alt-pcs %d\n",moment_pcs);
+        }
+        if (strcmp(option_str[i], "--simu-causal-loci2") == 0) {
+            simu_causal2 = option_str[++i];
+            FLAG_VALID_CK("--simu-causal-loci2",simu_causal2);
+            FileExist(simu_causal2);
+            LOGPRINTF("--simu-causal-loci2 %s\n",simu_causal2);
+        }
+        if (strcmp(option_str[i], "--simu-hsq2") == 0) { //heritability
+            simu_h22 = atof(option_str[++i]);
+            LOGPRINTF("--simu-hsq2 %f\n", simu_h22);
+            if (simu_h22 > 1.0 || simu_h22 < 0.0) {
+                LOGPRINTF("Error: --simu-h22 should be within the range from 0 to 1.\n");
+                TERMINATE();
+            }
+        }
+        if (strcmp(option_str[i], "--num-rand-comp") == 0) { //heritability
+            nrandcomp = atoi(option_str[++i]);
+            LOGPRINTF("--num-rand-comp %d \n", nrandcomp);
+            if (nrandcomp <=0 ) {
+                LOGPRINTF("Error: --num-rand-comp should be over 0.\n");
+                TERMINATE();
+            }
+        }
+        if(0==strcmp(option_str[i],"--feature-slct-mtd")){
+            slctmtd=atoi(option_str[++i]);
+            if(slctmtd<=0)
+            {
+                LOGPRINTF("Error: --feature-slct-mtd should be 0 or 1.\n");
+                TERMINATE();
+            }
+            LOGPRINTF("--feature-slct-mtd %d\n",slctmtd);
+        }
+        if (strcmp(option_str[i], "--moment-percent") == 0) { //heritability
+            momentpercent = atof(option_str[++i]);
+            LOGPRINTF("--moment-percent %f\n", momentpercent);
+            if (momentpercent > 1.0 || momentpercent < 0.0) {
+                LOGPRINTF("Error: --moment-percent should be within the range from 0 to 1.\n");
+                TERMINATE();
+            }
+        }
+        if(0==strcmp(option_str[i],"--moment-approximate")){
+            approximate_flag=true;
+            LOGPRINTF("--moment-approximate \n");
+        }
+        if(0==strcmp(option_str[i],"--approximate-num")){
+            MOMENT_APPROX=atoi(option_str[++i]);
+            LOGPRINTF("--approximate-num %d \n", MOMENT_APPROX);
+        }
+        if(0==strcmp(option_str[i],"--no-prior-var")){
+            remloasi=false;
+            LOGPRINTF("--no-prior-var\n");
+        }
+        if(0==strcmp(option_str[i],"--stepwise-slct")){
+            approximate_stepwise=true;
+            LOGPRINTF("--stepwise-slct \n");
+        }
+        if(0==strcmp(option_str[i],"--logistic")){
+            logistic_flag=true;
+            LOGPRINTF("--logistic \n");
+        }
+        if(0==strcmp(option_str[i],"--out-common")){
+            out_comm_flag=true;
+            LOGPRINTF("--out-common \n");
+        }
+        if(0==strcmp(option_str[i],"--simu-reverse")){
+            rev_simu=true;
+            LOGPRINTF("--simu-reversen \n");
+        }
     }
-    
+
 #ifndef __APPLE__
 #if defined _WIN64 || defined _WIN32
     omp_set_num_threads(thread_num);
@@ -1333,63 +1492,42 @@ void option(int option_num, char* option_str[])
     if(outfileName == NULL) outfileName=tmpch;
     
     if(merge_beed_flag) merge_beed( outfileName, befileFlstName, problstName, problst2exclde,genelistName,  chr, prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName,indilst2remove, beta2m, m2beta);
-    else if(make_beed_flag) make_beed( outfileName, efileName,  befileName, transposedin,  efileType, problstName, problst2exclde,genelistName,  chr, prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName,indilst2remove, no_fid_flag,valueType, beta2m, m2beta, std_thresh,upperBeta,lowerBeta, dpvalfName,  thresh_det_pval,  thresh_prpt_prb,  thresh_prpt_spl,  filter_det_pval_mth,missing_ratio_prob, adjprb,  covfileName, qcovfileName,enveff, effproblstName, efffname);
+    else if(make_beed_flag) make_beed( outfileName, efileName,  befileName, transposedin,  efileType, problstName, problst2exclde,genelistName,  chr, prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName,indilst2remove, no_fid_flag,valueType, beta2m, m2beta, std_thresh,upperBeta,lowerBeta, dpvalfName,  thresh_det_pval,  thresh_prpt_prb,  thresh_prpt_spl,  filter_det_pval_mth,missing_ratio_prob, missing_ratio_indi, adjprb,  covfileName, qcovfileName,enveff, effproblstName, efffname,stdprb, rint);
     else if(make_efile_flag) make_efile(outfileName, efileName,  befileName, transposedin,  efileType, problstName, problst2exclde,genelistName,  chr, prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName,indilst2remove, no_fid_flag,valueType, beta2m, m2beta,std_thresh,upperBeta,lowerBeta,transposedout,impute_mean_flag);
-    else if(make_erm_flag) make_erm(outfileName, efileName,befileName, problstName, problst2exclde, genelistName,  chr,prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName, indilst2remove,phenofileName,mpheno,erm_bin_flag, erm_alg, beta2m, m2beta,std_thresh,upperBeta,lowerBeta, transposedin, efileType, no_fid_flag, valueType);
-    else if(mlma_flag) mlma(outfileName, befileName, problstName, problst2exclde, genelistName,  chr,prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName, indilst2remove,phenofileName,mpheno, erm_bin_flag,  erm_alg,  covfileName, qcovfileName,  erm_file,  subtract_erm_file,  m_erm_flag,within_family,priors,priors_var,no_constrain,reml_mtd,MaxIter,reml_fixed_var_flag,reml_force_inv_fac_flag,reml_force_converge_flag, reml_no_converge_flag, mlma_no_adj_covar,percentage_out, lambda_wind,fastlinear);
-    else if(mlma_loco_flag) mlma_loco(outfileName, befileName,problstName,problst2exclde,genelistName, chr,prbname, fromprbname, toprbname,prbWind,fromprbkb, toprbkb, prbwindFlag, genename, probe2rm, indilstName, indilst2remove, phenofileName, mpheno, covfileName, qcovfileName, MaxIter, priors, priors_var, no_constrain, mlma_no_adj_covar, reml_mtd, reml_fixed_var_flag, reml_force_inv_fac_flag, reml_force_converge_flag,  reml_no_converge_flag, autosome_num,percentage_out,lambda_wind,fastlinear);
+    else if(make_erm_flag) make_erm(outfileName, efileName,befileName, erm_file, problstName, problst2exclde, genelistName,  chr,prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName, indilst2remove,phenofileName,mpheno,erm_bin_flag, erm_alg, beta2m, m2beta,std_thresh,upperBeta,lowerBeta, transposedin, efileType, no_fid_flag, valueType,erm_cutoff,erm_cutoff_2sides, m_erm_flag);
+     else if(mlma_exact_flag) moa(outfileName, befileName, problstName, problst2exclde, genelistName,  chr,prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName, indilst2remove,phenofileName,mpheno, erm_bin_flag,  erm_alg,  covfileName, qcovfileName,  erm_file,  subtract_erm_file,  m_erm_flag,priors,priors_var,no_constrain,reml_mtd,MaxIter,reml_fixed_var_flag,reml_force_inv_fac_flag,reml_force_converge_flag, reml_no_converge_flag, mlma_preadj_covar,force_mlm, tsk_ttl, tsk_id);
+    else if(moment_exact_flag) moment_exact(outfileName, befileName,problstName,problst2exclde, genelistName, chr, prbname,  fromprbname, toprbname, prbWind, fromprbkb,toprbkb, prbwindFlag,  genename, probe2rm, indilstName, indilst2remove,  phenofileName, mpheno,  covfileName, qcovfileName,  within_family, priors, priors_var,  no_constrain, reml_mtd, MaxIter, reml_fixed_var_flag, reml_force_inv_fac_flag,  reml_force_converge_flag,   reml_no_converge_flag,  mlma_preadj_covar, lambda_wind,  fastlinear, force_mlm, bcthresh, moment_wind,moment_pcs, nrandcomp, slctmtd,r2thresh,momentpercent,approximate_stepwise,erm_alg,swthresh,tsk_ttl, tsk_id);
+     else if(bcflag) moment2(outfileName, befileName,problstName,problst2exclde, genelistName, chr, prbname,  fromprbname, toprbname, prbWind, fromprbkb,toprbkb, prbwindFlag,  genename, probe2rm, indilstName, indilst2remove,  phenofileName, mpheno,  covfileName, qcovfileName,  within_family, priors, priors_var,  no_constrain, reml_mtd, MaxIter, reml_fixed_var_flag, reml_force_inv_fac_flag,  reml_force_converge_flag,   reml_no_converge_flag,  mlma_preadj_covar, lambda_wind,  fastlinear, force_mlm, bcthresh, moment_wind, moment_num,moment_pcs,r2thresh,erm_alg);
+    else if(moment_flag) moment(outfileName, befileName,problstName,problst2exclde, genelistName, chr, prbname,  fromprbname, toprbname, prbWind, fromprbkb,toprbkb, prbwindFlag,  genename, probe2rm, indilstName, indilst2remove,  phenofileName, mpheno,  covfileName, qcovfileName,  within_family, priors, priors_var,  no_constrain, reml_mtd, MaxIter, reml_fixed_var_flag, reml_force_inv_fac_flag,  reml_force_converge_flag,   reml_no_converge_flag,  mlma_preadj_covar, lambda_wind,  fastlinear, force_mlm, bcthresh, moment_wind, moment_num,moment_pcs, nrandcomp, slctmtd,r2thresh,momentpercent,approximate_flag,approximate_stepwise,erm_alg,swthresh);
+    else if(mlma_flag) mlma(outfileName, befileName, problstName, problst2exclde, genelistName,  chr,prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName, indilst2remove,phenofileName,mpheno, erm_bin_flag,  erm_alg,  covfileName, qcovfileName,  erm_file,  subtract_erm_file,  m_erm_flag,within_family,priors,priors_var,no_constrain,reml_mtd,MaxIter,reml_fixed_var_flag,reml_force_inv_fac_flag,reml_force_converge_flag, reml_no_converge_flag, mlma_preadj_covar,percentage_out, lambda_wind,fastlinear,force_mlm);
     else if(pca_flag) pca(outfileName, erm_file, indilstName, indilst2remove,  erm_cutoff,erm_cutoff_2sides, m_erm_flag,  out_pc_num);
     else if(diffflag) diff(befileName,befileName2);
     else if(update_epi_file_flag) update_epifile(befileName, epifname);
     else if(refacotr_flag) getRefactor(outfileName, befileName,problstName, problst2exclde, genelistName,  chr, prbname, fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm,indilstName,indilst2remove, covfileName, qcovfileName, celltype_num,dmr_num,out_pc_num);
     else if(assoc_flag) assoc(outfileName, befileName, problstName, problst2exclde, genelistName,  chr,prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName, indilst2remove,phenofileName,mpheno,  covfileName, qcovfileName,std_thresh ,upperBeta,lowerBeta,estn_flag);
     else if(linear_flag) linear(outfileName, befileName, problstName, problst2exclde, genelistName,  chr,prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName, indilst2remove,phenofileName,mpheno,  covfileName, qcovfileName,std_thresh ,upperBeta,lowerBeta,tsk_ttl,tsk_id,fastlinear);
+    else if(logistic_flag) logistic(outfileName, befileName, problstName, problst2exclde, genelistName,  chr,prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName, indilst2remove,phenofileName,mpheno,  covfileName, qcovfileName,std_thresh ,upperBeta,lowerBeta,tsk_ttl,tsk_id);
+    else if((simu_qt_flag || simu_cc) && simu_causal2!=NULL) EWAS_simu2(outfileName, befileName, simu_rep, simu_causal,simu_causal2,  simu_case_num,  simu_control_num,  simu_h2,simu_h22,  simu_K,  simu_seed, simu_eff_mod,simu_residual_only);
     else if(simu_qt_flag || simu_cc) EWAS_simu(outfileName, befileName, simu_rep, simu_causal,  simu_case_num,  simu_control_num,  simu_h2,  simu_K,  simu_seed, simu_eff_mod,simu_residual_only);
-    else if(reml_flag) fit_reml(outfileName, phenofileName, mpheno, erm_bin_flag, grm_bin_flag, erm_alg, covfileName, qcovfileName, erm_file, grm_file, m_erm_flag, within_family, priors, priors_var, no_constrain, reml_mtd, MaxIter, reml_fixed_var_flag, reml_force_inv_fac_flag, reml_force_converge_flag, reml_no_converge_flag, mlma_no_adj_covar, pred_rand_eff, est_fix_eff, no_lrt, prevalence, mlma_flag,reml_drop,indilstName,indilst2remove,  NULL, erm_cutoff,erm_cutoff_2sides, -2.0,-2,prt_residiual);
+    else if(rev_simu) reverse_causal_simu(outfileName, befileName, phenofileName, mpheno, simu_causal,  simu_h2,  simu_eff_mod);
+    else if(reml_flag) fit_reml(outfileName, phenofileName, mpheno, erm_bin_flag, grm_bin_flag, erm_alg, covfileName, qcovfileName, erm_file, grm_file, m_erm_flag, within_family, priors, priors_var, no_constrain, reml_mtd, MaxIter, reml_fixed_var_flag, reml_force_inv_fac_flag, reml_force_converge_flag, reml_no_converge_flag, mlma_preadj_covar, pred_rand_eff, est_fix_eff, no_lrt, prevalence, mlma_flag,reml_drop,indilstName,indilst2remove,  NULL, erm_cutoff,erm_cutoff_2sides, -2.0,-2,prt_residiual);
     else if (ext_inde_flag)  extract_inden_probes(outfileName, befileName, inde_num, ldrsq,   simu_seed, problstName, problst2exclde, genelistName,  chr,prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName, indilst2remove);
     else if(getvariance_flag || getmean_flag) getPrbVarianceMean(outfileName, efileName,  befileName, transposedin,  efileType, problstName, problst2exclde,genelistName,  chr, prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName,indilst2remove, no_fid_flag,valueType,getvariance_flag,getmean_flag);
     else if(blup_probe_flag) blup_probe(outfileName, efileName,  befileName, transposedin,  efileType, problstName, problst2exclde,genelistName,  chr, prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName,indilst2remove, no_fid_flag,valueType, std_thresh,upperBeta,lowerBeta,blup_indi_file);
     else if(score_flag) scoreIndividuals(outfileName,befileName, score_file, col_prb, col_score, hasHeader, phenofileName,  mpheno, problstName, problst2exclde,genelistName, chr, prbname,  fromprbname, toprbname, prbWind,fromprbkb, toprbkb,prbwindFlag, genename, probe2rm, indilstName, indilst2remove,  std_thresh, impute_mean_flag);
-    else if (vqtl) V_QTL(outfileName,  efileName, befileName,  bFileName,  transposedin, efileType, problstName, problst2exclde, genelistName,  chr, prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag, genename,problst2exclde, indilstName, indilst2remove,  no_fid_flag, valueType, beta2m, m2beta,  std_thresh, upperBeta, lowerBeta, dpvalfName,  thresh_det_pval,  thresh_prpt_prb,  thresh_prpt_spl,  filter_det_pval_mth,  missing_ratio_prob, autosome_num,  maf, snplstName, snplst2exclde, tsk_ttl, tsk_id,vqtl_mtd,covfileName, qcovfileName,besd_snp_major, cis_flag,  cis_itvl);
-    else if(eqtl) eQTL(outfileName,  efileName, befileName,  bFileName,  transposedin, efileType, problstName, problst2exclde, genelistName,  chr, prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag, genename,problst2exclde, indilstName, indilst2remove,  no_fid_flag, valueType, beta2m, m2beta,  std_thresh, upperBeta, lowerBeta, dpvalfName,  thresh_det_pval,  thresh_prpt_prb,  thresh_prpt_spl,  filter_det_pval_mth,  missing_ratio_prob, autosome_num,  maf, snplstName, snplst2exclde, tsk_ttl, tsk_id,covfileName, qcovfileName,besd_snp_major);
+    else if (vqtl) V_QTL(outfileName,  efileName, befileName,phenofileName, bFileName,  transposedin, efileType, problstName, problst2exclde, genelistName,  chr, prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag, genename,problst2exclde, indilstName, indilst2remove,  no_fid_flag, valueType, beta2m, m2beta,  std_thresh, upperBeta, lowerBeta, dpvalfName,  thresh_det_pval,  thresh_prpt_prb,  thresh_prpt_spl,  filter_det_pval_mth,  missing_ratio_prob, autosome_num,  maf, snplstName, snplst2exclde, tsk_ttl, tsk_id,vqtl_mtd,covfileName, qcovfileName,to_smr_flag, cis_flag,  cis_itvl);
+    else if(eqtl && !mlmeqtl) eQTL(outfileName,  efileName, befileName,  bFileName,  transposedin, efileType, problstName, problst2exclde, genelistName,  chr, prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag, genename,problst2exclde, indilstName, indilst2remove,  no_fid_flag, valueType, beta2m, m2beta,  std_thresh, upperBeta, lowerBeta, dpvalfName,  thresh_det_pval,  thresh_prpt_prb,  thresh_prpt_spl,  filter_det_pval_mth,  missing_ratio_prob, autosome_num,  maf, snplstName, snplst2exclde, tsk_ttl, tsk_id,covfileName, qcovfileName, to_smr_flag, nofastlinear, cis_flag, cis_itvl);
+    else if(mlmeqtl)eQTL_MLM(outfileName,  efileName, befileName,  bFileName,  transposedin, efileType, problstName, problst2exclde, genelistName,  chr, prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag, genename,problst2exclde, indilstName, indilst2remove,  no_fid_flag, valueType, beta2m, m2beta,  std_thresh, upperBeta, lowerBeta, dpvalfName,  thresh_det_pval,  thresh_prpt_prb,  thresh_prpt_spl,  filter_det_pval_mth,  missing_ratio_prob, autosome_num,  maf, snplstName, snplst2exclde, tsk_ttl, tsk_id,covfileName, qcovfileName, to_smr_flag, cis_flag, cis_itvl, grm_file,grm_bin_flag, no_constrain, reml_mtd, MaxIter, mlma_preadj_covar);
     else if(queryBesd) query_besd(outfileName, beqtlFileName,  snplstName,  snplst2exclde,  problstName,problst2exclde,  genelistName,  pQueryBesd,  chr,   prbchr, snpchr,  snprs,  fromsnprs, tosnprs,  prbname,  fromprbname,  toprbname,snpWind,  prbWind, genename, fromsnpkb,  tosnpkb,  fromprbkb,  toprbkb,  snpwindFlag,  prbwindFlag, cis_flag,  cis_itvl,  probe2rm, snp2rm);
     else if (metaflg) {
         if(besdflstName != NULL) meta( besdflstName ,outfileName,meta_mtd,pmecs, cis_flag,  cis_itvl);
-        else if(gwasflstName != NULL) meta_gwas(gwasflstName, outfileName, meta_mtd, pmecs,mecs_mth,corMatFName,snplstName, zflag);
+        else if(gwasflstName != NULL || ewasflstName != NULL) meta_gwas(gwasflstName,ewasflstName,outfileName, meta_mtd, pmecs,mecs_mth,corMatFName,snplstName,problstName, zflag,out_comm_flag);
         else {
             LOGPRINTF("ERROR: please input a file list using --besd-flist or --gwas-flist.\n");
             TERMINATE();
         }
     }
     else if(make_besd_flag) make_besd(outfileName, beqtlFileName,  snplstName,  snplst2exclde,  problstName,problst2exclde,  genelistName,  pQueryBesd,  chr,   prbchr, snpchr,  snprs,  fromsnprs, tosnprs,  prbname,  fromprbname,  toprbname,snpWind,  prbWind, genename, fromsnpkb,  tosnpkb,  fromprbkb,  toprbkb,  snpwindFlag,  prbwindFlag, cis_flag,  cis_itvl,  probe2rm, snp2rm,save_dense_flag,to_smr_flag,besd_shrink_flag, stdprb, freqFName, varFName);
+    else if(gc_flag) gc_ewas(outfileName, ewasfileName);
 
-   /* unsigned char* wkspace_ua = NULL;
-    
-    unsigned char* wkspace;
-    unsigned char* wkspace_base;
-    uintptr_t wkspace_left;
-    
-    wkspace_ua = (unsigned char*)malloc((malloc_size_mb<<20) * sizeof(char));
-   
-    while (!wkspace_ua) {
-        malloc_size_mb = (malloc_size_mb * 3) / 4;
-        if (malloc_size_mb < WKSPACE_MIN_MB) {
-            malloc_size_mb = WKSPACE_MIN_MB;
-        }
-        wkspace_ua = (unsigned char*)malloc(malloc_size_mb * 1048576 * sizeof(char));
-        if (wkspace_ua) {
-            LOGPRINTF("Allocated %llu MB successfully, after larger attempt(s) failed.\n", malloc_size_mb);
-        } else if (malloc_size_mb == WKSPACE_MIN_MB) {
-            exit(1);
-        }
-    }    
-    
-    // force 64-byte align to make cache line sensitivity work
-    wkspace = (unsigned char*)CACHEALIGN((uintptr_t)wkspace_ua);
-    wkspace_base = wkspace;
-    wkspace_left = ((malloc_size_mb<<20) - (uintptr_t)(wkspace - wkspace_ua)) & (~(CACHELINE - ONELU));
-
-     cout<<wkspace_left<<endl;
-    */
-    
 }

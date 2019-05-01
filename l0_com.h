@@ -35,6 +35,9 @@
 #include <iomanip>
 #include <limits>
 #include <random>
+#ifndef __APPLE__
+#include <omp.h>
+#endif
 
 using namespace std;
 using namespace Eigen;
@@ -46,7 +49,7 @@ using namespace Eigen;
 #define FNAMESIZE 4096
 #define MAX_LINE_SIZE 0x60000
 //4 dynamic
-#define MAXLINEBUFLEN 0x4000000
+#define MAXLINEBUFLEN 0x40000000
 #define MAXPROBENUM 0x100000 // >850k
 
 #define MISSING_PHENO -1e10
@@ -77,6 +80,8 @@ extern int remlstatus;
 extern uintptr_t wkspace_left;
 extern bool prt_mid_rlt;
 
+extern bool mute;
+extern bool remloasi;
 extern void logprintb();
 extern void TERMINATE();
 extern void to_upper(char* str, int len);
@@ -86,7 +91,7 @@ extern bool has_suffix(const string &str, const string &suffix);
 extern bool has_prefix(const string &str, const string &prefix);
 extern bool has_prefix(const char* char1, const char* subchar);
 extern string dtos(double value);
-
+extern int MOMENT_APPROX;
 template <typename T>
 extern inline string atos (T const& a)
 {
@@ -106,6 +111,12 @@ template <typename T>
 extern inline T Abs(T const& a)
 {
     return (T{} < a) ? a : -a;
+}
+template <typename T>
+extern inline T sign (T const& a, T const& b)
+{
+    if(b>=0) return(abs(a));
+    else return(-abs(a));
 }
 extern int32_t fopen_checked(FILE** target_ptr, const char* fname, const char* mode);
 extern int32_t fwrite_checked(const void* buf, size_t len, FILE* outfile);
@@ -128,6 +139,49 @@ extern void getRank(vector<T> &a, vector<T> &b)
         b[i] = count;
     }
 }
+template <typename T>
+extern void getRank2(vector<T> &a, vector<T> &b)
+{
+    b.resize(a.size());
+    //#pragma omp parallel for
+    for (long i = a.size()-1; i >= 0; i--)
+    {
+        int count = 0 , ecount=0;
+        double w=0;
+        for (int j = 0; j < a.size(); j++) {
+            if (a[j] < a[i]) count++;
+            if (a[j] == a[i]) ecount++;
+        }
+        if(ecount>1)
+        {
+            for(int j=0;j<ecount;j++) w+=j;
+            w/=ecount;
+        }
+        b[i] = count + w;
+    }
+}
+template <typename T>
+extern void getRank2R(vector<T> &a, vector<T> &b)
+{
+    b.resize(a.size());
+    #pragma omp parallel for
+    for (long i = a.size()-1; i >= 0; i--)
+    {
+        int count = 0 , ecount=0;
+        double w=0;
+        for (int j = 0; j < a.size(); j++) {
+            if (a[j] < a[i]) count++;
+            if (a[j] == a[i]) ecount++;
+        }
+        if(ecount>1)
+        {
+            for(int j=0;j<ecount;j++) w+=j;
+            w/=ecount;
+        }
+        b[i] =1 + count + w;
+    }
+}
+
 extern void getUnique(vector<int> &a);
 extern void strarr2strvec(const char **a, int sizea, vector<string> &b);
 extern void match(const vector<string> &VecA, const vector<string> &VecB, vector<int> &VecC);
@@ -148,13 +202,25 @@ extern void free2(T** to)
         *to=NULL;
     }
 }
+template<class T>
+extern inline const T MAX(const T &a, const T &b)
+{return b > a ? (b) : (a);}
+
+template<class T>
+extern inline const T MIN(const T &a, const T &b)
+{return b < a ? (b) : (a);}
+
 extern void removeRow(MatrixXd &matrix, unsigned int rowToRemove);
 extern void removeColumn(MatrixXd &matrix, unsigned int colToRemove);
 extern void removeRow(MatrixXf &matrix, unsigned int rowToRemove);
 extern void removeColumn(MatrixXf &matrix, unsigned int colToRemove);
 extern void inverse_V(MatrixXd &Vi, bool &determinant_zero);
+extern void inverse_V2(MatrixXd &Vi, bool &determinant_zero);
 extern void subMatrix_symm(MatrixXd &to,MatrixXd &from,vector<int> &idx);
 extern double mean(const vector<double> &x);
+extern double weight_mean(const vector<double> &x, const vector<double> &weight);
+extern double sum(const vector<double> &x);
 extern double cov(const vector<double> &x, const vector<double> &y);
 extern double cor(vector<double> &y, vector<double> &x);
+extern void standardise(vector<double> &data, bool divid_by_std);
 #endif /* defined(__osc__l0_com__) */

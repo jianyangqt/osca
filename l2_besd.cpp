@@ -82,7 +82,7 @@ namespace SMR {
             else eqtlinfo->_epi_bp.push_back(atoi(strlist[3].c_str()));
             if(strlist[4]=="NA" || strlist[4]=="na") {
                 if(!genewarning) {
-                    LOGPRINTF("WARNING: At least one gene id is missing.\n");
+                    LOGPRINTF("WARNING: at least one gene id is missing.\n");
                     genewarning=true;
                 }
             }
@@ -168,7 +168,7 @@ namespace SMR {
             } else eqtlinfo->_esi_chr.push_back(atoi(strlist[0].c_str()));
             
             if(strlist[1]=="NA" || strlist[1]=="na") {
-                LOGPRINTF("ERROR: NA probe ID found:\n");
+                LOGPRINTF("ERROR: NA SNP ID found:\n");
                 LOGPRINTF("%s\n",Tbuf);
                 TERMINATE();
             }
@@ -617,6 +617,7 @@ namespace SMR {
             if(mem2use>0x200000000){
                 LOGPRINTF("WARNING: %llu GB should be allocated for your besd file.\n",mem2use>>30);
             }
+            
             eqtlinfo->_bxz.resize(eqtlinfo->_include.size());
             eqtlinfo->_sexz.resize(eqtlinfo->_include.size());
             for(unsigned int i=0;i<eqtlinfo->_include.size();i++)
@@ -624,26 +625,25 @@ namespace SMR {
                 eqtlinfo->_bxz[i].resize(eqtlinfo->_esi_include.size());
                 eqtlinfo->_sexz[i].resize(eqtlinfo->_esi_include.size());
             }
-            char* readBuf;
-            string msg="Reading Buffer";
-            if(!allocReserved(&readBuf, sizeof(float)*eqtlinfo->_snpNum<<1,msg)) {
+            char* buffer;
+            buffer = (char*) malloc (sizeof(char)*eqtlinfo->_probNum<<3);
+            if (buffer == NULL) {
                 LOGPRINTF("ERROR: memory allocation failed to read %s.\n", besdFileName);
                 TERMINATE();
             }
+            
             float* ft;
             for(int j=0;j<eqtlinfo->_esi_include.size();j++)
             {
                 uint64_t sid=eqtlinfo->_esi_include[j];
                 uint64_t readpos=((sid*eqtlinfo->_probNum)<<3)+infoLen;
-                uint64_t num2read=eqtlinfo->_probNum<<1;
                 fseek( besd, readpos, SEEK_SET );
-                uint64_t readNum=fread(readBuf, sizeof(float),num2read, besd);
-                if(readNum!=num2read)
+                if(fread(buffer, sizeof(char),eqtlinfo->_probNum<<3, besd)!=eqtlinfo->_probNum<<3)
                 {
                     LOGPRINTF("ERROR: File %s read failed!\n", besdFileName);
                     TERMINATE();
                 }
-                ft=(float *)readBuf;
+                ft=(float *)buffer;
                 for (int i = 0; i<eqtlinfo->_include.size(); i++)
                 {
                     int pos=eqtlinfo->_include[i];
@@ -655,7 +655,7 @@ namespace SMR {
             if(eqtlinfo->_include.size()<eqtlinfo->_probNum ) update_epi(eqtlinfo);
             if(eqtlinfo->_esi_include.size()<eqtlinfo->_snpNum) update_esi(eqtlinfo);
             
-            deallocReserved(&readBuf, sizeof(char)*eqtlinfo->_snpNum<<3);
+            free(buffer);
         }
         else if(indicator == OSCA_SPARSE_1)
         {
@@ -1206,7 +1206,7 @@ namespace SMR {
                 }
                 else
                 {
-                    cols.resize(eqtlinfo->_probNum+1);
+                    cols.resize(eqtlinfo->_include.size()+1);
                     cols[0]=0;
                     for(int i=0;i<eqtlinfo->_include.size();i++)
                     {
@@ -2363,6 +2363,97 @@ namespace SMR {
         gdata->snpNum=gdata->_include.size();
         LOGPRINTF("GWAS summary data of %ld SNPs to be included from %s.\n" ,gdata->snpNum ,gwasFileName);
         fclose(gwasFile);
+    }
+    
+    void read_ewas_data(gwasData* gdata, char* ewasFileName)
+    {
+        FILE* ewasFile=NULL;
+        vector<string> strlist;
+        uint32_t line_idx = 0;
+        int colnum=8;
+        if(fopen_checked(&ewasFile, ewasFileName,"r")) { TERMINATE(); }
+        
+        LOGPRINTF("Reading EWAS summary data from %s.\n",ewasFileName);
+        gdata->_include.clear();
+        gdata->snpName.clear();
+        gdata->snpBp.clear();
+        gdata->allele_1.clear();
+        gdata->allele_2.clear();
+        gdata->freq.clear();
+        gdata->byz.clear();
+        gdata->seyz.clear();
+        gdata->pvalue.clear();
+        gdata->splSize.clear();
+        gdata->_snp_name_map.clear();
+        if(fgets(Tbuf, MAX_LINE_SIZE, ewasFile)) // the header
+        {
+            if(Tbuf[0]=='\0')
+            {
+                LOGPRINTF("ERROR: the first row of the file %s is empty.\n",ewasFileName);
+                TERMINATE();
+            }
+        }
+        while(fgets(Tbuf, MAX_LINE_SIZE, ewasFile))
+        {
+            if(Tbuf[0]=='\0') {
+                LOGPRINTF("ERROR: Line %u is blank.\n", line_idx+2);
+                TERMINATE();
+            }
+            split_str(Tbuf,strlist,0);
+            if(strlist.size()!=colnum && strlist.size()!=colnum+1)
+            {
+                LOGPRINTF("ERROR: Line %u has %d items.\n", line_idx+2,colnum);
+                TERMINATE();
+            }
+            if(strlist[1]=="NA" || strlist[1]=="na"){
+                LOGPRINTF("ERROR: probe name is \'NA\' in row %d.\n", line_idx+2);
+                TERMINATE();
+            }
+            gdata->_snp_name_map.insert(pair<string,int>(strlist[1],line_idx));
+            if(gdata->_snp_name_map.size()==line_idx)
+            {
+                LOGPRINTF("ERROR: Duplicate probe : %s.\n", strlist[1].c_str());
+                TERMINATE();
+            }
+            gdata->snpName.push_back(strlist[1]);
+            int chr=0;
+            if(strlist[0]=="NA" || strlist[0]=="na") chr=-9;
+            else if (strlist[0]=="X" || strlist[0]=="x") chr=23;
+            else if (strlist[0]=="Y" || strlist[0]=="y") chr=24;
+            else chr=atoi(strlist[0].c_str());
+            gdata->freq.push_back(chr);
+            gdata->snpBp.push_back(atoi(strlist[2].c_str()));
+            gdata->allele_1.push_back(strlist[3]);
+            gdata->allele_2.push_back(strlist[4]);
+            if(strlist[5]=="NA" || strlist[5]=="na"){
+                LOGPRINTF("WARNING: effect size is \'NA\' in row %d.\n", line_idx+2);
+                gdata->byz.push_back(0);
+            } else {
+                gdata->byz.push_back(atof(strlist[5].c_str()));
+            }
+            if(strlist[6]=="NA" || strlist[6]=="na"){
+                LOGPRINTF("WARNING: standard error is \'NA\' in row %d.\n", line_idx+2);
+                gdata->seyz.push_back(-9);
+            } else {
+                gdata->seyz.push_back(atof(strlist[6].c_str()));
+            }
+            gdata->pvalue.push_back(atof(strlist[7].c_str()));
+            if(strlist.size()==colnum+1)
+            {
+                if(strlist[8]=="NA" || strlist[8]=="na"){
+                    gdata->splSize.push_back(-9);
+                } else {
+                    gdata->splSize.push_back(atoi(strlist[8].c_str()));
+                }
+            }
+            else gdata->splSize.push_back(-9);
+            
+            gdata->_include.push_back(line_idx);
+            line_idx++;
+        }
+        gdata->snpNum=gdata->_include.size();
+        LOGPRINTF("EWAS summary data of %ld probes to be included from %s.\n" ,gdata->snpNum ,ewasFileName);
+        fclose(ewasFile);
     }
     
     void get_shrink_null(eqtlInfo* eqtlinfo,vector<string> &nullprbs, vector<string> &nullsnps)

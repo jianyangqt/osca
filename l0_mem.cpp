@@ -10,6 +10,7 @@
 
 #if defined(_WIN32)
 #include <Windows.h>
+#include <memory>
 
 #elif defined(__unix__) || defined(__unix) || defined(unix) || (defined(__APPLE__) && defined(__MACH__))
 #include <unistd.h>
@@ -119,6 +120,7 @@ uint64_t getMemSize_Plink()
     llxx /= 1048576;
 #else
 #ifdef _WIN32
+    MEMORYSTATUSEX memstatus;
     memstatus.dwLength = sizeof(memstatus);
     GlobalMemoryStatusEx(&memstatus);
     llxx = memstatus.ullTotalPhys / 1048576;

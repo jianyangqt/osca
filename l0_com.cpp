@@ -11,14 +11,16 @@
 int thread_num=1;
 FILE* logfile = NULL;
 char* outfileName=NULL;
-int remlstatus = 0; // -1: matrix is not invertible. -2:more than half of the variance components are constrained. -3: variance is 0 or 1 . -4: not coverge
+int remlstatus = 0; // -1: matrix is not invertible. -2:more than half of the variance components are constrained. -3: variance is <0 or >1 . -4: not coverge. -5 constrained
 uint32_t g_debug_on = 0;
 uint32_t g_log_failed = 0;
 long long mem_left=0;
 char logbuf[MAX_LINE_SIZE];
 char Tbuf[MAX_LINE_SIZE];
 bool prt_mid_rlt=false;
-
+bool mute = false;
+int MOMENT_APPROX = 0x0;
+bool remloasi = true;
 struct IncGenerator {
     int current_;
     IncGenerator (int start) : current_(start) {}
@@ -135,7 +137,7 @@ int32_t fwrite_checked(const void* buf, size_t len, FILE* outfile) {
 }
 
 static inline char* skip_initial_spaces(char* sptr) {
-    while ((*sptr == ' ') || (*sptr == '\t') || (*sptr == '\n')) {
+    while ((*sptr == ' ') || (*sptr == '\t') || (*sptr == '\n') || (*sptr == '\r') ) {
         sptr++;
     }
     return sptr;
@@ -145,7 +147,7 @@ char* next_token(char* sptr) {
     if (!sptr) {
         return NULL;
     }
-    while ((*sptr != ' ') && (*sptr != '\t') && (*sptr != '\n')) {
+    while ((*sptr != ' ') && (*sptr != '\t') && (*sptr != '\n') && (*sptr != '\r')) {
         if (!(*sptr)) {
             return sptr--; //in case of no delimiter befor '\0'
         }
@@ -465,8 +467,9 @@ void inverse_V(MatrixXd &Vi, bool &determinant_zero)
     VectorXd eval = eigensolver.eigenvalues();
     for(int i=0;i<eval.size();i++)
     {
-        if(abs(eval(i))<1e-6) {
-         //if(eval(i)<1e-6) {
+        
+        //if(abs(eval(i))<1e-6) {
+         if(abs(eval(i))<1e-10) { // I observed a scenario with the min eigenval as 1.393741e-09, the matrix is still invertible.
             determinant_zero=true;
             eval(i)=0;
         } else {
@@ -475,6 +478,27 @@ void inverse_V(MatrixXd &Vi, bool &determinant_zero)
     }
     Vi = eigensolver.eigenvectors() * DiagonalMatrix<double, Dynamic, Dynamic>(eval) * eigensolver.eigenvectors().transpose();
 }
+void inverse_V2(MatrixXd &Vi, bool &determinant_zero)
+{
+    JacobiSVD<MatrixXd> svd(Vi, ComputeThinU | ComputeThinV);
+    VectorXd svdd=svd.singularValues();
+    MatrixXd svdU=svd.matrixU();
+    MatrixXd svdV=svd.matrixV();
+    
+    for(int i=0;i<svdd.size();i++)
+    {
+        if(abs(svdd(i))<1e-6) {
+            //if(eval(i)<1e-10) { // I observed a scenario with the min eigenval as 1.393741e-09, the matrix is still invertible.
+            determinant_zero=true;
+            svdd(i)=0;
+        } else {
+            svdd(i) = 1.0 / svdd(i);
+        }
+    }
+    
+    Vi = svdU * DiagonalMatrix<double, Dynamic, Dynamic>(svdd) * svdV.transpose();
+}
+
 double mean(const vector<double> &x)
 {
     long size = x.size();
@@ -483,6 +507,30 @@ double mean(const vector<double> &x)
     for(i=0; i<size; i++) d_buf+=x[i];
     d_buf/=(double)size;
     return (double)d_buf;
+}
+double weight_mean(const vector<double> &x, const vector<double> &weight)
+{
+    if(x.size()!=weight.size())
+    {
+        LOGPRINTF("ERROR: different size of x and weight.\n")
+        TERMINATE();
+    }
+    long size = x.size();
+    int i=0;
+    double d_buf=0.0,e_buf=0.0;
+    for(i=0; i<size; i++) {
+        d_buf+=x[i]*weight[i];
+        e_buf+=weight[i];
+    }
+    d_buf/=e_buf;
+    return (double)d_buf;
+}
+double sum(const vector<double> &x)
+{
+    long size = x.size();
+    double d_buf=0.0;
+    for(int i=0; i<size; i++) d_buf+=x[i];
+    return d_buf;
 }
 double cov(const vector<double> &x, const vector<double> &y)
 {
@@ -544,6 +592,36 @@ double cor(vector<double> &y, vector<double> &x)
     
     return (r);
 }
-
+void standardise(vector<double> &data, bool divid_by_std)
+{
+    // missing is labelled as 1e10
+    double mu=0.0, nonmiss=0;
+    long n = data.size();
+        for(int i=0; i<n; i++){
+            if(data[i]<1e9)
+            {
+                mu += data[i];
+                nonmiss += 1.0;
+            }
+        }
+        if(nonmiss>0) mu /=nonmiss;
+    
+    for(int i=0; i<n; i++){
+            if(data[i]<1e9) data[i] -= mu;
+            else data[i] = 0.0;
+        }
+    
+    if(divid_by_std)
+    {
+        double sd = sqrt(var(data));
+        #pragma omp parallel for
+        for(int i=0; i<n; i++){
+           
+                if(fabs(sd)>1e-30) data[i] /= sd;
+                else data[i] = 0.0;
+        }
+    }
+    
+}
 
 

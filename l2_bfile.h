@@ -22,10 +22,10 @@ namespace BFILE{
         map<string, int> _snp_name_map;
         vector<double> _genet_dst;
         vector<int> _bp;
-        vector<char> _allele1;
-        vector<char> _allele2;
-        vector<char> _ref_A; // reference allele
-        vector<char> _other_A; // the other allele
+        vector<string> _allele1;
+        vector<string> _allele2;
+        vector<string> _ref_A; // reference allele
+        vector<string> _other_A; // the other allele
         uint64_t _snp_num;
         vector<double> _rc_rate;
         vector<int> _include; // initialized in the read_bimfile()
@@ -56,6 +56,10 @@ namespace BFILE{
         MatrixXf _geno;
         
         vector<double> _mu;
+        
+        MatrixXf _grm_N;
+        MatrixXd _grm;
+        
     } bInfo;
     
     void keep_indi(bInfo* bdata,string indi_list_file);
@@ -63,12 +67,17 @@ namespace BFILE{
     void extract_snp(bInfo* bdata,string snplistfile);
     void exclude_snp(bInfo* bdata,string snplistfile);
     void calcu_mu(bInfo* bdata, bool ssq_flag=false);
-    bool make_XMat(bInfo* bdata,vector<uint32_t> &snpids, MatrixXf &X, bool mu=false);
-    bool make_XMat(bInfo* bdata, int start, int slide_wind, MatrixXf &X, bool mu=false);
+    bool make_XMat(bInfo* bdata,vector<uint32_t> &snpids, MatrixXd &X, bool mu=false);
+    bool make_XMat(bInfo* bdata, int start, int slide_wind, MatrixXd &X, bool mu=false);
+    bool make_XMat_subset(bInfo* bdata, int start, int slide_wind, MatrixXd &X, bool standardise=false);
+    bool make_XMat_subset(bInfo* bdata,vector<uint32_t> &snpids, MatrixXd &X, bool standardise=false);
     void read_famfile(bInfo* bdata, string famfile);
     void read_bimfile(bInfo* bdata,string bimfile);
     void read_bedfile(bInfo* bdata, string bedfile);
     void filter_snp_maf(bInfo* bdata,double maf);
+    void make_grm(bInfo* bdata, int grm_mtd,  bool diag_f3_flag=false);
+    void read_grm(bInfo* bdata,bool grm_bin_flag, string grm_file, vector<string> &grm_id, bool read_id_only, bool dont_read_N);
+    int read_grm_id(bInfo* bdata,string grm_file, vector<string> &grm_id);
 }
 
 #endif /* defined(__osc__l2_bfile__) */

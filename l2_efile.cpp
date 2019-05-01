@@ -22,7 +22,8 @@ namespace EFILE {
         else if(tid==1) return("M-values");
         else return("Expression values");
     }
-    void  read_efile(char* eFileName, eInfo* einfo, uint32_t filetype, bool no_fid_flag,int valueType){
+    void  read_efile(char* eFileName, eInfo* einfo, uint32_t filetype, bool no_fid_flag,int valueType)
+    {
         
         FILE* efile=NULL;
         einfo->_eType=filetype;
@@ -35,6 +36,7 @@ namespace EFILE {
         if(!allocReserved(&readBuf, MAXLINEBUFLEN,msg)) TERMINATE();
         if(fopen_checked(&efile, eFileName,"r")) TERMINATE();
         LOGPRINTF("Reading %s data from %s ...\n", typestr.c_str(),eFileName);
+        
         if(fgets(readBuf, MAXLINEBUFLEN, efile))
         {
             if(no_fid_flag) split_str(readBuf,strlist,1);
@@ -67,7 +69,7 @@ namespace EFILE {
         while(fgets(readBuf, MAXLINEBUFLEN, efile)) line_idx++;
          LOGPRINTF("%d individuals are scanned from the transposed file %s ...\n", line_idx, eFileName);
         einfo->_eii_num=line_idx;
-        einfo->_epi_num=(uint32_t)einfo->_epi_prb.size();
+        einfo->_epi_num=einfo->_epi_prb.size();
         einfo->_eii_pheno_num=1;
         msg="Expression Values";
         uint64_t sizeneed=einfo->_epi_num*einfo->_eii_num*sizeof(double)+einfo->_eii_num*(sizeof(string)*5+sizeof(int)*3+sizeof(double));
@@ -139,9 +141,93 @@ namespace EFILE {
         }
         fclose(efile);
         deallocReserved(&readBuf, MAXLINEBUFLEN);
-        LOGPRINTF("%s data for %u probes of %u individuals have been included from the file %s.\n",typestr.c_str(), einfo->_epi_num, einfo->_eii_num, eFileName);
+        LOGPRINTF("%s data for %u probes of %llu individuals have been included from the file %s.\n",typestr.c_str(), einfo->_epi_num, einfo->_eii_num, eFileName);
     }
-    
+    void  read_pheno2(char* eFileName, eInfo* einfo,int colid)
+    {
+        FILE* efile=NULL;
+        einfo->_eType=GENEEXPRESSION;
+        einfo->_valType=VALUE;
+        vector<string> strlist;
+        uint32_t line_idx = 0;
+        char* readBuf;
+        string msg="Reading Buffer";
+        if(!allocReserved(&readBuf, MAXLINEBUFLEN,msg)) TERMINATE();
+        if(fopen_checked(&efile, eFileName,"r")) TERMINATE();
+        LOGPRINTF("Reading data from %s ...\n",eFileName);
+        einfo->_epi_prb.push_back("phenotype");
+        einfo->_epi_include.push_back(0);
+        einfo->_epi_chr.push_back(-9);
+        einfo->_epi_bp.push_back(-9);
+        einfo->_epi_gd.push_back(-9);
+        einfo->_epi_gene.push_back("NA");
+        einfo->_epi_orien.push_back('*');
+        einfo->_epi_map.insert(pair<string,int>(einfo->_epi_prb[0],0));
+        
+        while(fgets(readBuf, MAXLINEBUFLEN, efile)) line_idx++;
+        LOGPRINTF("%d individuals are scanned from file %s ...\n", line_idx, eFileName);
+        einfo->_eii_num=line_idx;
+        einfo->_epi_num=einfo->_epi_prb.size();
+        einfo->_eii_pheno_num=1;
+        msg="pheno";
+        uint64_t sizeneed=einfo->_epi_num*einfo->_eii_num*sizeof(double)+einfo->_eii_num*(sizeof(string)*5+sizeof(int)*3+sizeof(double));
+        if(!sudoAllocReserved( sizeneed, msg)) TERMINATE();
+        einfo->_val.resize(einfo->_epi_num*einfo->_eii_num);
+        einfo->_eii_fid.resize(einfo->_eii_num);
+        einfo->_eii_iid.resize(einfo->_eii_num);
+        einfo->_eii_include.resize(einfo->_eii_num);
+        einfo->_eii_fa_id.resize(einfo->_eii_num);
+        einfo->_eii_mo_id.resize(einfo->_eii_num);
+        einfo->_eii_sex.resize(einfo->_eii_num);
+        einfo->_eii_pheno.resize(einfo->_eii_num);
+        
+        rewind(efile);
+        line_idx=0;
+        long colnum=-9;
+        while(fgets(readBuf, MAXLINEBUFLEN, efile))
+        {
+            split_str(readBuf,strlist,0);
+            if(strlist.size() <= colid+2)
+            {
+                LOGPRINTF("ERROR: the number specified by --mpheno should <= number of phenotypes.\n");
+                TERMINATE();
+            }
+            if(colnum<0) colnum=strlist.size();
+            else {
+                if(strlist.size()!=colnum)
+                {
+                    LOGPRINTF("ERROR: Inconsistent element number found in line %u with FID: %s and IID %s .\n", line_idx+1, strlist[0].c_str(),strlist[1].c_str());
+                    TERMINATE();
+                }
+            }
+            einfo->_eii_fid[line_idx]=strlist[0].c_str();
+            einfo->_eii_iid[line_idx]=strlist[1].c_str();
+            
+            einfo->_eii_include[line_idx]=line_idx;
+            einfo->_eii_fa_id[line_idx]="0";
+            einfo->_eii_mo_id[line_idx]="0";
+            einfo->_eii_sex[line_idx]=-9;
+            einfo->_eii_pheno[line_idx]=-9;
+            einfo->_eii_map.insert(pair<string,int>(strlist[0]+":"+strlist[1],line_idx));
+            if(einfo->_eii_map.size()==line_idx)
+            {
+                LOGPRINTF("ERROR: Duplicate individual with FID: %s and IID %s.\n", strlist[0].c_str(),strlist[1].c_str());
+                TERMINATE();
+            }
+            int valStartPos=2+colid;
+            
+            
+                if(strlist[valStartPos]=="na" ||strlist[valStartPos]=="NA" ) einfo->_val[line_idx]=1e10; // -9 as miss value should be questioned. 1e10 presents as miss value also should be questioned.
+                else {
+                    double valtmp=atof(strlist[valStartPos].c_str());
+                    einfo->_val[line_idx]=valtmp;
+                }
+            line_idx++;
+        }
+        fclose(efile);
+        deallocReserved(&readBuf, MAXLINEBUFLEN);
+        LOGPRINTF("%llu individuals have been included from the file %s.\n", einfo->_eii_num, eFileName);
+    }
     void  read_efile_t(char* eFileName, eInfo* einfo, uint32_t filetype, bool no_fid_flag,int valueType){
         
         FILE* efile=NULL;
@@ -202,7 +288,7 @@ namespace EFILE {
         while(fgets(readBuf, MAXLINEBUFLEN, efile))  line_idx++;
         LOGPRINTF("%d probes are scanned from the transposed file %s ...\n", line_idx, eFileName);
         
-        einfo->_eii_num=(uint32_t)einfo->_eii_iid.size();
+        einfo->_eii_num=einfo->_eii_iid.size();
         einfo->_epi_num=line_idx;
         einfo->_eii_pheno_num=1;
         msg="Expression Values";
@@ -266,7 +352,7 @@ namespace EFILE {
          //cout <<"read:" << float( clock () - begin_time ) /  100<<"ms"<<endl;
         fclose(efile);
         deallocReserved(&readBuf, MAXLINEBUFLEN);
-        LOGPRINTF("%s data for %u probes of %u individuals have been included from the file %s.\n", typestr.c_str(),  einfo->_epi_num, einfo->_eii_num, eFileName);
+        LOGPRINTF("%s data for %llu probes of %llu individuals have been included from the file %s.\n", typestr.c_str(),  einfo->_epi_num, einfo->_eii_num, eFileName);
     }
     void beta_2_m(eInfo* einfo)
     {
@@ -644,7 +730,20 @@ namespace EFILE {
         einfo->_eii_num=line_idx;
         einfo->_eii_pheno_num=1;
         fclose(eiifile);
-        LOGPRINTF("%u individuals to be included from  %s .\n", einfo->_eii_num, eiiFileName);
+        LOGPRINTF("%llu individuals to be included from  %s .\n", einfo->_eii_num, eiiFileName);
+    }
+    bool moment_eligibility_ck(eInfo* einfo)
+    {
+        bool succ=1;
+        for(int i=0;i<einfo->_epi_include.size();i++)
+        {
+            if(einfo->_epi_chr[einfo->_epi_include[i]]==-9 ||  einfo->_epi_bp[einfo->_epi_include[i]]==-9)
+            {
+                succ=0;
+                break;
+            }
+        }
+        return succ;
     }
     void read_epi(char* epiFileName,eInfo* einfo)
     {
@@ -713,7 +812,7 @@ namespace EFILE {
             else einfo->_epi_bp.push_back(atoi(strlist[2].c_str()));
             if(strlist[3]=="NA" || strlist[3]=="na") {
                 if(!genewarning) {
-                    LOGPRINTF("WARNING: At least one gene id is missing.\n");
+                    LOGPRINTF("WARNING: at least one gene id is missing.\n");
                     genewarning=true;
                 }
             }
@@ -730,7 +829,7 @@ namespace EFILE {
         }
         einfo->_epi_num=line_idx;
         fclose(epifile);
-        LOGPRINTF("%u probes to be included from  %s .\n", einfo->_epi_num, epiFileName);
+        LOGPRINTF("%llu probes to be included from  %s .\n", einfo->_epi_num, epiFileName);
     }
     void read_beed(char* beedFileName,eInfo* einfo)
     {
@@ -764,7 +863,7 @@ namespace EFILE {
         uint64_t size_file = ftell( beedfile );
         fseek( beedfile, cur_pos, SEEK_SET );
         string typestr=getFileType(einfo->_eType);
-        uint64_t val_ttl_file=einfo->_epi_num*einfo->_eii_num;
+        uint64_t val_ttl_file=((uint64_t)einfo->_epi_num)*einfo->_eii_num;
         if(inum!=einfo->_eii_num || pnum!=einfo->_epi_num)
         {
             LOGPRINTF("ERROR: .oii or .opi file is not consistent with .bod file %s!\n", beedFileName);
@@ -854,7 +953,7 @@ namespace EFILE {
         //if(einfo->_epi_include.size()<einfo->_epi_num) update_epi(einfo);
         update_epi(einfo);
         string valtypestr=getValType(einfo->_valType);
-        LOGPRINTF("%s of %s data for %u probes of %u individuals have been included from the file %s.\n",valtypestr.c_str(), typestr.c_str(),  einfo->_epi_num, einfo->_eii_num, beedFileName);
+        LOGPRINTF("%s of %s data for %llu probes of %llu individuals have been included from the file %s.\n",valtypestr.c_str(), typestr.c_str(),  einfo->_epi_num, einfo->_eii_num, beedFileName);
     }
     void update_eii(eInfo* einfo)
     {
@@ -888,7 +987,7 @@ namespace EFILE {
             for (int i = 0; i < einfo->_eii_include.size(); i++) dtmp.push_back(einfo->_eii_qcov[ii*einfo->_eii_num+einfo->_eii_include[i]]);
         einfo->_eii_qcov.clear();
         einfo->_eii_qcov.swap(dtmp);
-        einfo->_eii_num =(uint32_t)einfo->_eii_include.size();
+        einfo->_eii_num =einfo->_eii_include.size();
         
         einfo->_eii_include.clear();
         einfo->_eii_map.clear();
@@ -923,7 +1022,7 @@ namespace EFILE {
         for (int i = 0; i < einfo->_epi_include.size(); i++) chartmp.push_back(einfo->_epi_orien[einfo->_epi_include[i]]);
         einfo->_epi_orien.clear();
         einfo->_epi_orien.swap(chartmp);
-        einfo->_epi_num =(uint32_t)einfo->_epi_include.size();
+        einfo->_epi_num =einfo->_epi_include.size();
         
         einfo->_epi_include.clear();
         einfo->_epi_map.clear();
@@ -1108,6 +1207,27 @@ namespace EFILE {
         einfo->_epi_include.push_back((int)idx);
         einfo->_epi_map.insert(pair<string,int>(prbname,(int)idx));
         LOGPRINTF( "%s is extracted.\n",prbname.c_str());
+    }
+    void update_startend(int length, int tsk_ttl, int tsk_id, int &start, int &end)
+    {
+        if(tsk_ttl>length) {
+            LOGPRINTF("WARNING: Total task number %d is larger than the probe number %d.\nThe task number shrinks to %d.\n", tsk_ttl, length,length);
+            tsk_ttl=length;
+            if(tsk_id>tsk_ttl) {
+                LOGPRINTF("Task id %d is larger than shrinked total task number %d. Task terminated.\n", tsk_id,tsk_ttl);
+                TERMINATE();
+            }
+        }
+        int num_per_tsk=ceill(length/(1.0*tsk_ttl));
+        
+        start=(tsk_id-1)*num_per_tsk;
+        if(start>=length) {
+            LOGPRINTF("The whole analysis can be accomplished by the tasks ahead. This task %d would be no more needed.\n", tsk_id);
+            TERMINATE();
+        }
+        end = tsk_id*num_per_tsk-1;
+        if(end >= length) end=length-1;
+        LOGPRINTF("The %dth probe to the %dth probe of total %d probes are extracted from this sub-task.\n", start+1,end+1,length);
     }
     void extract_probe(eInfo* einfo, int tsk_ttl, int tsk_id)
     {
@@ -1326,7 +1446,7 @@ namespace EFILE {
         _probe_data.resize(n,m);
        
         
-#pragma omp parallel for
+        #pragma omp parallel for
         for(int i=0; i<n; i++){
             for(int j=0; j<m; j++) _probe_data(i,j)=X(einfo->_eii_include[i], einfo->_epi_include[j]);
         }
@@ -1370,10 +1490,13 @@ namespace EFILE {
         for(int j=0; j<m; j++)
             if(nonmiss(j)<n)
             {
-                LOGPRINTF("Note: missing values are replaced by the mean of a probe.\n");
+                if(!mute)
+                {
+                    LOGPRINTF("Note: missing values are replaced by the mean of a probe.\n");
+                }
                 break;
             }
-#pragma omp parallel for
+        #pragma omp parallel for
         for(int i=0; i<n; i++){
             for(int j=0; j<m; j++){
                 if(_probe_data(i,j)<1e9) _probe_data(i,j) -= mu(j);
@@ -1391,14 +1514,15 @@ namespace EFILE {
             
         }
        
-        if(divid_by_std){
+        if(divid_by_std)
+        {
             VectorXd sd(m);
-#pragma omp parallel for
+            #pragma omp parallel for
             for(int j=0; j<m; j++){
                 if(nonmiss(j)>1) sd(j) = sqrt((_probe_data.col(j).dot(_probe_data.col(j))) / (nonmiss(j) - 1.0));
                 else sd(j)=0.0;
             }
-#pragma omp parallel for
+            #pragma omp parallel for
             for(int i=0; i<n; i++){
                 for(int j=0; j<m; j++) {
                     if(fabs(sd(j))>1e-30) _probe_data(i,j) /= sd(j);
@@ -1668,26 +1792,26 @@ namespace EFILE {
     }
     void std_probe_ind(eInfo* einfo, vector< vector<bool> > &X_bool, bool divid_by_std, MatrixXd &_probe_data, bool output_profile)
     {
-        int i = 0, j = 0;
+      
         uint64_t n = einfo->_eii_include.size(), m = einfo->_epi_include.size();
         Map<MatrixXd> X(&einfo->_val[0],n,m);
         _probe_data.resize(n, m);
         
-#pragma omp parallel for private(j)
-        for(i=0; i<n; i++){
-            for(j=0; j<m; j++) _probe_data(i,j)=X(einfo->_eii_include[i], einfo->_epi_include[j]);
+#pragma omp parallel for
+        for(int i=0; i<n; i++){
+            for(int j=0; j<m; j++) _probe_data(i,j)=X(einfo->_eii_include[i], einfo->_epi_include[j]);
         }
         X.resize(0,0);
         
         VectorXd mu(n), nonmiss(n);
         
         X_bool.resize(n);
-        for(i=0; i<n; i++) X_bool[i].resize(m);
-#pragma omp parallel for private(j)
-        for(i=0; i<n; i++){
+        for(int i=0; i<n; i++) X_bool[i].resize(m);
+#pragma omp parallel for
+        for(int i=0; i<n; i++){
             mu(i)=0.0;
             nonmiss(i)=0.0;
-            for(j=0; j<m; j++){
+            for(int j=0; j<m; j++){
                 if(_probe_data(i,j)<1e9){
                     mu(i)+=_probe_data(i,j);
                     nonmiss(i)+=1.0;
@@ -1698,9 +1822,9 @@ namespace EFILE {
             mu(i)/=nonmiss(i);
         }
         
-#pragma omp parallel for private(j)
-        for(i=0; i<n; i++){
-            for(j=0; j<m; j++){
+#pragma omp parallel for
+        for(int i=0; i<n; i++){
+            for(int j=0; j<m; j++){
                 if(_probe_data(i,j)<1e9) _probe_data(i,j) -= mu(i);
                 else _probe_data(i,j) = 0.0;
             }
@@ -1718,13 +1842,13 @@ namespace EFILE {
         if(divid_by_std){
             VectorXd sd(n);
 #pragma omp parallel for
-            for(i=0; i<n; i++){
+            for(int i=0; i<n; i++){
                 sd(i) = sqrt((_probe_data.row(i).dot(_probe_data.row(i))) / (nonmiss(i) - 1.0));
             }
             
-#pragma omp parallel for private(j)
-            for(i=0; i<n; i++){
-                for(j=0; j<m; j++) _probe_data(i,j) /= sd(i);
+#pragma omp parallel for
+            for(int i=0; i<n; i++){
+                for(int j=0; j<m; j++) _probe_data(i,j) /= sd(i);
             }
         }
     }
@@ -2027,6 +2151,41 @@ namespace EFILE {
         
         LOGPRINTF("%ld of %ld sites are Excluded with a missing value threshold (%f) and %ld sites left.\n",m-einfo->_epi_include.size(),m,missratioprobe,einfo->_epi_include.size());
     }
+    void filtering_indi_missingratio(eInfo* einfo,double missratioindi)
+    {
+        LOGPRINTF("Excluding probes with missing rate over %f ...\n",missratioindi);
+        long n = einfo->_eii_include.size(), m = einfo->_epi_include.size();
+        uint64_t ttl_n = einfo->_eii_num;
+        vector<int> keep;
+        vector<string> rmindi;
+        for(int i=0; i<n; i++){
+            double nmiss=0.0;
+            for(int j=0; j<m; j++){
+                double val=einfo->_val[einfo->_epi_include[j]*ttl_n+einfo->_eii_include[i]];
+                if(val>=1e9){
+                    nmiss+=1.0;
+                }
+            }
+            
+            double mrate=nmiss/m;
+            if(mrate<=missratioindi) keep.push_back(einfo->_eii_include[i]);
+            else rmindi.push_back(einfo->_eii_fid[einfo->_eii_include[i]]+"\t"+einfo->_eii_iid[einfo->_eii_include[i]]);
+        }
+        if(rmindi.size()>0)
+        {
+            char indi_oname[FNAMESIZE];
+            memcpy(indi_oname,"rm.indi.list",13);
+            write_msglist(indi_oname,rmindi);
+            LOGPRINTF("%ld individuals to remove have been saved in file %s.\n",rmindi.size(),indi_oname);
+        }
+        einfo->_eii_map.clear();
+        for(int i=0;i<keep.size();i++)
+            einfo->_eii_map.insert(pair<string,int>(einfo->_eii_fid[keep[i]]+":"+einfo->_eii_iid[keep[i]],keep[i]));
+        einfo->_eii_include.swap(keep);
+        
+        LOGPRINTF("%ld of %ld individuals are excluded with a missing value threshold (%f) and %ld sites left.\n",n-einfo->_eii_include.size(),n,missratioindi,einfo->_eii_include.size());
+    }
+
     /***********************************
     * this file is with no header
      mpheno is a list of comma-delimited trait numbers. e.g. "1,3".
@@ -2106,7 +2265,7 @@ namespace EFILE {
         einfo->_eii_pheno_num=(int)pheno_ids.size();
         if(!sudoAllocReserved( (pheno_ids.size()-1)*einfo->_eii_num*sizeof(double), "phenotype")) {TERMINATE();}
         einfo->_eii_pheno.resize(pheno_ids.size()*einfo->_eii_num);
-        LOGPRINTF("There are %d traits in the file %s and %ld trait(s) specified. \n",phen_num, phen_file.c_str(),pheno_ids.size());
+        //LOGPRINTF("There are %d traits in the file %s and %ld trait(s) specified. \n",phen_num, phen_file.c_str(),pheno_ids.size());
         for(int i=0;i<pheno_ids.size()*einfo->_eii_num;i++) einfo->_eii_pheno[i]=MISSING_PHENO;
         in_phen.seekg(ios::beg);
         int line = 1;
@@ -2129,7 +2288,7 @@ namespace EFILE {
                 for(int i=0;i<pheno_ids.size();i++)
                 {
                     //if (vs_buf[pheno_ids[i]] != "-9" && vs_buf[pheno_ids[i]] != "NA")
-                    if (vs_buf[pheno_ids[i]] != "NA")
+                    if (vs_buf[pheno_ids[i]] != "NA" && vs_buf[pheno_ids[i]] != "na")
                     {
                         einfo->_eii_pheno[i*einfo->_eii_num+idx]=atof(vs_buf[pheno_ids[i]].c_str());
                     }
@@ -2150,6 +2309,154 @@ namespace EFILE {
             TERMINATE();
         }
         LOGPRINTF("Non-missing phenotypes of %ld individuals are included from %s. \n",einfo->_eii_include.size(), phen_file.c_str());
+    }
+    void read_cc(eInfo* einfo, string phen_file, char* mpheno, bool mvFlg) {
+        
+        if(einfo->_eii_include.size()==0 )
+        {
+            LOGPRINTF("Error: no individual found in gene expression / methylation data.\n");
+            TERMINATE();
+        }
+        // Read phenotype data
+        ifstream in_phen(phen_file.c_str());
+        if (!in_phen)
+        {
+            LOGPRINTF("Error: can not open the file %s to read.\n",phen_file.c_str());
+            TERMINATE();
+        }
+        
+        vector<string>  vs_buf, indi_list;
+        string str_buf, fid_buf, iid_buf;
+        vector<int> pheno_ids;
+        
+        LOGPRINTF("Reading phenotypes from %s ...\n",phen_file.c_str());
+        getline(in_phen, str_buf);
+        
+        int phen_num = split_string(str_buf, vs_buf) - 2;
+        if (phen_num <= 0)
+        {
+            LOGPRINTF("Error: no phenotype data is found.\n");
+            TERMINATE();
+        }
+        if(mpheno==NULL)
+        {
+            if(mvFlg) for(int i=0;i<phen_num;i++) pheno_ids.push_back(i);
+            else pheno_ids.push_back(0);
+        }else {
+            int tmpint=split_string(mpheno, vs_buf, ",");
+            map<int,int> tmpidsmap;
+            long mapsize=0;
+            for(int i=0;i<tmpint;i++)
+            {
+                int curid=atoi(vs_buf[i].c_str())-1;
+                if(curid<0)
+                {
+                    LOGPRINTF("Error:  Trait number specified by --mpheno should be >=1.\n");
+                    TERMINATE();
+                }
+                if(curid>=phen_num)
+                {
+                    LOGPRINTF("Error:  can not find the %dth trait in the file %s.\n",curid+1,phen_file.c_str());
+                    TERMINATE();
+                }
+                tmpidsmap.insert(pair<int,int>(curid,i));
+                if(tmpidsmap.size()==mapsize)
+                {
+                    LOGPRINTF("Warning: duplicate phenotype id specified by --mpheno.\n");
+                } else {
+                    
+                    pheno_ids.push_back(curid);
+                    mapsize=tmpidsmap.size();
+                }
+            }
+            if(pheno_ids.size()>1 && !mvFlg)
+            {
+                LOGPRINTF("Error: multiple traits are specified by --mpheno in unitrait analysis.\n");
+                TERMINATE();
+            }
+        }
+        
+        einfo->_eii_pheno_num=(int)pheno_ids.size();
+        if(!sudoAllocReserved( (pheno_ids.size()-1)*einfo->_eii_num*sizeof(double), "phenotype")) {TERMINATE();}
+        einfo->_eii_pheno.resize(pheno_ids.size()*einfo->_eii_num);
+        //LOGPRINTF("There are %d traits in the file %s and %ld trait(s) specified. \n",phen_num, phen_file.c_str(),pheno_ids.size());
+        for(int i=0;i<pheno_ids.size()*einfo->_eii_num;i++) einfo->_eii_pheno[i]=MISSING_PHENO;
+        in_phen.seekg(ios::beg);
+        int line = 1, flag = 0;
+        map<string,int> missindi;
+        vector<map<string,int>> codes(phen_num);
+        map<string, int>::iterator iter,itercc;
+        while (in_phen)
+        {
+            line++;
+            in_phen >> fid_buf;
+            if (in_phen.eof()) break;
+            in_phen >> iid_buf;
+            getline(in_phen, str_buf);
+            if (split_string(str_buf, vs_buf) != phen_num) {
+                LOGPRINTF("Error: %ld phenotype values are missing in line #%d in the file %s.\n",vs_buf.size() - phen_num , line, phen_file.c_str());
+                TERMINATE();
+            }
+            iter = einfo->_eii_map.find(fid_buf + ":" + iid_buf);
+            if (iter != einfo->_eii_map.end())
+            {
+                int idx = iter->second;
+                for(int i=0;i<pheno_ids.size();i++)
+                {
+                    to_upper(vs_buf[pheno_ids[i]]);
+                    if (vs_buf[pheno_ids[i]] != "NA")
+                    {
+                        itercc=codes[i].find(vs_buf[pheno_ids[i]] );
+                        if(itercc != codes[i].end())
+                        {
+                            einfo->_eii_pheno[i*einfo->_eii_num+idx]= itercc->second;
+                        }
+                        else
+                        {
+                            if(codes[i].size()>1)
+                            {
+                                LOGPRINTF("Error: more than 2 categories in the file %s.\n", phen_file.c_str());
+                                TERMINATE();
+
+                            }
+                            else
+                            {
+                                string tmpstr=vs_buf[pheno_ids[i]];
+                                int tmpph=0;
+                                if(tmpstr=="0" || tmpstr=="1" || tmpstr=="2")
+                                {
+                                    tmpph=atoi(tmpstr.c_str());
+                                    flag+=tmpph;
+                                }
+                                else if(tmpstr=="CASE") tmpph=1;
+                                else if(tmpstr=="CONTROL") tmpph=0;
+                                else tmpph=(int)codes[i].size();
+                                einfo->_eii_pheno[i*einfo->_eii_num+idx]=tmpph;
+                                codes[i].insert( pair<string, int>( tmpstr ,tmpph ) );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        in_phen.close();
+        for(int i=0;i<pheno_ids.size();i++)
+            for(int j=0;j<einfo->_eii_num;j++)
+            {
+                if(einfo->_eii_pheno[i*einfo->_eii_num+j]==MISSING_PHENO) missindi.insert(pair<string,int>(einfo->_eii_fid[j] + ":" + einfo->_eii_iid[j],j));
+                else if(flag==2 && einfo->_eii_pheno[i*einfo->_eii_num+j]==2) einfo->_eii_pheno[i*einfo->_eii_num+j]=1;
+                else if(flag==3) einfo->_eii_pheno[i*einfo->_eii_num+j]-=1;
+            }
+        
+        
+        for (iter = missindi.begin(); iter != missindi.end(); iter++) indi_list.push_back(iter->first);
+        update_map_rm(indi_list, einfo->_eii_map, einfo->_eii_include);
+        if(einfo->_eii_include.size()==0)
+        {
+            LOGPRINTF("Error: no individual is included.\n");
+            TERMINATE();
+        }
+        LOGPRINTF("Non-missing case-control phenotypes of %ld individuals are included from %s. \n",einfo->_eii_include.size(), phen_file.c_str());
     }
     
     void read_cov(eInfo* einfo, string cov_file, bool qcovFlg) {
@@ -2364,10 +2671,17 @@ namespace EFILE {
     void make_erm(eInfo* einfo, int erm_mtd, bool output_bin, char* outFileName, bool output_profile)
     {
         uint64_t n = einfo->_eii_include.size(), m = einfo->_epi_include.size();
-        
+        if(!n || !m)
+        {
+            LOGPRINTF("Error: no sample or probe included.\n");
+            TERMINATE();
+        }
         MatrixXd _probe_data;
         string typestr=getFileType(einfo->_eType);
-        LOGPRINTF("Recoding %s data...\n",typestr.c_str());
+        if(!mute)
+        {
+            LOGPRINTF("Recoding %s data...\n",typestr.c_str());
+        }
       
         bool divid_by_std = false;
         vector< vector<bool> > X_bool;
@@ -2399,8 +2713,10 @@ namespace EFILE {
         fclose(tmpfile);
         */
 
-        
-        LOGPRINTF("Calculating Omics Relationship Matrix (ORM) ...\n\n");
+        if(!mute)
+        {
+            LOGPRINTF("Calculating Omics Relationship Matrix (ORM) ...\n");
+        }
         // count the number of missing genotypes
         vector< vector<int> > miss_pos(n);
         for (int i = 0; i < n; i++) {
@@ -2412,11 +2728,12 @@ namespace EFILE {
         // Calculate A_N matrix
         einfo->_grm_N.resize(n, n);
         if(erm_mtd == 0 || erm_mtd == 3){
+            #pragma omp parallel for
             for (int i = 0; i < n; i++) {
                 for (int j = 0; j <= i; j++) {
                     int miss_j = 0;
                     for (int k = 0; k < miss_pos[j].size(); k++) miss_j += (int) X_bool[i][miss_pos[j][k]];
-                    einfo->_grm_N(i,j) = m - miss_pos[i].size() - miss_j;
+                    einfo->_grm_N(j,i) = einfo->_grm_N(i,j) = m - miss_pos[i].size() - miss_j;
                 }
             }
         }
@@ -2444,7 +2761,7 @@ namespace EFILE {
                         for (int k = 0; k < miss_pos[j].size(); k++){
                             if (X_bool[i][miss_pos[j][k]] == true) j_miss_sum_var += var[miss_pos[j][k]];
                         }
-                        einfo->_grm_N(i,j) = sum_var - i_miss_sum_var - j_miss_sum_var;
+                        einfo->_grm_N(j,i) = einfo->_grm_N(i,j) = sum_var - i_miss_sum_var - j_miss_sum_var;
                     }
                 }
             }
@@ -2463,7 +2780,7 @@ namespace EFILE {
                             int l = miss_pos[i][k];
                             if(X_bool[j][l] == true) ssx_j -= _probe_data(j,l) * _probe_data(j,l);
                         }
-                        einfo->_grm_N(i,j) = sqrt(ssx_i*ssx_j);
+                        einfo->_grm_N(j,i) = einfo->_grm_N(i,j) = sqrt(ssx_i*ssx_j);
                     }
                 }
             }
@@ -2471,10 +2788,12 @@ namespace EFILE {
         // Calculate A matrix
         einfo->_grm = _probe_data * _probe_data.transpose();
         //cout<<einfo->_grm<<endl;
+        #pragma omp parallel for
         for (int i = 0; i < n; i++) {
             for (int j = 0; j <= i; j++) {
                 if (einfo->_grm_N(i,j) > 0.0) einfo->_grm(i,j) /= einfo->_grm_N(i,j);
                 else einfo->_grm(i,j) = 0.0;
+                einfo->_grm(j,i) = einfo->_grm(i,j);
             }
         }
         //cout<<einfo->_grm.diagonal().mean()<<endl;
@@ -2525,7 +2844,7 @@ namespace EFILE {
             getline(i_grm_id, str_buf);
         }
         i_grm_id.close();
-        int n = grm_id.size();
+        int n = (int)grm_id.size();
         if (out_id_log) { LOGPRINTF("%d  IDs read from %s.\n",n, grm_id_file.c_str() );}
         
         if (einfo->_eii_map.empty()) {
@@ -2535,9 +2854,9 @@ namespace EFILE {
             einfo->_eii_sex.resize(fid.size());
             einfo->_eii_include.clear();
             einfo->_eii_include.resize(einfo->_eii_num);
-            int i = 0, size = 0;
+            long i = 0, size = 0;
             for (i = 0; i < einfo->_eii_num; i++) {
-                einfo->_eii_include[i] = i;
+                einfo->_eii_include[i] = (int)i;
                 einfo->_eii_map.insert(pair<string, int>(einfo->_eii_fid[i] + ":" + einfo->_eii_iid[i], i));
                 if (size ==  einfo->_eii_map.size()) {
                     LOGPRINTF("Error: Duplicate individual ID found: %s\t%s.\n",einfo->_eii_fid[i].c_str(), einfo->_eii_iid[i].c_str());
@@ -2682,7 +3001,7 @@ namespace EFILE {
         
         int _n=(int)einfo->_eii_include.size();
         if(_n<1) {
-            LOGPRINTF("ERROR: no individual is in common in the input files.\n");
+            LOGPRINTF("ERROR: no individual is in common among the input files.\n");
             TERMINATE();
         }
         LOGPRINTF("%d individuals are in common in the input files.\n",_n);
@@ -2953,6 +3272,7 @@ namespace EFILE {
     void free_indilist(vector<indiinfolst> &a){
         for(int i=0;i<a.size();i++)
         {
+            if(a[i].itr) free2(&a[i].itr);
             if(a[i].fid) free2(&a[i].fid);
             if(a[i].iid) free2(&a[i].iid);
             if(a[i].fa_id) free2(&a[i].fa_id);
@@ -2962,18 +3282,300 @@ namespace EFILE {
     void free_probelist(vector<probeinfolst> &a){
         for(int i=0;i<a.size();i++)
         {
+            if(a[i].ptr) free2(&a[i].ptr);
             if(a[i].probeId) free2(&a[i].probeId);
             if(a[i].genename) free2(&a[i].genename);
         }
     }
-    void free_assoclist(vector<ASSOCRLT> &a){
+    void free_assoclist(vector<ASSOCRLT> &a)
+    {
         for(int i=0;i<a.size();i++)
         {
-            if(a[i].PROBE) free2(&a[i].PROBE);
-            if(a[i].GENE) free2(&a[i].GENE);
+            if(a[i].PROBE!=NULL) free2(&a[i].PROBE);
+            if(a[i].GENE!=NULL) free2(&a[i].GENE);
         }
     }
+    void coeff_mat(const vector<string> &vec, MatrixXd &coeff_mat, string errmsg1, string errmsg2) {
+        vector<string> value(vec);
+        stable_sort(value.begin(), value.end());
+        value.erase(unique(value.begin(), value.end()), value.end());
+        if (value.size() > 0.5 * vec.size()) {
+            printf("%s\n",errmsg1.c_str());
+            exit(EXIT_FAILURE);
+        } // throw("Error: too many classes for the envronmental factor. \nPlease make sure you input a discrete variable as the environmental factor.");
+        if (value.size() == 1) {
+            printf("%s\n",errmsg2.c_str());
+            exit(EXIT_FAILURE);
+        } //throw("Error: the envronmental factor should has more than one classes.");
+        
+        int i = 0, j = 0, row_num = vec.size(), column_num = value.size();
+        map<string, int> val_map;
+        for (i = 0; i < value.size(); i++) val_map.insert(pair<string, int>(value[i], i));
+        
+        coeff_mat.resize(row_num, column_num);
+        coeff_mat.setZero(row_num, column_num);
+        map<string, int>::iterator iter;
+        for (i = 0; i < row_num; i++) {
+            iter = val_map.find(vec[i]);
+            coeff_mat(i, iter->second) = 1.0;
+        }
+    }
+    int construct_X(eInfo* einfo, vector<MatrixXd> &E_float, MatrixXd &qE_float, MatrixXd &_X) {
+        
+        int n=(int)einfo->_eii_include.size();
+        
+        int i = 0, j = 0;
+        map<string, int>::iterator iter;
+        stringstream errmsg;
+        
+        int  _X_c = 1;
+        // quantitative covariates
+        MatrixXd X_q;
+        if (einfo->_eii_qcov_num>0) {
+            X_q.resize(n, einfo->_eii_qcov_num);
+            for (i = 0; i < n; i++) {
+                for (j = 0; j < einfo->_eii_qcov_num; j++) X_q(i, j) = einfo->_eii_qcov[j*einfo->_eii_num+einfo->_eii_include[i]];
+            }
+            LOGPRINTF("%d quantitative variable(s) included as covariate(s).\n",einfo->_eii_qcov_num);
+            _X_c += einfo->_eii_qcov_num;
+        }
+        
+        // discrete covariates
+        vector<MatrixXd> X_d;
+        if (einfo->_eii_cov_num>0) {
+            vector< vector<string> > covar_tmp(einfo->_eii_cov_num);
+            for (i = 0; i < einfo->_eii_cov_num; i++) covar_tmp[i].resize(n);
+            for (i = 0; i < n; i++) {
+                for (j = 0; j < einfo->_eii_cov_num; j++) covar_tmp[j][i] = einfo->_eii_cov[j*einfo->_eii_num+einfo->_eii_include[i]];
+            }
+            LOGPRINTF("%d discrete variable(s) included as covariate(s).\n",einfo->_eii_cov_num);
+            X_d.resize(einfo->_eii_cov_num);
+            for (i = 0; i < einfo->_eii_cov_num; i++) {
+                stringstream errmsg;
+                errmsg << "Error: too many classes for the " << i + 1 << "th discrete variable. \nPlease use the --qcovar if it is a quantitative covariate.";
+                string errmsg1 = errmsg.str();
+                errmsg.str("");
+                errmsg << "Error: the " << i + 1 << "th discrete variable has only one class.";
+                string errmsg2 = errmsg.str();
+                coeff_mat(covar_tmp[i], X_d[i], errmsg1, errmsg2);
+                _X_c += (X_d[i]).cols() - 1;
+            }
+        }
+        // E factor
+        _X_c += qE_float.cols();
+        for (i = 0; i < E_float.size(); i++) _X_c += (E_float[i]).cols() - 1;
+        
+        // Construct _X
+        int col = 0;
+        _X.resize(n, _X_c);
+        _X.block(0, col, n, 1) = MatrixXd::Ones(n, 1);
+        col++;
+        if (einfo->_eii_qcov_num>0) {
+            _X.block(0, col, n, X_q.cols()) = X_q;
+            col += X_q.cols();
+        }
+        for (i = 0; i < X_d.size(); i++) {
+            _X.block(0, col, n, (X_d[i]).cols() - 1) = (X_d[i]).block(0, 1, n, (X_d[i]).cols() - 1);
+            col += (X_d[i]).cols() - 1;
+        }
+        if (qE_float.cols() > 0) {
+            _X.block(0, col, n, qE_float.cols()) = qE_float;
+            col += qE_float.cols();
+        }
+        for (i = 0; i < E_float.size(); i++) {
+            _X.block(0, col, n, (E_float[i]).cols() - 1) = (E_float[i]).block(0, 1, n, (E_float[i]).cols() - 1);
+            col += (E_float[i]).cols() - 1;
+        }
+        return _X_c;
+    }
+    void  fast_adjprobe(eInfo* einfo, MatrixXd &X,  MatrixXd &XtXi)
+    {
+        // inverse once, not good for too many missings.
+        //LOGPRINTF("\nadjusting probes...\n");
+        MatrixXd XtXiXt=XtXi*X.transpose();
+        for(int i=0;i<einfo->_epi_include.size();i++)
+        {
+            vector<int> MISS;
+            VectorXd x(einfo->_eii_include.size());
+            double mu= 0.0, sum=0.0;
+            for(int j=0; j<einfo->_eii_include.size(); j++)
+            {
+                double val=einfo->_val[einfo->_epi_include[i]*einfo->_eii_num+einfo->_eii_include[j]];
+                if(val<1e9)
+                {
+                    x(j)=val;
+                    sum+=val;
+                } else {
+                    MISS.push_back(j);
+                }
+            }
+            double ratio=1.0*MISS.size()/einfo->_eii_include.size();
+            if(ratio>0.2)
+            {
+                printf("WARNING: %f %% of the values in probe %s are missing.\n",ratio*100, einfo->_epi_prb[einfo->_epi_include[i]].c_str());
+            }
+            if(MISS.size()>0)
+            {
+                if(einfo->_eii_include.size() > MISS.size()) mu=sum/(einfo->_eii_include.size()-MISS.size());
+                for(int k=0;k<MISS.size();k++)
+                {
+                    x(MISS[k])=mu;
+                }
+            }
+            
+            if(x.size()!=X.rows() || x.size()<1) {
+                LOGPRINTF("Error: The row number of C and the length of y not match.\n");
+                TERMINATE();
+            }
+            VectorXd b_hat=XtXiXt*x;
+            VectorXd residual=(x-X*b_hat);
+            for(int j=0;j<residual.size();j++) einfo->_val[einfo->_epi_include[i]*einfo->_eii_num+einfo->_eii_include[j]]=residual(j);
+        }
+        //LOGPRINTF("%ld probes have been adjusted.\n",einfo->_epi_include.size());
+    }
+    void  fast_adjprobe(eInfo* einfo)
+    {
+        // inverse once, not good for too many missings.
+        vector<MatrixXd> E_float;
+        MatrixXd qE_float;
+        MatrixXd _X;
+        int _X_c;
+        _X_c=construct_X(einfo, E_float, qE_float,_X);
+        MatrixXd XtX_i;
+        XtX_i=_X.transpose()*_X;
+        bool determinant_zero=false;
+        inverse_V(XtX_i, determinant_zero);
+        if(determinant_zero)
+        {
+            LOGPRINTF("ERROR: Maybe there is multicollinearity in the covariates.\n");
+            TERMINATE();
+        }
+        MatrixXd XtXiXt=XtX_i*_X.transpose();
+        
+        //LOGPRINTF("\nFast adjusting probes...\n");
+        for(int i=0;i<einfo->_epi_include.size();i++)
+        {
+            printf("%3.0f%%\r", 100.0*i/einfo->_epi_include.size());
+            fflush(stdout);
+            
+            vector<int> MISS;
+            VectorXd x(einfo->_eii_include.size());
+            double mu= 0.0, sum=0.0;
+            for(int j=0; j<einfo->_eii_include.size(); j++)
+            {
+                double val=einfo->_val[einfo->_epi_include[i]*einfo->_eii_num+einfo->_eii_include[j]];
+                if(val<1e9)
+                {
+                    x(j)=val;
+                    sum+=val;
+                } else {
+                    MISS.push_back(j);
+                }
+            }
+            double ratio=1.0*MISS.size()/einfo->_eii_include.size();
+            if(ratio>0.2)
+            {
+                printf("WARNING: %f %% of the values in probe %s are missing.\n",ratio*100, einfo->_epi_prb[einfo->_epi_include[i]].c_str());
+            }
+            if(MISS.size()>0)
+            {
+                if(einfo->_eii_include.size() > MISS.size()) mu=sum/(einfo->_eii_include.size()-MISS.size());
+                for(int k=0;k<MISS.size();k++)
+                {
+                    x(MISS[k])=mu;
+                }
+            }
+           
+            if(x.size()!=_X.rows() || x.size()<1) {
+                LOGPRINTF("Error: The row number of C and the length of y not match.\n");
+                TERMINATE();
+            }
+            
+            VectorXd b_hat=XtXiXt*x;
+            VectorXd residual=(x-_X*b_hat);
+            for(int j=0;j<residual.size();j++) einfo->_val[einfo->_epi_include[i]*einfo->_eii_num+einfo->_eii_include[j]]=residual(j);
+        }
+        //LOGPRINTF("%ld probes have been adjusted.\n",einfo->_epi_include.size());
+    }
 
-
+    void  adjprobe(eInfo* einfo)
+    {
+        vector<MatrixXd> E_float;
+        MatrixXd qE_float;
+        MatrixXd _X;
+        int _X_c;
+        _X_c=construct_X(einfo, E_float, qE_float,_X);
+        //if(!mute) {LOGPRINTF("\nAdjusting probes...\n");}
+        for(int i=0;i<einfo->_epi_include.size();i++)
+        {
+            if(!mute)
+            {
+            printf("%3.0f%%\r", 100.0*i/einfo->_epi_include.size());
+            fflush(stdout);
+            }
+            vector<double> cvec;
+            vector<double> xvec;
+            vector<int> NMISS;
+            MatrixXd X=_X;
+            double nonmiss=0.0;
+            int miss=0;
+            for(int j=0; j<einfo->_eii_include.size(); j++)
+            {
+                double val=einfo->_val[einfo->_epi_include[i]*einfo->_eii_num+einfo->_eii_include[j]];
+                if(val<1e9){
+                    NMISS.push_back(einfo->_eii_include[j]);
+                    xvec.push_back(val);
+                    nonmiss+=1.0;
+                } else {
+                    removeRow(X, j-miss);
+                    miss++;
+                }
+            }
+            
+            VectorXd x(xvec.size());
+            for(int j=0;j<xvec.size();j++) x(j)=xvec[j];
+            
+            if(x.size()!=X.rows() || x.size()<1) {
+                LOGPRINTF("Error: The row number of C and the length of y do not match.\n");
+                TERMINATE();
+            }
+            
+            MatrixXd XtX_i;
+            //XtX_i=(X.transpose()*X).inverse(); //DO NOT USE IT, IT WOULD GIVE A VERY VERY WRONG RESULT WHEN THE MATRIX IS NOT INVERTIBLE
+            XtX_i=X.transpose()*X;
+            bool determinant_zero=false;
+            inverse_V(XtX_i, determinant_zero);
+            if(determinant_zero) {
+                LOGPRINTF("ERROR: Maybe there is multicollinearity in the covariates.\n");
+                TERMINATE();
+            }
+            
+            VectorXd b_hat=XtX_i*X.transpose()*x;
+            VectorXd residual=(x-X*b_hat);
+            for(int j=0;j<residual.size();j++) einfo->_val[einfo->_epi_include[i]*einfo->_eii_num+NMISS[j]]=residual(j);
+        }
+        //if(!mute) {LOGPRINTF("%ld probes have been adjusted.\n",einfo->_epi_include.size());}
+    }
+    bool check_case_control(double &ncase,  VectorXd &y) {
+        long n = y.size();
+        double case_num = 0.0;
+        vector<double> value(n);
+        for (int i = 0; i < n; i++) value[i] = y(i);
+        stable_sort(value.begin(), value.end());
+        double vsum=sum(value);
+        value.erase(unique(value.begin(), value.end()), value.end());
+        if (value.size() == 2) {
+            if (FloatEqual(value[0], 0.0) && FloatEqual(value[1], 1.0)) case_num = vsum;
+            else if (FloatEqual(value[0], 1.0) && FloatEqual(value[1], 2.0)) case_num = (vsum - n);
+            cout << (int) case_num << " cases and " << (int) (n - case_num) << " controls ";
+            ncase = case_num / (double) n;
+            return true;
+        } else if (value.size() < 2) {
+            LOGPRINTF("Error: invalid phenotype. Please check the phenotype file.\n");
+            TERMINATE();
+        }
+        return false;
+    }
+    
 }
 

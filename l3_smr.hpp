@@ -48,13 +48,14 @@ namespace SMR {
         float* se;
         float freq;
         float estn;
+        int bp;
     } gwasinfo;
     
     void query_besd(char* outFileName,char* beqtlFileName, char* snplstName, char* snplst2exclde, char* problstName,char* problst2exclde, char* genelistName, double plookup, int chr,  int prbchr,int snpchr, char* snprs, char* fromsnprs, char* tosnprs, char* prbname, char* fromprbname, char* toprbname,int snpWind, int prbWind,char* genename,int fromsnpkb, int tosnpkb, int fromprbkb, int toprbkb, bool snpwindFlag, bool prbwindFlag,bool cis_flag, int cis_itvl, char* probe2exclde, char* snprs2exclde);
      void make_besd(char* outFileName,char* beqtlFileName, char* snplstName, char* snplst2exclde, char* problstName,char* problst2exclde, char* genelistName, double plookup, int chr,  int prbchr,int snpchr, char* snprs, char* fromsnprs, char* tosnprs, char* prbname, char* fromprbname, char* toprbname,int snpWind, int prbWind,char* genename,int fromsnpkb, int tosnpkb, int fromprbkb, int toprbkb, bool snpwindFlag, bool prbwindFlag,bool cis_flag, int cis_itvl, char* probe2exclde, char* snprs2exclde, bool save_dense_flag,bool tosmrflag, bool besd_shrink_flag,bool stdprb, char* frqFName,char* varFName);
     void meta(char* besdlistFileName, char* outFileName, int meta_mth,double pthresh,  bool cis_flag, int cis_itvl);
-    void meta_gwas(char* gwaslistFileName, char* outFileName, int meta_mth, double pthresh, int mecs_mth, char* corMatFName, char* snplstName,bool zflag);
-    
+    void meta_gwas(char* gwaslistFileName, char* ewaslistFileName, char* outFileName, int meta_mth, double pthresh, int mecs_mth, char* corMatFName, char* snplstName,char* problstName, bool zflag, bool out_comm_flag);
+    void gc_ewas(char* outFileName, char* ewasFileName);
 }
 
 #endif /* l3_smr_hpp */

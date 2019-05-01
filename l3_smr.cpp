@@ -42,7 +42,6 @@ namespace SMR {
         memcpy(suffix,".esi",5);
         read_smr_esifile(&eqtlinfo, inputname);
         smr_esi_man(&eqtlinfo, snplstName, snplst2exclde,chr, snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag,  cis_itvl, prbname,snprs2exclde);
-        memcpy(suffix,".besd",6);
         if(eqtlinfo._include.size()==0)
         {
             LOGPRINTF("Error: no probe included.\n");
@@ -79,9 +78,9 @@ namespace SMR {
             vector<double> out_pval;
             if(eqtlinfo._valNum==0)
             {
-                for(uint32_t i=0;i<eqtlinfo._probNum;i++)
+                for(int i=0;i<eqtlinfo._probNum;i++)
                 {
-                    for(uint32_t j=0;j<eqtlinfo._snpNum;j++)
+                    for(int j=0;j<eqtlinfo._snpNum;j++)
                     {
                         double beta=eqtlinfo._bxz[i][j];
                         double se=eqtlinfo._sexz[i][j];
@@ -198,6 +197,7 @@ namespace SMR {
             }
             LOGPRINTF("Extracted results of %ld SNPs have been saved in the file %s.\n",wcount,outFileName);
         }
+        
     }
     void check_besds_format( vector<string> &besds, vector<int> &format, vector<int> &smpsize) {
      
@@ -587,6 +587,61 @@ namespace SMR {
         LOGPRINTF("Total %ld SNPs to be included from %ld GWAS summary files. %ld SNPs failed in allele check. %ld SNPs included in analysis.\n",ttl_snp_common,gwass.size(),ex_snp.size(),in_map.size());
         LOGPRINTF("%ld SNPs that failed in allele check were saved in file %s.\n",ex_snp.size(),failName.c_str());
     }
+    void combine_ewas(vector<gwasinfo> &snpinfo, vector<string> &ewass, char* problstName)
+    {
+        snpinfo.clear();
+        map<string, int> in_map;
+        map<string, int>::iterator iter;
+        char inputname[FNAMESIZE];
+        for (int i = 0; i < ewass.size(); i++)
+        {
+            gwasData gtmp;
+            memcpy(inputname,ewass[i].c_str(),ewass[i].length()+1);
+            read_ewas_data(&gtmp, inputname);
+            if(problstName!=NULL) {
+                extract_gwas_snp(&gtmp, problstName);
+                update_gwas(&gtmp);
+            }
+            if(gtmp.snpNum==0) {
+                LOGPRINTF("WARNING: No probe included from the file %s.\n",inputname);
+                continue;
+            }
+            for (int j = 0; j<gtmp.snpNum; j++)
+            {
+                iter=in_map.find(gtmp.snpName[j]);
+                if(iter==in_map.end())
+                {
+                    in_map.insert(pair<string, int>(gtmp.snpName[j].c_str(), snpinfo.size()));//the second is snpinfo id
+                    
+                    gwasinfo snpinfotmp;
+                    strcpy2(&snpinfotmp.snprs, gtmp.snpName[j]);
+                    strcpy2(&snpinfotmp.a1, gtmp.allele_1[j]);
+                    strcpy2(&snpinfotmp.a2, gtmp.allele_2[j]);
+                    snpinfotmp.freq=gtmp.freq[j];
+                    snpinfotmp.estn=gtmp.splSize[j];
+                    snpinfotmp.bp=gtmp.snpBp[j];
+                    
+                    snpinfotmp.beta =new float[ewass.size()];
+                    snpinfotmp.se=new float[ewass.size()];
+                    for(int k=0;k<ewass.size();k++){
+                        if(i==k){
+                            snpinfotmp.beta[k]=gtmp.byz[j];
+                            snpinfotmp.se[k]=gtmp.seyz[j];
+                        } else {
+                            snpinfotmp.beta[k]=0;
+                            snpinfotmp.se[k]=-9;
+                        }
+                    }
+                    snpinfo.push_back(snpinfotmp);
+                } else {
+                        snpinfo[iter->second].beta[i]=gtmp.byz[j];
+                        snpinfo[iter->second].se[i]=gtmp.seyz[j];
+                    if(abs(gtmp.seyz[j]+9)>1e-6 && gtmp.splSize[j] != -9) snpinfo[iter->second].estn += gtmp.splSize[j];
+                }
+            }
+        }
+        LOGPRINTF("Total %ld probes to be included from %ld EWAS summary files. %ld probes included in analysis.\n",snpinfo.size(),ewass.size(),in_map.size());
+    }
     //Practical aspects of imputation-driven meta-analysis of genome-wide association studies. de Bakker PI1, Ferreira MA, Jia X, Neale BM, Raychaudhuri S, Voight BF.Hum Mol Genet. 2008 Oct 15;17(R2):R122-8. doi: 10.1093/hmg/ddn288.
     void meta_per_prob(float* buffer_beta,float* buffer_se, long snpnum, long cohortnum)
     {
@@ -615,8 +670,9 @@ namespace SMR {
             }
         }
     }
-    void meta_gwas_fun(vector<gwasinfo> &snpinfo, long cohortnum)
+    void meta_gwas_fun(vector<gwasinfo> &snpinfo, long cohortnum, vector<int> &comm)
     {
+        comm.clear();
         long snpnum=snpinfo.size();
         #pragma omp parallel for
         for(int j=0;j<snpnum;j++)
@@ -640,6 +696,7 @@ namespace SMR {
                 *snpinfo[j].beta=numerator/deno;
                 *snpinfo[j].se=1/sqrt(deno);
             }
+            if(nmiss>1) comm.push_back(j);
         }
     }
 
@@ -1747,7 +1804,7 @@ namespace SMR {
         LOGPRINTF("\nThe eQTL infomation of %ld probes and %ld SNPs has been in binary file %s.\n",metaPrbNum,metaSNPnum,besdName.c_str());
     }
     
-    void meta_gwas(char* gwaslistFileName, char* outFileName, int meta_mth, double pthresh, int mecs_mth, char* corMatFName, char* snplstName,bool zflag)
+    void meta_gwas(char* gwaslistFileName, char* ewaslistFileName, char* outFileName, int meta_mth, double pthresh, int mecs_mth, char* corMatFName, char* snplstName, char* problstName, bool zflag,bool out_comm_flag)
     {
         if(corMatFName!=NULL)
         {
@@ -1761,25 +1818,32 @@ namespace SMR {
                 TERMINATE();
             }
         }
+        if(gwaslistFileName!=NULL && ewaslistFileName!=NULL)
+        {
+            LOGPRINTF("ERROR: please specify only one statistic summary file list.\n");
+            TERMINATE();
+        }
         string analysisType="";
         if(meta_mth) analysisType="MeCS";
         else analysisType="Meta";
         vector<string> gwass;
         vector<gwasinfo> snpinfo;
         
-        read_msglist(gwaslistFileName, gwass,"GWAS summary file names");
+        if(gwaslistFileName!=NULL) read_msglist(gwaslistFileName, gwass,"GWAS summary file names");
+        else read_msglist(ewaslistFileName, gwass,"EWAS summary file names");
         if(gwass.size()<=1) {
-            LOGPRINTF("Less than 2 GWAS summary files list in %s.\n",gwaslistFileName);
+            LOGPRINTF("Less than 2 GWAS/EWAS summary files list in %s.\n",gwaslistFileName);
             TERMINATE();
         }
-        LOGPRINTF("%ld GWAS summary file names are included.\n",gwass.size());
+        LOGPRINTF("%ld GWAS/EWAS summary file names are included.\n",gwass.size());
 
-        combine_gwas(snpinfo, gwass,snplstName);
+        if(gwaslistFileName!=NULL) combine_gwas(snpinfo, gwass,snplstName);
+        else combine_ewas(snpinfo, gwass,problstName);
         
         long cohortNum=gwass.size();
         long metaSNPnum=snpinfo.size();
         if(metaSNPnum==0) {
-            LOGPRINTF("ERROR: No SNPs included.\n");
+            LOGPRINTF("ERROR: No SNPs/probes included.\n");
             TERMINATE();
         }
         
@@ -1792,6 +1856,7 @@ namespace SMR {
             TERMINATE();
         }
         string str="SNP\tA1\tA2\tfreq\tb\tse\tp\tn\n";
+        if(ewaslistFileName!=NULL) str="Chr\tProbe\tBP\tGene\tOrien\tb\tse\tp\tn\n";
         if(fputs_checked(str.c_str(),rltfile))
         {
             
@@ -1799,7 +1864,7 @@ namespace SMR {
             TERMINATE();
         }
 
-        
+        vector<int> itscid;
         if(meta_mth){
             vector<int> noninvertible, negativedeno;
             LOGPRINTF("NOTE: MeCS could be sensitive and give a biased result when QC is not pre-performed. e.g. extravagant se such as 1e15...\n");
@@ -1813,27 +1878,67 @@ namespace SMR {
             LOGPRINTF("End of %s analysis.\n",analysisType.c_str());
         }
         else {
-            meta_gwas_fun(snpinfo, cohortNum);
+            meta_gwas_fun(snpinfo, cohortNum,itscid);
             LOGPRINTF("End of %s analysis.\n",analysisType.c_str());
         }
         LOGPRINTF("Saving %s results...\n",analysisType.c_str());
-        for(int i=0;i<metaSNPnum;i++)
+        if(out_comm_flag)
         {
-            double pval= -9;
-            if(abs(*snpinfo[i].se+9)>1e-6) {
-                double z= *snpinfo[i].beta / *snpinfo[i].se;
-                pval=pchisq(z*z, 1);
-            }
-            
-            str = string(snpinfo[i].snprs) + '\t' + snpinfo[i].a1 +'\t' + snpinfo[i].a2 +'\t' + atosm(snpinfo[i].freq) +'\t' + atosm(*snpinfo[i].beta) +'\t' + atosm(*snpinfo[i].se) +'\t' + ((pval==-9)?"NA":dtos(pval)) +'\t' + atosm((snpinfo[i].estn)) + '\n';
-            if(fputs_checked(str.c_str(),rltfile))
+            metaSNPnum=itscid.size();
+            for(int ii=0;ii<itscid.size();ii++)
             {
+                int i=itscid[ii];
+                double pval= -9;
+                if(abs(*snpinfo[i].se+9)>1e-6) {
+                    double z= *snpinfo[i].beta / *snpinfo[i].se;
+                    pval=pchisq(z*z, 1);
+                }
                 
-                LOGPRINTF("ERROR: in writing file %s .\n", outFileName);
-                TERMINATE();
+                if(gwaslistFileName!=NULL) str = string(snpinfo[i].snprs) + '\t' + snpinfo[i].a1 +'\t' + snpinfo[i].a2 +'\t' + atosm(snpinfo[i].freq) +'\t' + atosm(*snpinfo[i].beta) +'\t' + atosm(*snpinfo[i].se) +'\t' + ((pval==-9)?"NA":dtos(pval)) +'\t' + atosm((snpinfo[i].estn)) + '\n';
+                else
+                {
+                    string chr=atosm(round(snpinfo[i].freq));
+                    if(snpinfo[i].freq==-9) chr="NA";
+                    else if(snpinfo[i].freq==23) chr="X";
+                    else if(snpinfo[i].freq==24) chr="Y";
+                    str = chr + '\t' + snpinfo[i].snprs +'\t' + atosm(snpinfo[i].bp) +'\t'+ snpinfo[i].a1 +'\t' + snpinfo[i].a2 +'\t' + atosm(*snpinfo[i].beta) +'\t' + atosm(*snpinfo[i].se) +'\t' + ((pval==-9)?"NA":dtos(pval)) + '\n';
+                }
+                if(fputs_checked(str.c_str(),rltfile))
+                {
+                    
+                    LOGPRINTF("ERROR: in writing file %s .\n", outFileName);
+                    TERMINATE();
+                }
             }
-
         }
+        else
+        {
+            for(int i=0;i<metaSNPnum;i++)
+            {
+                double pval= -9;
+                if(abs(*snpinfo[i].se+9)>1e-6) {
+                    double z= *snpinfo[i].beta / *snpinfo[i].se;
+                    pval=pchisq(z*z, 1);
+                }
+                
+                if(gwaslistFileName!=NULL) str = string(snpinfo[i].snprs) + '\t' + snpinfo[i].a1 +'\t' + snpinfo[i].a2 +'\t' + atosm(snpinfo[i].freq) +'\t' + atosm(*snpinfo[i].beta) +'\t' + atosm(*snpinfo[i].se) +'\t' + ((pval==-9)?"NA":dtos(pval)) +'\t' + atosm((snpinfo[i].estn)) + '\n';
+                else
+                {
+                    string chr=atosm(round(snpinfo[i].freq));
+                    if(snpinfo[i].freq==-9) chr="NA";
+                    else if(snpinfo[i].freq==23) chr="X";
+                    else if(snpinfo[i].freq==24) chr="Y";
+                    str = chr + '\t' + snpinfo[i].snprs +'\t' + atosm(snpinfo[i].bp) +'\t'+ snpinfo[i].a1 +'\t' + snpinfo[i].a2 +'\t' + atosm(*snpinfo[i].beta) +'\t' + atosm(*snpinfo[i].se) +'\t' + ((pval==-9)?"NA":dtos(pval)) + '\n';
+                }
+                if(fputs_checked(str.c_str(),rltfile))
+                {
+                    
+                    LOGPRINTF("ERROR: in writing file %s .\n", outFileName);
+                    TERMINATE();
+                }
+            }
+        }
+        
         for(int i=0;i<snpinfo.size();i++)
         {
             if(snpinfo[i].a1) free2(&snpinfo[i].a1);
@@ -2000,7 +2105,9 @@ namespace SMR {
                 write_smr_epi(outFileName, &eqtlinfo);
                 write_s2s_besd(outFileName, &eqtlinfo,tosmrflag);
 
-            } else if(indicator==SMR_DENSE_1 || indicator == SMR_DENSE_3 || indicator == OSCA_DENSE_1) {
+            }
+            else if(indicator==SMR_DENSE_1 || indicator == SMR_DENSE_3 || indicator == OSCA_DENSE_1)
+            {
                 LOGPRINTF("file %s is in dense BESD format.\n",inputname);
                 if(besd_shrink_flag){
                     LOGPRINTF("WARNING: --besd-shrink doesn't work on dense BESD file.\n");
@@ -2017,10 +2124,71 @@ namespace SMR {
             }
         //}
         
-        
         //LOGPRINTF("Extracted results of %ld SNPs have been saved in the file %s.\n",out_esi_id.size(),outFileName);
         
     }
 
-
+    void gc_ewas(char* outFileName, char* ewasFileName)
+    {
+        gwasData gtmp;
+        read_ewas_data(&gtmp, ewasFileName);
+        vector<double> z2;
+        for(int i=0;i<gtmp.byz.size();i++)
+        {
+            if(gtmp.seyz[i]>0)
+            {
+                double z=gtmp.byz[i]/gtmp.seyz[i];
+                z2.push_back(z*z);
+            }
+        }
+        double lambda=median(z2)/0.455;
+        LOGPRINTF("The genomic inflation factor is %7.2f.\n", lambda);
+        double lambdasq=sqrt(lambda);
+        for(int i=0;i<gtmp.byz.size();i++)
+        {
+            if(gtmp.seyz[i]>0)
+            {
+                 gtmp.byz[i]/=lambdasq;
+                double chi=gtmp.byz[i]/gtmp.seyz[i];
+                chi*=chi;
+                gtmp.pvalue[i]=pchisq(chi,1);
+            }
+            else
+            {
+                gtmp.seyz[i]=-9;
+                gtmp.pvalue[i]=-9;
+            }
+            
+        }
+        FILE* rltfile=NULL;
+        if(fopen_checked(&rltfile, outFileName,"w"))
+        {
+            LOGPRINTF("ERROR: open result %s file error.\n",outFileName);
+            TERMINATE();
+        }
+        string str="Chr\tProbe\tbp\tGene\tOrientation\tb\tse\tp\n";
+        if(fputs_checked(str.c_str(),rltfile))
+        {
+            
+            LOGPRINTF("ERROR: in writing file %s .\n", outFileName);
+            TERMINATE();
+        }
+        for(int i=0;i<gtmp.byz.size();i++)
+        {
+            string chr=atosm(gtmp.freq[i]);
+            if(gtmp.freq[i]==-9) chr="NA";
+            else if(gtmp.freq[i]==23) chr="X";
+            else if(gtmp.freq[i]==24) chr="Y";
+            str = chr + '\t' + gtmp.snpName[i] +'\t' + atosm(gtmp.snpBp[i]) +'\t'+ gtmp.allele_1[i] +'\t' + gtmp.allele_2[i] +'\t' + ((gtmp.seyz[i]<0)?"NA":atosm(gtmp.byz[i])) +'\t' + ((gtmp.seyz[i]<0)?"NA":atosm(gtmp.seyz[i]))  +'\t' + ((gtmp.seyz[i]<0)?"NA":dtos(gtmp.pvalue[i]))  + '\n';
+            if(fputs_checked(str.c_str(),rltfile))
+            {
+                
+                LOGPRINTF("ERROR: in writing file %s .\n", outFileName);
+                TERMINATE();
+            }
+        }
+        fclose(rltfile);
+        LOGPRINTF("GC adjusted results have been saved in file %s.\n", outFileName);
+    }
+    
 }

@@ -76,15 +76,14 @@ void update_A(eInfo* einfo,VectorXd &prev_varcmp) {
 }
 
 
-bool comput_inverse_logdet_LDLT(MatrixXd &Vi, double &logdet) {
-    int i = 0, n = Vi.cols();
+bool comput_inverse_logdet_LDLT(MatrixXd &Vi, double &logdet)
+    {
     LDLT<MatrixXd> ldlt(Vi);
     VectorXd d = ldlt.vectorD();
-    
     if (d.minCoeff() < 0) return false;
     else {
         logdet = 0.0;
-        for (i = 0; i < n; i++) logdet += log(d[i]);
+        for (int i = 0; i < Vi.rows(); i++) logdet += log(d[i]);
         Vi.setIdentity();
         ldlt.solveInPlace(Vi);
     }
@@ -180,21 +179,41 @@ bool calcu_Vi(eInfo* einfo, MatrixXd &Vi, VectorXd &prev_varcmp, double &logdet,
     return true;
 }
 
-
-bool comput_inverse_logdet_LU(MatrixXd &Vi, double &logdet)
-{
-    int n = Vi.cols();
- 
-    FullPivLU<MatrixXd> lu(Vi);
-    if (!lu.isInvertible()) return false;
-    VectorXd u = lu.matrixLU().diagonal();
-    logdet = 0.0;
-    for (int i = 0; i < n; i++) logdet += log(fabs(u[i]));
-    Vi = lu.inverse();
-    return true;
-}
-
-
+bool calcu_Vi(MatrixXd &Vi, VectorXd &prev_varcmp, double &logdet,MatrixXd &_U, VectorXd &_S)
+    {
+        VectorXd S=_S.array()*prev_varcmp[0]+prev_varcmp[1];
+        logdet = 0.0;
+        for(int i=0;i<S.size();i++)
+        {
+            if(S(i)<1e-10) {
+                S(i)=0;
+                return false;
+            } else {
+                logdet += log(S(i));
+                S(i) = 1.0 / S(i);
+            }
+        }
+        Vi=_U*S.asDiagonal()*_U.transpose();
+        return true;
+    }
+    bool calcu_Vii(MatrixXd &Vi, VectorXd &prev_varcmp, double &logdet,MatrixXd &_U, VectorXd &_S)
+    {
+        VectorXd S=_S.array()*prev_varcmp[0]+prev_varcmp[1];
+        Vi.setZero(S.size(),S.size());
+        logdet = 0.0;
+        for(int i=0;i<S.size();i++)
+        {
+            if(S(i)<1e-10) {
+                return false;
+            } else {
+                logdet += log(S(i));
+                Vi.col(i) = _U.col(i) / S(i);
+            }
+        }
+        Vi=Vi*_U.transpose();
+        return true;
+    }
+    
 void calcu_Vi_bivar(eInfo* einfo, MatrixXd &Vi, VectorXd &prev_varcmp, double &logdet, int &iter)
 {
     int i = 0, n = Vi.cols();
@@ -336,10 +355,28 @@ void calcu_tr_PA(eInfo* einfo, MatrixXd &P, VectorXd &tr_PA,vector<MatrixXd> &_A
             tr_PA(i) = d_buf;
         }
     }
-    
 }
-
-
+    void calcu_tr_PA( MatrixXd &P, VectorXd &tr_PA,vector<MatrixXd> &_A)
+    {
+         tr_PA.resize(_A.size());
+        for (int i = 0; i < _A.size(); i++)
+        {
+            MatrixXd tpa=P.array()*_A[i].array();
+            tr_PA(i)=tpa.sum();
+        }
+        /*
+        int _n=(int)_A[0].rows();
+        for (int i = 0; i < _A.size(); i++)
+        {
+            double d_buf = 0.0;
+            for (int k = 0; k < _n; k++)
+            {
+                for (int l = 0; l < _n; l++) d_buf += P(k, l)*(_A[i])(k, l);
+            }
+            tr_PA(i) = d_buf;
+        }
+        */
+    }
 
 // use Fisher-scoring to estimate variance component
 // input P, calculate PA, H, R and varcmp
@@ -388,8 +425,107 @@ void reml_equation(eInfo* einfo, MatrixXd &P, MatrixXd &Hi, VectorXd &Py, Vector
     varcmp = Hi*R;
     Hi = 2 * Hi; // for calculation of SE
 }
+    void em_reml(MatrixXd &P, VectorXd &Py, VectorXd &prev_varcmp, VectorXd &varcmp,VectorXd &_y,vector<MatrixXd> &_A)
+    {
+        int i = 0;
+        int _n=(int)_y.size();
+        // Calculate trace(PA)
+        VectorXd tr_PA;
+        calcu_tr_PA(P, tr_PA, _A);
+        // Calculate R
+        Py = P*_y;
+        VectorXd R(_A.size());
+        for (i = 0; i < _A.size(); i++) {
+             R(i) = (Py.transpose()*(_A[i]) * Py)(0, 0);
+        }
+        // Calculate variance component
+        for (i = 0; i < _A.size(); i++) varcmp(i) = (prev_varcmp(i) * _n - prev_varcmp(i) * prev_varcmp(i) * tr_PA(i) + prev_varcmp(i) * prev_varcmp(i) * R(i)) / _n;
+    }
+    void calcu_Hi( MatrixXd &P, MatrixXd &Hi, vector<MatrixXd> &_A)
+    {
+        int i = 0, j = 0, k = 0, l = 0;
+        double d_buf = 0.0;
+        int _n=(int)_A[0].rows();
+        // Calculate PA
+        vector<MatrixXd> PA(_A.size());
+        for (i = 0; i < _A.size(); i++) {
+            (PA[i]).resize(_n, _n);
+            (PA[i]) = P * (_A[i]);
+        }
+        
+        // Calculate Hi
+        for (i = 0; i < _A.size(); i++) {
+            for (j = 0; j <= i; j++) {
+                d_buf = 0.0;
+                for (k = 0; k < _n; k++) {
+                    for (l = 0; l < _n; l++) d_buf += (PA[i])(k, l)*(PA[j])(l, k);
+                }
+                Hi(i, j) = Hi(j, i) = d_buf;
+            }
+        }
+        
+        if (!inverse_H(Hi)){
+            LOGPRINTF("Error: the information matrix is not invertible.");
+            TERMINATE();
+        }
+    }
 
+    void reml_equation( MatrixXd &P, MatrixXd &Hi, VectorXd &Py, VectorXd &varcmp,VectorXd &_y,vector<MatrixXd> &_A)
+    {
+        // Calculate Hi
+        int _n=(int)_y.size();
+        calcu_Hi( P, Hi, _A);
+        // Calculate R
+        Py = P*_y;
+        VectorXd R(_A.size());
+        for (int i = 0; i < _A.size(); i++) {
+             R(i) = (Py.transpose()*(_A[i]) * Py)(0, 0);
+        }
+        
+        // Calculate variance component
+        varcmp = Hi*R;
+        Hi = 2 * Hi; // for calculation of SE
+    }
+    void ai_reml( MatrixXd &P, MatrixXd &Hi, VectorXd &Py, VectorXd &prev_varcmp, VectorXd &varcmp, double dlogL,VectorXd &_y,vector<MatrixXd> &_A)
+    {
+        int i = 0, j = 0;
+        
+        Py = P*_y;
+        int _n=(int)_y.size();
+        VectorXd cvec(_n);
+        MatrixXd APy(_n, _A.size());
+        for (i = 0; i < _A.size(); i++)
+             (APy.col(i)) = (_A[i]) * Py;
+        
+        
+        // Calculate Hi
+        VectorXd R(_A.size());
+        for (i = 0; i < _A.size(); i++) {
+            R(i) = (Py.transpose()*(APy.col(i)))(0, 0);
+            cvec = P * (APy.col(i));
+            Hi(i, i) = ((APy.col(i)).transpose() * cvec)(0, 0);
+            for (j = 0; j < i; j++) Hi(j, i) = Hi(i, j) = ((APy.col(j)).transpose() * cvec)(0, 0);
+        }
+        Hi = 0.5 * Hi;
+        
+        // Calcualte tr(PA) and dL
+        VectorXd tr_PA;
+        calcu_tr_PA( P, tr_PA, _A);
+        R = -0.5 * (tr_PA - R);
+        
+        // Calculate variance component
+        if (!inverse_H(Hi)){
+             LOGPRINTF("Error: the information matrix is not invertible.");
+            remlstatus=-1;
+        }
+        
+        VectorXd delta(_A.size());
+        delta = Hi*R;
+        if (dlogL > 1.0) varcmp = prev_varcmp + 0.316 * delta;
+        else varcmp = prev_varcmp + delta;
+    }
 
+    
 void ai_reml(eInfo* einfo, MatrixXd &P, MatrixXd &Hi, VectorXd &Py, VectorXd &prev_varcmp, VectorXd &varcmp, double dlogL,VectorXd &_y,vector<MatrixXd> &_A)
 {
     int i = 0, j = 0;
@@ -494,7 +630,26 @@ int constrain_varcmp(eInfo* einfo, VectorXd &varcmp) {
     
     return num;
 }
-
+    int constrain_varcmp( double y_Ssq, VectorXd &varcmp) {
+        double delta = 0.0, constr_scale = 1e-6;
+        int i = 0, num = 0;
+        vector<int> constrain(varcmp.size());
+        
+        for (i = 0; i < varcmp.size(); i++) {
+            if (varcmp[i] < 0) {
+                delta += y_Ssq * constr_scale - varcmp[i];
+                varcmp[i] = y_Ssq * constr_scale;
+                constrain[i] = 1;
+                num++;
+            }
+        }
+        delta /= (varcmp.size() - num);
+        for (i = 0; i < varcmp.size(); i++) {
+            if (constrain[i] < 1 && varcmp[i] > delta) varcmp[i] -= delta;
+        }
+        
+        return num;
+    }
 
 void constrain_rg(eInfo* einfo, VectorXd &varcmp) {
     static int count = 0;
@@ -523,7 +678,122 @@ void constrain_rg(eInfo* einfo, VectorXd &varcmp) {
         }
     }
 }
-
+    
+    double reml_iter( MatrixXd &Vi_X, MatrixXd &Xt_Vi_X_i, MatrixXd &Hi, VectorXd &Py, VectorXd &varcmp, bool prior_var_flag, bool no_constrain, MatrixXd &_Vi,MatrixXd &U,VectorXd &eval,vector<MatrixXd> &_A, MatrixXd &_X,VectorXd &_y,int reml_mtd, int reml_max_iter, double y_Ssq)
+    {
+        MatrixXd _P;
+        string mtd_str[] = {"AI-REML", "Fisher-scoring REML", "EM-REML"};
+        int constrain_num = 0, iter = 0, reml_mtd_tmp = reml_mtd;
+        double logdet = 0.0, logdet_Xt_Vi_X = 0.0, prev_lgL = -1e20, lgL = -1e20, dlogL = 1000.0;
+        VectorXd prev_prev_varcmp(varcmp), prev_varcmp(varcmp), varcomp_init(varcmp);
+        bool converged_flag = false;
+        
+        for (iter = 0; iter < reml_max_iter; iter++)
+        {
+            if (iter == 0) {
+                prev_varcmp = varcomp_init;
+                if (!prior_var_flag) reml_mtd = 2;
+            }
+            if (iter == 1) reml_mtd = reml_mtd_tmp;
+            if(!calcu_Vi(_Vi, prev_varcmp, logdet,U, eval))
+            {
+                LOGPRINTF("Error: V matrix is not positive-definite.");
+                remlstatus=-1;
+                return lgL;
+            }
+        
+            logdet_Xt_Vi_X = calcu_P(_Vi, Vi_X, Xt_Vi_X_i, _P,_X); // Calculate P
+            if(remlstatus==-1) return lgL;
+            
+            if (reml_mtd == 0) ai_reml( _P, Hi, Py, prev_varcmp, varcmp, dlogL, _y,_A );
+            else if (reml_mtd == 1) reml_equation( _P, Hi, Py, varcmp, _y, _A);
+            else if (reml_mtd == 2) em_reml(_P, Py, prev_varcmp, varcmp, _y,_A);
+            lgL = -0.5 * (logdet_Xt_Vi_X + logdet + (_y.transpose() * Py)(0, 0));
+            if(remlstatus==-1) return lgL;
+            
+            
+            // output log
+            if (!no_constrain) constrain_num = constrain_varcmp( y_Ssq, varcmp);
+           
+            if(!mute)
+            {
+                if (iter > 0) {
+                    //cout << iter << "\t" << setiosflags(ios::fixed) << setprecision(2) << lgL << "\t";
+                    LOGPRINTF("%d\t%.2f\t",iter,lgL);
+                    for (int i = 0; i < _A.size(); i++)
+                    {
+                        LOGPRINTF("%.5f\t",varcmp[i]);
+                    }//cout << setprecision(5) << varcmp[i] << "\t";
+                    
+                    if (constrain_num > 0) {
+                        LOGPRINTF("(%d component(s) constrained)\n",constrain_num);
+                    } else {
+                        LOGPRINTF("\n");
+                    }
+                } else {
+                    if (!prior_var_flag) //cout << "Updated prior values: " << varcmp.transpose() << endl;
+                    {
+                        LOGPRINTF("Updated prior values: ");
+                        for(int k=0;k<varcmp.size();k++) {
+                            LOGPRINTF("%f\t",varcmp(k));
+                        }
+                        LOGPRINTF("\n");
+                    }
+                    LOGPRINTF("logL: %.3f\n", lgL);
+                    //if(_reml_max_iter==1) cout<<"logL: "<<lgL<<endl;
+                }
+            }
+            if (constrain_num * 2 > _A.size())
+            {
+                if(!mute) {LOGPRINTF("Error: analysis stopped because more than half of the variance components are constrained. The result would be unreliable.\n Please have a try to add the option --reml-no-constrain.\n");}
+                remlstatus = -2;
+                return lgL;
+            }
+            
+            // convergence
+            dlogL = lgL - prev_lgL;
+            if ((varcmp - prev_varcmp).squaredNorm() / varcmp.squaredNorm() < 1e-8 && (fabs(dlogL) < 1e-4 || (fabs(dlogL) < 1e-2 && dlogL < 0)))
+            {
+                converged_flag = true;
+                for(int k=0;k<varcmp.size();k++)
+                    if(varcmp(k)<1e-6) remlstatus = -3;
+                double vp=0;
+                for(int k=0;k<varcmp.size();k++) vp+=varcmp(k);
+                if(abs(vp)<1e-6) remlstatus = -3;
+                else {
+                    for(int k=0;k<(varcmp.size()-1);k++) // the last one is v(e)
+                    {
+                        if(varcmp(k)/vp > 0.999999) remlstatus = -3;
+                    }
+                }
+                if (constrain_num > 0) remlstatus = -5;
+                if (reml_mtd == 2) {
+                    calcu_Hi(_P, Hi, _A);
+                    Hi = 2 * Hi;
+                } // for calculation of SE
+                break;
+            }
+            prev_prev_varcmp = prev_varcmp;
+            prev_varcmp = varcmp;
+            prev_lgL = lgL;
+        }
+            if(converged_flag)
+            {
+                if(!mute) {LOGPRINTF( "Log-likelihood ratio converged.\n" );}
+            }
+            else
+            {
+                 if(iter == reml_max_iter)
+                 {
+                    if (reml_max_iter > 1) {
+                        LOGPRINTF("Error: Log-likelihood not converged (stop after %d iteractions). \nYou can specify the option --reml-maxit to allow for more iterations.\n",reml_max_iter);
+                        remlstatus = -4;
+                    }
+                }
+            }
+        
+        return lgL;
+    }
 
 double reml_iteration(eInfo* einfo, MatrixXd &Vi_X, MatrixXd &Xt_Vi_X_i, MatrixXd &Hi, VectorXd &Py, VectorXd &varcmp, bool prior_var_flag, bool no_constrain, bool reml_bivar_fix_rg,MatrixXd &_Vi,vector<MatrixXd> &_A, MatrixXd &_X,VectorXd &_y)
 {
@@ -533,25 +803,39 @@ double reml_iteration(eInfo* einfo, MatrixXd &Vi_X, MatrixXd &Xt_Vi_X_i, MatrixX
     double logdet = 0.0, logdet_Xt_Vi_X = 0.0, prev_lgL = -1e20, lgL = -1e20, dlogL = 1000.0;
     VectorXd prev_prev_varcmp(varcmp), prev_varcmp(varcmp), varcomp_init(varcmp);
     bool converged_flag = false;
-    for (iter = 0; iter < einfo->_reml_max_iter; iter++) {
+    
+    for (iter = 0; iter < einfo->_reml_max_iter; iter++)
+    {
         if (reml_bivar_fix_rg) update_A(einfo, prev_varcmp);
         if (iter == 0) {
             prev_varcmp = varcomp_init;
             if (prior_var_flag){
-                if(einfo->_reml_fixed_var) cout << "Variance components are fixed at: " << varcmp.transpose() << endl;
-                else cout << "Prior values of variance components: " << varcmp.transpose() << endl;
+                if(!mute)
+                {
+                    if(einfo->_reml_fixed_var) cout << "Variance components are fixed at: " << varcmp.transpose() << endl;
+                    else cout << "Prior values of variance components: " << varcmp.transpose() << endl;
+                }
             }
             else {
                 einfo->_reml_mtd = 2;
-                LOGPRINTF("Calculating prior values of variance components by EM-REML ...\n");
+                if(!mute)
+                {
+                    LOGPRINTF("Calculating prior values of variance components by EM-REML ...\n");
+                }
             }
         }
         if (iter == 1) {
             einfo->_reml_mtd = reml_mtd_tmp;
-            LOGPRINTF("Running %s algorithm ...\nIter.\tlogL\t",mtd_str[einfo->_reml_mtd]);
-            for (i = 0; i < einfo->_r_indx.size(); i++) {LOGPRINTF("%s\t",einfo->_var_name[einfo->_r_indx[i]].c_str())};
-            LOGPRINTF("\n");
+            if(!mute)
+            {
+                LOGPRINTF("Running %s algorithm ...\nIter.\tlogL\t",mtd_str[einfo->_reml_mtd]);
+                for (i = 0; i < einfo->_r_indx.size(); i++) {LOGPRINTF("%s\t",einfo->_var_name[einfo->_r_indx[i]].c_str())};
+                LOGPRINTF("\n");
+            }
         }
+        
+        
+        
         if (einfo->_bivar_reml) calcu_Vi_bivar(einfo, _Vi, prev_varcmp, logdet, iter); // Calculate Vi, bivariate analysis
         else if (einfo->_within_family) calcu_Vi_within_family(einfo, _Vi, prev_varcmp, logdet, iter); // within-family REML
         else {
@@ -564,46 +848,50 @@ double reml_iteration(eInfo* einfo, MatrixXd &Vi_X, MatrixXd &Xt_Vi_X_i, MatrixX
                 break;
             }
         }
-        if(remlstatus!=0) return lgL;
+        if(remlstatus==-1) return lgL;
         logdet_Xt_Vi_X = calcu_P(_Vi, Vi_X, Xt_Vi_X_i, einfo->_P,_X); // Calculate P
-        if(remlstatus!=0) return lgL;
+        if(remlstatus==-1) return lgL;
         
         if (einfo->_reml_mtd == 0) ai_reml(einfo, einfo->_P, Hi, Py, prev_varcmp, varcmp, dlogL, _y,_A );
         else if (einfo->_reml_mtd == 1) reml_equation(einfo, einfo->_P, Hi, Py, varcmp, _y, _A);
         else if (einfo->_reml_mtd == 2) em_reml(einfo, einfo->_P, Py, prev_varcmp, varcmp, _y,_A);
         lgL = -0.5 * (logdet_Xt_Vi_X + logdet + (_y.transpose() * Py)(0, 0));
-        if(remlstatus!=0) return lgL;
+        if(remlstatus==-1) return lgL;
         if(einfo->_reml_force_converge && einfo->_reml_AI_not_invertible) break;
        
         
         // output log
         if (!no_constrain) constrain_num = constrain_varcmp(einfo, varcmp);
         if (einfo->_bivar_reml && !einfo->_bivar_no_constrain) constrain_rg(einfo, varcmp);
-        if (iter > 0) {
-            //cout << iter << "\t" << setiosflags(ios::fixed) << setprecision(2) << lgL << "\t";
-            LOGPRINTF("%d\t%.2f\t",iter,lgL);
-            for (i = 0; i < einfo->_r_indx.size(); i++)
-            {
-                LOGPRINTF("%.5f\t",varcmp[i]);
-            }//cout << setprecision(5) << varcmp[i] << "\t";
-            
-            if (constrain_num > 0) {
-                LOGPRINTF("(%d component(s) constrained)\n",constrain_num);
-            } else {
-                LOGPRINTF("\n");
-            }
-        } else {
-            if (!prior_var_flag) //cout << "Updated prior values: " << varcmp.transpose() << endl;
-            {
-                LOGPRINTF("Updated prior values: ");
-                for(int k=0;k<varcmp.size();k++) {
-                    LOGPRINTF("%f\t",varcmp(k));
+        if(!mute)
+        {
+            if (iter > 0) {
+                //cout << iter << "\t" << setiosflags(ios::fixed) << setprecision(2) << lgL << "\t";
+                LOGPRINTF("%d\t%.2f\t",iter,lgL);
+                for (i = 0; i < einfo->_r_indx.size(); i++)
+                {
+                    LOGPRINTF("%.5f\t",varcmp[i]);
+                }//cout << setprecision(5) << varcmp[i] << "\t";
+                
+                if (constrain_num > 0) {
+                    LOGPRINTF("(%d component(s) constrained)\n",constrain_num);
+                } else {
+                    LOGPRINTF("\n");
                 }
-                LOGPRINTF("\n");
+            } else {
+                if (!prior_var_flag) //cout << "Updated prior values: " << varcmp.transpose() << endl;
+                {
+                    LOGPRINTF("Updated prior values: ");
+                    for(int k=0;k<varcmp.size();k++) {
+                        LOGPRINTF("%f\t",varcmp(k));
+                    }
+                    LOGPRINTF("\n");
+                }
+                LOGPRINTF("logL: %.3f\n", lgL);
+                //if(_reml_max_iter==1) cout<<"logL: "<<lgL<<endl;
             }
-            LOGPRINTF("logL: %.3f\n", lgL);
-            //if(_reml_max_iter==1) cout<<"logL: "<<lgL<<endl;
         }
+        
         if(einfo->_reml_fixed_var){
             varcmp = prev_varcmp;
             break;
@@ -612,6 +900,7 @@ double reml_iteration(eInfo* einfo, MatrixXd &Vi_X, MatrixXd &Xt_Vi_X_i, MatrixX
         {
             LOGPRINTF("Error: analysis stopped because more than half of the variance components are constrained. The result would be unreliable.\n Please have a try to add the option --reml-no-constrain.\n");
             remlstatus = -2;
+            return lgL;
         }
         // added by Jian Yang on 22 Oct 2014
         //if (constrain_num == _r_indx.size()) throw ("Error: analysis stopped because all variance components are constrained. You may have a try of adding the option --reml-no-constrain.");
@@ -656,11 +945,17 @@ double reml_iteration(eInfo* einfo, MatrixXd &Vi_X, MatrixXd &Xt_Vi_X_i, MatrixX
     }
     else {
         if(converged_flag) {
-            LOGPRINTF( "Log-likelihood ratio converged.\n" );
+            if(!mute)
+            {
+                LOGPRINTF( "Log-likelihood ratio converged.\n" );
+            }
         }
         else {
             if(einfo->_reml_force_converge || einfo->_reml_no_converge) {
-                LOGPRINTF( "Warning: Log-likelihood not converged. Results are not reliable.\n" );
+                if(!mute)
+                {
+                    LOGPRINTF( "Warning: Log-likelihood not converged. Results are not reliable.\n" );
+                }
             }
             else if(iter == einfo->_reml_max_iter){
                 if (einfo->_reml_max_iter > 1) {
@@ -674,6 +969,23 @@ double reml_iteration(eInfo* einfo, MatrixXd &Vi_X, MatrixXd &Xt_Vi_X_i, MatrixX
 }
 
 
+    void calcu_Vp(double &Vp, double &VarVp,VectorXd &varcmp, MatrixXd &Hi)
+    {
+        Vp = 0.0;
+        VarVp = 0.0;
+        for (int i = 0; i < varcmp.size(); i++) {
+            Vp += varcmp[i];
+            for (int j = 0; j < varcmp.size(); j++) VarVp += Hi(i, j);
+        }
+    }
+    void calcu_rsq( int i, double Vp, double VarVp, double &hsq, double &var_hsq, VectorXd &varcmp, MatrixXd &Hi) {
+        double V1 = varcmp[i], VarV1 = Hi(i, i), Cov12 = 0.0;
+        for (int j = 0; j < varcmp.size(); j++) {
+            Cov12 += Hi(i, j);
+        }
+        hsq = V1 / Vp;
+        var_hsq = (V1 / Vp)*(V1 / Vp)*(VarV1 / (V1 * V1) + VarVp / (Vp * Vp)-(2 * Cov12) / (V1 * Vp));
+    }
 void calcu_Vp(eInfo* einfo, double &Vp, double &Vp2, double &VarVp, double &VarVp2, VectorXd &varcmp, MatrixXd &Hi) {
     int i = 0, j = 0;
     Vp = 0.0;
@@ -868,7 +1180,9 @@ void reml( eInfo* einfo, bool pred_rand_eff, bool est_fix_eff, vector<double> &r
         einfo->_y_Ssq = y_tmp.squaredNorm() / (_n - 1.0);
         if (!(fabs(einfo->_y_Ssq) < 1e30)) {LOGPRINTF ("Error: the phenotypic variance is infinite. Please check the missing data in your phenotype file. Missing values should be represented by \"NA\" or \"-9\"."); TERMINATE();}
     }
+    if(reml_priors_var.size() != einfo->_r_indx.size()) reml_priors_var.clear();
     bool reml_priors_flag = !reml_priors.empty(), reml_priors_var_flag = !reml_priors_var.empty();
+    
     if (reml_priors_flag && reml_priors.size() < einfo->_r_indx.size() - 1) {
         LOGPRINTF("Error: in option --reml-priors. There are %ld variance components. At least %ld prior values should be specified.\n", einfo->_r_indx.size(),einfo->_r_indx.size() - 1 );
         TERMINATE();
@@ -877,14 +1191,29 @@ void reml( eInfo* einfo, bool pred_rand_eff, bool est_fix_eff, vector<double> &r
          LOGPRINTF("Error: in option --reml-priors-var. There are %ld variance components. At least %ld prior values should be specified.\n", einfo->_r_indx.size(),einfo->_r_indx.size() - 1 );
         TERMINATE();
     }
+    if(!mute)
+    {
+        LOGPRINTF("\nPerforming %s REML analysis ...\n",(einfo->_bivar_reml ? "bivariate" : ""));
+    }
     
-    LOGPRINTF("\nPerforming %s REML analysis ... (Note: may take hours depending on sample size).\n",(einfo->_bivar_reml ? "bivariate" : ""));
     if (_n < 10) {LOGPRINTF ("Error: sample size is too small.");exit(EXIT_FAILURE);}
+    if(!mute)
+    {
     LOGPRINTF("%d observations, %d fixed effect(s), and %ld variance component(s)(including residual variance).\n",_n,_X_c,einfo->_r_indx.size());
+    }
     MatrixXd Vi_X(_n, _X_c), Xt_Vi_X_i(_X_c, _X_c), Hi(einfo->_r_indx.size(), einfo->_r_indx.size());
     VectorXd Py(_n), varcmp;
     init_varcomp(einfo,reml_priors_var, reml_priors, varcmp);
     double lgL = reml_iteration(einfo, Vi_X, Xt_Vi_X_i, Hi, Py, varcmp, reml_priors_var_flag | reml_priors_flag, no_constrain,false,_Vi, _A,   _X,_y );
+    if(remloasi)
+    {
+        reml_priors_var.clear();
+        for(int j=0;j<varcmp.size();j++)
+        {
+            reml_priors_var.push_back(varcmp[j]);
+        }
+    }
+    
     if(remlstatus!=0 && remlstatus!=-3 && remlstatus!=-5) return;
     
     MatrixXd u;
@@ -895,7 +1224,11 @@ void reml( eInfo* einfo, bool pred_rand_eff, bool est_fix_eff, vector<double> &r
             else (u.col(i)) = (((_A[einfo->_r_indx[i]]) * Py) * varcmp[i]);
         }
     }
-    if (est_fix_eff) einfo->_b = Xt_Vi_X_i * (Vi_X.transpose() * _y);
+    if (est_fix_eff)
+    {
+        einfo->_b = Xt_Vi_X_i * (Vi_X.transpose() * _y);
+        einfo->_se=Xt_Vi_X_i.diagonal();
+    }
     
     // calculate Hsq and SE
     double Vp = 0.0, Vp2 = 0.0, VarVp = 0.0, VarVp2 = 0.0, Vp_f = 0.0, VarVp_f = 0.0;
@@ -907,7 +1240,7 @@ void reml( eInfo* einfo, bool pred_rand_eff, bool est_fix_eff, vector<double> &r
     double lgL_rdu_mdl = 0.0, LRT = 0.0;
     if (!no_lrt) {
         lgL_rdu_mdl = lgL_reduce_mdl(einfo, no_constrain, _X_c,_Vi, _A,  _X,_y);
-        if(remlstatus!=0 && remlstatus!=-3) return;
+        if(remlstatus==-1 || remlstatus==-2 || remlstatus==-4) return;
         LRT = 2.0 * (lgL - lgL_rdu_mdl);
         if (LRT < 0.0) LRT = 0.0;
     }
@@ -916,49 +1249,70 @@ void reml( eInfo* einfo, bool pred_rand_eff, bool est_fix_eff, vector<double> &r
     double lgL_fixed_rg = 0.0;
     if (einfo->_bivar_reml && !einfo->_fixed_rg_val.empty()) {
         lgL_fixed_rg = lgL_fix_rg(einfo, varcmp, no_constrain, _X_c, _Vi, _A,  _X,_y);
-        if(remlstatus!=0 && remlstatus!=-3) return;
+        if(remlstatus==-1 || remlstatus==-2 || remlstatus==-4) return;
         LRT = 2.0 * (lgL - lgL_fixed_rg);
         if (LRT < 0.0) LRT = 0.0;
     }
     
     if (mlmassoc) {
         if(remlstatus==0) eigenVector2Vector(varcmp, einfo->_varcmp);
-        return;
+        //return;
     }
     // output results
     double sum_hsq = 0.0, var_sum_hsq = 0.0;
     if (!einfo->_bivar_reml && einfo->_r_indx.size() > 2) calcu_sum_hsq(einfo, Vp, VarVp, sum_hsq, var_sum_hsq, varcmp, Hi);
-    LOGPRINTF("\nSummary result of REML analysis:\n");
-    cout << "Source\tVariance\tSE" << setiosflags(ios::fixed) << setprecision(6) << endl;
-    for (i = 0; i < einfo->_r_indx.size(); i++) cout << einfo->_var_name[i] << "\t" << varcmp[i] << "\t" << sqrt(Hi(i, i)) << endl;
-    if (einfo->_bivar_reml) {
-        cout << "Vp_tr1\t" << Vp << "\t" << sqrt(VarVp) << endl;
-        cout << "Vp_tr2\t" << Vp2 << "\t" << sqrt(VarVp2) << endl;
-        for (i = 0, j = 0; i < einfo->_bivar_pos[0].size() - 1; i++, j += 2) {
-            cout << einfo->_hsq_name[j] << "\t" << Hsq[einfo->_bivar_pos[0][i]] << "\t" << sqrt(VarHsq[einfo->_bivar_pos[0][i]]) << endl;
-            cout << einfo->_hsq_name[j + 1] << "\t" << Hsq[einfo->_bivar_pos[1][i]] << "\t" << sqrt(VarHsq[einfo->_bivar_pos[1][i]]) << endl;
-        }
-    } else {
-        cout << "Vp\t" << Vp << "\t" << sqrt(VarVp) << endl;
-        for (i = 0; i < Hsq.size(); i++) cout << einfo->_hsq_name[i] << "\t" << Hsq[i] << "\t" << sqrt(VarHsq[i]) << endl;
-        if (einfo->_r_indx.size() > 2) cout << "\nSum of V(G)/Vp\t" << sum_hsq << "\t" << sqrt(var_sum_hsq) << endl;
-    }
-    if ((einfo->_flag_CC && prevalence>-1) || (einfo->_flag_CC2 && prevalence2>-1)) {
-        cout << "The estimate of variance explained on the observed scale is transformed to that on the underlying scale:" << endl;
+    if(!mute)
+    {
+        LOGPRINTF("\nSummary result of REML analysis:\n");
+        cout << "Source\tVariance\tSE" << setiosflags(ios::fixed) << setprecision(6) << endl;
+    
+        for (i = 0; i < einfo->_r_indx.size(); i++) cout << einfo->_var_name[i] << "\t" << varcmp[i] << "\t" << sqrt(Hi(i, i)) << endl;
         if (einfo->_bivar_reml) {
-            if (einfo->_flag_CC) cout << "Proportion of cases in the sample = " << einfo->_ncase << " for trait #1; User-specified disease prevalence = " << prevalence << " for trait #1" << endl;
-            if (einfo->_flag_CC2) cout << "Proportion of cases in the sample = " << einfo->_ncase2 << " for trait #2; User-specified disease prevalence = " << prevalence2 << " for trait #2" << endl;
+            cout << "Vp_tr1\t" << Vp << "\t" << sqrt(VarVp) << endl;
+            cout << "Vp_tr2\t" << Vp2 << "\t" << sqrt(VarVp2) << endl;
             for (i = 0, j = 0; i < einfo->_bivar_pos[0].size() - 1; i++, j += 2) {
-                if (einfo->_flag_CC) cout << einfo->_hsq_name[j] << "_L\t" << transform_hsq_L(einfo->_ncase, prevalence, Hsq[einfo->_bivar_pos[0][i]]) << "\t" << transform_hsq_L(einfo->_ncase, prevalence, sqrt(VarHsq[einfo->_bivar_pos[0][i]])) << endl;
-                if (einfo->_flag_CC2) cout << einfo->_hsq_name[j + 1] << "_L\t" << transform_hsq_L(einfo->_ncase2, prevalence2, Hsq[einfo->_bivar_pos[1][i]]) << "\t" << transform_hsq_L(einfo->_ncase2, prevalence2, sqrt(VarHsq[einfo->_bivar_pos[1][i]])) << endl;
+                cout << einfo->_hsq_name[j] << "\t" << Hsq[einfo->_bivar_pos[0][i]] << "\t" << sqrt(VarHsq[einfo->_bivar_pos[0][i]]) << endl;
+                cout << einfo->_hsq_name[j + 1] << "\t" << Hsq[einfo->_bivar_pos[1][i]] << "\t" << sqrt(VarHsq[einfo->_bivar_pos[1][i]]) << endl;
             }
         } else {
-            cout << "(Proportion of cases in the sample = " << einfo->_ncase << "; User-specified disease prevalence = " << prevalence << ")" << endl;
-            for (i = 0; i < Hsq.size(); i++) cout << einfo->_hsq_name[i] << "_L\t" << transform_hsq_L(einfo->_ncase, prevalence, Hsq[i]) << "\t" << transform_hsq_L(einfo->_ncase, prevalence, sqrt(VarHsq[i])) << endl;
-            if (einfo->_r_indx.size() > 2)  cout << "\nSum of V(G)_L/Vp\t" << transform_hsq_L(einfo->_ncase, prevalence, sum_hsq) << "\t" << transform_hsq_L(einfo->_ncase, prevalence, sqrt(var_sum_hsq)) << endl;
+            cout << "Vp\t" << Vp << "\t" << sqrt(VarVp) << endl;
+            for (i = 0; i < Hsq.size(); i++) cout << einfo->_hsq_name[i] << "\t" << Hsq[i] << "\t" << sqrt(VarHsq[i]) << endl;
+            if (einfo->_r_indx.size() > 2) cout << "\nSum of V(O)/Vp\t" << sum_hsq << "\t" << sqrt(var_sum_hsq) << endl;
+        }
+        if ((einfo->_flag_CC && prevalence>-1) || (einfo->_flag_CC2 && prevalence2>-1)) {
+            cout << "The estimate of variance explained on the observed scale is transformed to that on the underlying scale:" << endl;
+            if (einfo->_bivar_reml) {
+                if (einfo->_flag_CC) cout << "Proportion of cases in the sample = " << einfo->_ncase << " for trait #1; User-specified disease prevalence = " << prevalence << " for trait #1" << endl;
+                if (einfo->_flag_CC2) cout << "Proportion of cases in the sample = " << einfo->_ncase2 << " for trait #2; User-specified disease prevalence = " << prevalence2 << " for trait #2" << endl;
+                for (i = 0, j = 0; i < einfo->_bivar_pos[0].size() - 1; i++, j += 2) {
+                    if (einfo->_flag_CC) cout << einfo->_hsq_name[j] << "_L\t" << transform_hsq_L(einfo->_ncase, prevalence, Hsq[einfo->_bivar_pos[0][i]]) << "\t" << transform_hsq_L(einfo->_ncase, prevalence, sqrt(VarHsq[einfo->_bivar_pos[0][i]])) << endl;
+                    if (einfo->_flag_CC2) cout << einfo->_hsq_name[j + 1] << "_L\t" << transform_hsq_L(einfo->_ncase2, prevalence2, Hsq[einfo->_bivar_pos[1][i]]) << "\t" << transform_hsq_L(einfo->_ncase2, prevalence2, sqrt(VarHsq[einfo->_bivar_pos[1][i]])) << endl;
+                }
+            } else {
+                cout << "(Proportion of cases in the sample = " << einfo->_ncase << "; User-specified disease prevalence = " << prevalence << ")" << endl;
+                for (i = 0; i < Hsq.size(); i++) cout << einfo->_hsq_name[i] << "_L\t" << transform_hsq_L(einfo->_ncase, prevalence, Hsq[i]) << "\t" << transform_hsq_L(einfo->_ncase, prevalence, sqrt(VarHsq[i])) << endl;
+                if (einfo->_r_indx.size() > 2)  cout << "\nSum of V(O)_L/Vp\t" << transform_hsq_L(einfo->_ncase, prevalence, sum_hsq) << "\t" << transform_hsq_L(einfo->_ncase, prevalence, sqrt(var_sum_hsq)) << endl;
+            }
+        }
+    
+        // output genetic correlation
+        if(!einfo->_reml_force_converge || !einfo->_reml_AI_not_invertible){
+            cout << "\nSampling variance/covariance of the estimates of variance components:" << endl;
+            for (i = 0; i < einfo->_r_indx.size(); i++) {
+                for (j = 0; j < einfo->_r_indx.size(); j++) printf("%e\t",Hi(i, j));
+                cout << endl;
+            }
+        }
+        if (est_fix_eff) {
+            LOGPRINTF("Estimate of fixed effect %s:\n",(_X_c > 1 ? "s" : ""))
+            LOGPRINTF("\nSource\tEstimate\tSE\n");
+            for (i = 0; i < _X_c; i++) {
+                if (i == 0){ LOGPRINTF("mean\t");}
+                else { LOGPRINTF( "X_%d\t", i+1);}
+                LOGPRINTF("%f\t%f\n", einfo->_b[i] , sqrt(Xt_Vi_X_i(i, i)));
+            }
         }
     }
-    // output genetic correlation
     VectorXd rg, rg_var;
     vector<string> rg_name;
     if (einfo->_bivar_reml) {
@@ -967,27 +1321,14 @@ void reml( eInfo* einfo, bool pred_rand_eff, bool est_fix_eff, vector<double> &r
             cout << rg_name[i] << "\t" << rg[i] << "\t" << sqrt(rg_var[i]) << endl;
         }
     }
-    if(!einfo->_reml_force_converge || !einfo->_reml_AI_not_invertible){
-        cout << "\nSampling variance/covariance of the estimates of variance components:" << endl;
-        for (i = 0; i < einfo->_r_indx.size(); i++) {
-            for (j = 0; j < einfo->_r_indx.size(); j++) printf("%e\t",Hi(i, j));
-            cout << endl;
-        }
-    }
-    if (est_fix_eff) {
-        LOGPRINTF("Estimate of fixed effect %s:\n",(_X_c > 1 ? "s" : ""))
-        LOGPRINTF("\nSource\tEstimate\tSE\n");
-        for (i = 0; i < _X_c; i++) {
-            if (i == 0){ LOGPRINTF("mean\t");}
-            else { LOGPRINTF( "X_%d\t", i+1);}
-            LOGPRINTF("%f\t%f\n", einfo->_b[i] , sqrt(Xt_Vi_X_i(i, i)));
-        }
-    }
     
     // save summary result into a file
-    string reml_rst_file = _out + ".hsq";
+    string reml_rst_file = _out + ".rsq";
     ofstream o_reml(reml_rst_file.c_str());
-    if (!o_reml) throw ("Error: can not open the file [" + reml_rst_file + "] to write.");
+    if (!o_reml) {
+        LOGPRINTF ("Error: can not open the file %s to write.",reml_rst_file.c_str());
+        TERMINATE();
+    }
     o_reml << "Source\tVariance\tSE" << setiosflags(ios::fixed) << setprecision(6) << endl;
     for (i = 0; i < einfo->_r_indx.size(); i++) o_reml << einfo->_var_name[i] << "\t" << varcmp[i] << "\t" << sqrt(Hi(i, i)) << endl;
     if (einfo->_bivar_reml) {
@@ -1000,7 +1341,7 @@ void reml( eInfo* einfo, bool pred_rand_eff, bool est_fix_eff, vector<double> &r
     } else {
         o_reml << "Vp\t" << Vp << "\t" << sqrt(VarVp) << endl;
         for (i = 0; i < Hsq.size(); i++) o_reml << einfo->_hsq_name[i] << "\t" << Hsq[i] << "\t" << sqrt(VarHsq[i]) << endl;
-        if (einfo->_r_indx.size() > 2) o_reml << "\nSum of V(G)/Vp\t" << sum_hsq << "\t" << sqrt(var_sum_hsq) << endl;
+        if (einfo->_r_indx.size() > 2) o_reml << "\nSum of V(O)/Vp\t" << sum_hsq << "\t" << sqrt(var_sum_hsq) << endl;
     }
     if (einfo->_flag_CC && prevalence>-1) {
         o_reml << "The estimate of variance explained on the observed scale is transformed to that on the underlying scale:" << endl;
@@ -1013,7 +1354,7 @@ void reml( eInfo* einfo, bool pred_rand_eff, bool est_fix_eff, vector<double> &r
         } else {
             o_reml << "(Proportion of cases in the sample = " << einfo->_ncase << "; User-specified disease prevalence = " << prevalence << ")" << endl;
             for (i = 0; i < Hsq.size(); i++) o_reml << einfo->_hsq_name[i] << "_L\t" << transform_hsq_L(einfo->_ncase, prevalence, Hsq[i]) << "\t" << transform_hsq_L(einfo->_ncase, prevalence, sqrt(VarHsq[i])) << endl;
-            if (einfo->_r_indx.size() > 2)  o_reml << "\nSum of V(G)_L/Vp\t" << transform_hsq_L(einfo->_ncase, prevalence, sum_hsq) << "\t" << transform_hsq_L(einfo->_ncase, prevalence, sqrt(var_sum_hsq)) << endl;
+            if (einfo->_r_indx.size() > 2)  o_reml << "\nSum of V(O)_L/Vp\t" << transform_hsq_L(einfo->_ncase, prevalence, sum_hsq) << "\t" << transform_hsq_L(einfo->_ncase, prevalence, sqrt(var_sum_hsq)) << endl;
         }
     }
     if (einfo->_bivar_reml) {
@@ -1040,7 +1381,11 @@ void reml( eInfo* einfo, bool pred_rand_eff, bool est_fix_eff, vector<double> &r
         for (i = 0; i < _X_c; i++) o_reml << setprecision(6) << einfo->_b[i] << "\t" << sqrt(Xt_Vi_X_i(i, i)) << endl;
         o_reml.close();
     }
-    cout << "\nSummary result of REML analysis has been saved in the file [" + reml_rst_file + "]." << endl;
+    if(!mute)
+    {
+        cout << "\nSummary result of REML analysis has been saved in the file [" + reml_rst_file + "]." << endl;
+    }
+    
     
     // save random effect to a file
     if (pred_rand_eff) {
@@ -1056,101 +1401,104 @@ void reml( eInfo* einfo, bool pred_rand_eff, bool est_fix_eff, vector<double> &r
     }
 }
 
-void coeff_mat(const vector<string> &vec, MatrixXd &coeff_mat, string errmsg1, string errmsg2) {
-    vector<string> value(vec);
-    stable_sort(value.begin(), value.end());
-    value.erase(unique(value.begin(), value.end()), value.end());
-    if (value.size() > 0.5 * vec.size()) {
-        printf("%s\n",errmsg1.c_str());
-        exit(EXIT_FAILURE);
-    } // throw("Error: too many classes for the envronmental factor. \nPlease make sure you input a discrete variable as the environmental factor.");
-    if (value.size() == 1) {
-        printf("%s\n",errmsg2.c_str());
-        exit(EXIT_FAILURE);
-    } //throw("Error: the envronmental factor should has more than one classes.");
-    
-    int i = 0, j = 0, row_num = vec.size(), column_num = value.size();
-    map<string, int> val_map;
-    for (i = 0; i < value.size(); i++) val_map.insert(pair<string, int>(value[i], i));
-    
-    coeff_mat.resize(row_num, column_num);
-    coeff_mat.setZero(row_num, column_num);
-    map<string, int>::iterator iter;
-    for (i = 0; i < row_num; i++) {
-        iter = val_map.find(vec[i]);
-        coeff_mat(i, iter->second) = 1.0;
-    }
-}
-
-int construct_X(eInfo* einfo, vector<MatrixXd> &E_float, MatrixXd &qE_float, MatrixXd &_X) {
-    
-    int n=(int)einfo->_eii_include.size();
-    
-    int i = 0, j = 0;
-    map<string, int>::iterator iter;
-    stringstream errmsg;
-    
-   int  _X_c = 1;
-    // quantitative covariates
-    MatrixXd X_q;
-    if (einfo->_eii_qcov_num>0) {
-        X_q.resize(n, einfo->_eii_qcov_num);
-        for (i = 0; i < n; i++) {
-            for (j = 0; j < einfo->_eii_qcov_num; j++) X_q(i, j) = einfo->_eii_qcov[j*einfo->_eii_num+einfo->_eii_include[i]];
+void reml( bool pred_rand_eff, bool est_fix_eff, vector<double> &reml_priors, vector<double> &reml_priors_var, bool no_constrain, int _X_c,MatrixXd &_X, VectorXd &_y,vector<MatrixXd> &_A, MatrixXd &_U, VectorXd &_eval, MatrixXd &_Vi, int reml_mtd, int reml_max_iter,VectorXd &_b,VectorXd &_se)
+    {
+        int _n=(int)_y.size(), nr=2;
+        VectorXd y_tmp = _y.array() - _y.mean();
+        double y_Ssq = y_tmp.squaredNorm() / (_n - 1.0);
+        if (!(fabs(y_Ssq) < 1e30)) {LOGPRINTF ("Error: the phenotypic variance is infinite. Please check the missing data in your phenotype file. Missing values should be represented by \"NA\" or \"-9\"."); TERMINATE();}
+        
+        bool reml_priors_flag = !reml_priors.empty(), reml_priors_var_flag = !reml_priors_var.empty();
+        if (reml_priors_flag && reml_priors.size() < nr - 1) {
+            LOGPRINTF("Error: in option --reml-priors. There are %d variance components. At least %d prior values should be specified.\n", nr,nr - 1 );
+            TERMINATE();
         }
-        LOGPRINTF("%d quantitative variable(s) included as covariate(s).\n",einfo->_eii_qcov_num);
-        _X_c += einfo->_eii_qcov_num;
-    }
-
-    // discrete covariates
-    vector<MatrixXd> X_d;
-    if (einfo->_eii_cov_num>0) {
-        vector< vector<string> > covar_tmp(einfo->_eii_cov_num);
-        for (i = 0; i < einfo->_eii_cov_num; i++) covar_tmp[i].resize(n);
-        for (i = 0; i < n; i++) {
-            for (j = 0; j < einfo->_eii_cov_num; j++) covar_tmp[j][i] = einfo->_eii_cov[j*einfo->_eii_num+einfo->_eii_include[i]];
+        if (reml_priors_var_flag && reml_priors_var.size() < _A.size() - 1) {
+            LOGPRINTF("Error: in option --reml-priors-var. There are %d variance components. At least %d prior values should be specified.\n", nr,nr - 1 );
+            TERMINATE();
         }
-        LOGPRINTF("%d discrete variable(s) included as covariate(s).\n",einfo->_eii_cov_num);
-        X_d.resize(einfo->_eii_cov_num);
-        for (i = 0; i < einfo->_eii_cov_num; i++) {
-            stringstream errmsg;
-            errmsg << "Error: too many classes for the " << i + 1 << "th discrete variable. \nPlease use the --qcovar if it is a quantitative covariate.";
-            string errmsg1 = errmsg.str();
-            errmsg.str("");
-            errmsg << "Error: the " << i + 1 << "th discrete variable has only one class.";
-            string errmsg2 = errmsg.str();
-            coeff_mat(covar_tmp[i], X_d[i], errmsg1, errmsg2);
-            _X_c += (X_d[i]).cols() - 1;
+        
+        if (_n < 10) {LOGPRINTF ("Error: sample size is too small.");exit(EXIT_FAILURE);}
+        if(!mute)
+        {
+            LOGPRINTF("%d observations, %d fixed effect(s), and %d variance component(s)(including residual variance).\n",_n,_X_c,nr);
         }
+        MatrixXd Vi_X(_n, _X_c), Xt_Vi_X_i(_X_c, _X_c), Hi(_A.size(), _A.size());
+        VectorXd Py(_n), varcmp=VectorXd::Zero(_A.size());;
+        double d_buf=0;
+        if (!reml_priors_var.empty()) {
+            for (int i = 0; i < nr - 1; i++) varcmp[i] = reml_priors_var[i];
+            if (reml_priors_var.size() < nr) varcmp[nr - 1] = y_Ssq - varcmp.sum();
+            else varcmp[nr - 1] = reml_priors_var[nr - 1];
+        }
+        else if (!reml_priors.empty()) {
+            for (int i = 0, d_buf = 0; i < nr - 1; i++) {
+                varcmp[i] = reml_priors[i] * y_Ssq;
+                d_buf += reml_priors[i];
+            }
+            if (d_buf > 1.0) throw ("\nError: --reml-priors. The sum of all prior values should not exceed 1.0.");
+            varcmp[_A.size() - 1] = (1.0 - d_buf) * y_Ssq;
+        }
+        else varcmp.setConstant(y_Ssq / nr);
+           double lgL = reml_iter( Vi_X,Xt_Vi_X_i, Hi, Py, varcmp,  reml_priors_var_flag,  no_constrain, _Vi,_U, _eval,_A, _X,_y, reml_mtd,  reml_max_iter,  y_Ssq);
+        if(remloasi)
+        {
+            reml_priors_var.clear();
+            for(int j=0;j<varcmp.size();j++)
+            {
+                reml_priors_var.push_back(varcmp[j]);
+            }
+        }
+        
+        if(remlstatus!=0 && remlstatus!=-3 && remlstatus!=-5) return;
+        
+        MatrixXd u;
+        if (pred_rand_eff) {
+            u.resize(_n, _A.size());
+            for (int i = 0; i < _A.size(); i++) {
+                 (u.col(i)) = (((_A[i]) * Py) * varcmp[i]);
+            }
+        }
+        if (est_fix_eff)
+        {
+            _b = Xt_Vi_X_i * (Vi_X.transpose() * _y);
+            _se=Xt_Vi_X_i.diagonal();
+        }
+        
+        // calculate rsq and SE
+        double Vp = 0.0, VarVp = 0.0;
+        vector<double> Hsq(_A.size() - 1), VarHsq(_A.size() - 1);
+        calcu_Vp( Vp, VarVp, varcmp, Hi);
+        for (int i = 0; i < Hsq.size(); i++) calcu_rsq( i, Vp, VarVp, Hsq[i], VarHsq[i], varcmp, Hi);
+        
+         /*
+        // output results
+        double sum_hsq = 0.0, var_sum_hsq = 0.0;
+       
+        if(!mute)
+        {
+            LOGPRINTF("\nSummary result of REML analysis:\n");
+            cout << "Source\tVariance\tSE" << setiosflags(ios::fixed) << setprecision(6) << endl;
+            
+            for (int i = 0; i < _A.size(); i++) cout << i << "\t" << varcmp[i] << "\t" << sqrt(Hi(i, i)) << endl;
+            
+                cout << "Vp\t" << Vp << "\t" << sqrt(VarVp) << endl;
+                for (int i = 0; i < Hsq.size(); i++) cout << i << "\t" << Hsq[i] << "\t" << sqrt(VarHsq[i]) << endl;
+                if (_A.size() > 2) cout << "\nSum of V(O)/Vp\t" << sum_hsq << "\t" << sqrt(var_sum_hsq) << endl;
+            
+            if (est_fix_eff) {
+                LOGPRINTF("Estimate of fixed effect %s:\n",(_X_c > 1 ? "s" : ""))
+                LOGPRINTF("\nSource\tEstimate\tSE\n");
+                for (int i = 0; i < _X_c; i++) {
+                    if (i == 0){ LOGPRINTF("mean\t");}
+                    else { LOGPRINTF( "X_%d\t", i+1);}
+                    LOGPRINTF("%f\t%f\n", _b[i] , sqrt(Xt_Vi_X_i(i, i)));
+                }
+            }
+        }
+         */
     }
-    // E factor
-    _X_c += qE_float.cols();
-    for (i = 0; i < E_float.size(); i++) _X_c += (E_float[i]).cols() - 1;
     
-    // Construct _X
-    int col = 0;
-    _X.resize(n, _X_c);
-    _X.block(0, col, n, 1) = MatrixXd::Ones(n, 1);
-    col++;
-    if (einfo->_eii_qcov_num>0) {
-        _X.block(0, col, n, X_q.cols()) = X_q;
-        col += X_q.cols();
-    }
-    for (i = 0; i < X_d.size(); i++) {
-        _X.block(0, col, n, (X_d[i]).cols() - 1) = (X_d[i]).block(0, 1, n, (X_d[i]).cols() - 1);
-        col += (X_d[i]).cols() - 1;
-    }
-    if (qE_float.cols() > 0) {
-        _X.block(0, col, n, qE_float.cols()) = qE_float;
-        col += qE_float.cols();
-    }
-    for (i = 0; i < E_float.size(); i++) {
-        _X.block(0, col, n, (E_float[i]).cols() - 1) = (E_float[i]).block(0, 1, n, (E_float[i]).cols() - 1);
-        col += (E_float[i]).cols() - 1;
-    }
-    return _X_c;
-}
-
 void detect_family(eInfo* einfo,  vector<MatrixXd> &_A)
     {
         cout<<"Detecting sub-matrix for each family from the ORM ..."<<endl;
@@ -1237,6 +1585,7 @@ void mlma_calcu_stat_covar(VectorXd &_Y, double *predictor, unsigned long n, uns
         
     }
 
+    
 void mlma_calcu_stat_covar(VectorXd &_Y, eInfo* einfo, int _X_c,  MatrixXd &_Vi,  MatrixXd &_X, VectorXd &beta, VectorXd &se, VectorXd &pval)
     {
         
@@ -1279,11 +1628,11 @@ void mlma_calcu_stat_covar(VectorXd &_Y, eInfo* einfo, int _X_c,  MatrixXd &_Vi,
                    X(j,_X_c)=0.0;
                 }
             }
-            Vi_X=_Vi*_X;
+            Vi_X=_Vi*X;
             Xt_Vi_X=X.transpose()*Vi_X;
             double logdt=0.0;
             if(!comput_inverse_logdet_LU( Xt_Vi_X, logdt)) throw("Error: Xt_Vi_X is not invertable.");
-            Xt_Vi_y=Vi_X*_Y;
+            Xt_Vi_y=Vi_X.transpose()*_Y;
             b_vec=Xt_Vi_X*Xt_Vi_y;
           
             se[i]=Xt_Vi_X(_X_c,_X_c);
@@ -1295,7 +1644,6 @@ void mlma_calcu_stat_covar(VectorXd &_Y, eInfo* einfo, int _X_c,  MatrixXd &_Vi,
             }
         }
     }
-    
     
 void mlma_calcu_stat(VectorXd &_Y, eInfo* einfo, MatrixXd &_Vi, VectorXd &beta, VectorXd &se, VectorXd &pval)
     {

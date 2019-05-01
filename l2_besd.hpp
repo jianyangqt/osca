@@ -90,6 +90,7 @@ namespace SMR {
     void smr_epi_man(eqtlInfo* eqtlinfo,char* problstName,char* problst2exclde,char* genelistName, int chr, int probchr, char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* probe2exclde);
     void get_BesdHeaders(char* besdFileName, vector<int> &headers);
     void read_gwas_data(gwasData* gdata, char* gwasFileName);
+    void read_ewas_data(gwasData* gdata, char* ewasFileName);
     void write_smr_esi(char* outFileName, eqtlInfo* eqtlinfo);
     void write_smr_epi(char* outFileName, eqtlInfo* eqtlinfo);
     void write_s2s_besd(char* outFileName, eqtlInfo* eqtlinfo, bool tosmrflag=false);
