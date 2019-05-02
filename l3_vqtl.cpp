@@ -1561,7 +1561,7 @@ namespace VQTL {
                     MatrixXd _Vi;
                     VectorXd _b,_se;
                     vector<double> reml_priors,reml_priors_var;
-                    mute=true;
+                
                     reml( false, true, reml_priors, reml_priors_var,  no_constrain,  _X_c,_Cov, y,_A, U, eval, _Vi,  reml_mtd,  MaxIter,_b,_se);
                     if(remlstatus==0 || remlstatus==-5 || (remlstatus==-3))
                     {
@@ -1573,7 +1573,7 @@ namespace VQTL {
                             uint32_t snpid=snpids[kk];
                             double snpfreq=bdata._mu[bdata._include[snpid]]/2;
                             if(snpfreq==0 || snpfreq==1) {
-                                if(!mute && !warned) {LOGPRINTF("WARNING: MAF found 0 or 1 with SNP(s). These results would be labeled as missing.\n"); warned=1;}
+                                if(loud && !warned) {LOGPRINTF("WARNING: MAF found 0 or 1 with SNP(s). These results would be labeled as missing.\n"); warned=1;}
                                 missing=true;
                                 continue;
                             }
@@ -1596,7 +1596,7 @@ namespace VQTL {
                     }
                     else
                     {
-                        if(!mute) printf("WARNING: OREML failed in probe %s.\n ", prbid.c_str());
+                        if(loud) printf("WARNING: OREML failed in probe %s.\n ", prbid.c_str());
                         rowids[jj].clear();
                         betas[jj].clear();
                         ses[jj].clear();
@@ -1668,7 +1668,7 @@ namespace VQTL {
                         MatrixXd _Vi;
                         VectorXd _b,_se;
                         vector<double> reml_priors,reml_priors_var;
-                        mute=true;
+                   
                         reml( false, true, reml_priors, reml_priors_var,  no_constrain,  _X_c,_Cov, y,_A, U, eval, _Vi,  reml_mtd,  MaxIter,_b,_se);
                         if(remlstatus==0 || remlstatus==-5 || (remlstatus==-3))
                         {
@@ -1686,7 +1686,7 @@ namespace VQTL {
                                 if(snpchr==prbchr && snpbp>=cisstart && snpbp<=cisend)
                                 {
                                     if(snpfreq==0 || snpfreq==1) {
-                                        if(!mute && !warned) {LOGPRINTF("WARNING: MAF found 0 or 1 with SNP(s). These results would be labeled as missing.\n"); warned=1;}
+                                        if(loud && !warned) {LOGPRINTF("WARNING: MAF found 0 or 1 with SNP(s). These results would be labeled as missing.\n"); warned=1;}
                                         missing=true;
                                         continue;
                                     }
@@ -1708,7 +1708,7 @@ namespace VQTL {
                         }
                         else
                         {
-                            if(!mute) printf("WARNING: OREML failed in probe %s.\n ", prbid.c_str());
+                            if(loud) printf("WARNING: OREML failed in probe %s.\n ", prbid.c_str());
                             rowids[idx[ii][i]].clear();
                             betas[idx[ii][i]].clear();
                             ses[idx[ii][i]].clear();

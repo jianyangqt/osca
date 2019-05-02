@@ -1490,7 +1490,7 @@ namespace EFILE {
         for(int j=0; j<m; j++)
             if(nonmiss(j)<n)
             {
-                if(!mute)
+                if(loud)
                 {
                     LOGPRINTF("Note: missing values are replaced by the mean of a probe.\n");
                 }
@@ -2678,7 +2678,7 @@ namespace EFILE {
         }
         MatrixXd _probe_data;
         string typestr=getFileType(einfo->_eType);
-        if(!mute)
+        if(loud)
         {
             LOGPRINTF("Recoding %s data...\n",typestr.c_str());
         }
@@ -2713,7 +2713,7 @@ namespace EFILE {
         fclose(tmpfile);
         */
 
-        if(!mute)
+        if(loud)
         {
             LOGPRINTF("Calculating Omics Relationship Matrix (ORM) ...\n");
         }
@@ -3505,10 +3505,10 @@ namespace EFILE {
         MatrixXd _X;
         int _X_c;
         _X_c=construct_X(einfo, E_float, qE_float,_X);
-        //if(!mute) {LOGPRINTF("\nAdjusting probes...\n");}
+        //if(loud) {LOGPRINTF("\nAdjusting probes...\n");}
         for(int i=0;i<einfo->_epi_include.size();i++)
         {
-            if(!mute)
+            if(loud)
             {
             printf("%3.0f%%\r", 100.0*i/einfo->_epi_include.size());
             fflush(stdout);
@@ -3554,7 +3554,7 @@ namespace EFILE {
             VectorXd residual=(x-X*b_hat);
             for(int j=0;j<residual.size();j++) einfo->_val[einfo->_epi_include[i]*einfo->_eii_num+NMISS[j]]=residual(j);
         }
-        //if(!mute) {LOGPRINTF("%ld probes have been adjusted.\n",einfo->_epi_include.size());}
+        //if(loud) {LOGPRINTF("%ld probes have been adjusted.\n",einfo->_epi_include.size());}
     }
     bool check_case_control(double &ncase,  VectorXd &y) {
         long n = y.size();

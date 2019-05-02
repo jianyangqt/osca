@@ -568,7 +568,6 @@ namespace EFILE
                 if(_X_PC.cols()==0)
                 {
                     make_erm( &einfo,erm_alg); //use the whole
-                    mute = true;
                     SelfAdjointEigenSolver<MatrixXd> eigensolver(einfo._grm.cast<double>());
                     evec = (eigensolver.eigenvectors());
                     VectorXd eval = eigensolver.eigenvalues();
@@ -856,7 +855,6 @@ namespace EFILE
         
         memcpy(suffix,".bod",5);
         read_beed(inputname,&einfo); // eii and epi are updated in it.
-        mute = true;
         stdprobe(&einfo);
         if(einfo._eType==0 && expect_wind==50) expect_wind=100;
         map<string, int>::iterator iter;
@@ -881,20 +879,22 @@ namespace EFILE
         int _X_c;
         _X_c=construct_X(&einfo, E_float, qE_float,_X); //_X has the dimension of [einfo._eii_include.size(),_X_c]
         
+         /*
         //LOGPRINTF("Performing principal component analysis ...\n");
         make_erm( &einfo,erm_alg); //use the whole
         SelfAdjointEigenSolver<MatrixXd> eigensolver(einfo._grm.cast<double>());
         MatrixXd evec = (eigensolver.eigenvectors());
         VectorXd eval = eigensolver.eigenvalues();
-        //if(einfo._epi_include.size()<=einfo._eii_include.size())
         if(einfo._epi_include.size()<=expect_pcs)
         {
             LOGPRINTF("WARNING: probe number is too few for PCs...\n");
             expect_pcs = (int)einfo._epi_include.size();
         }
+         
         MatrixXd _PCs = evec.block(0,evec.cols()-expect_pcs, evec.rows(),expect_pcs);
         MatrixXd _X_PC(_X.rows(), _X.cols()+expect_pcs);
         _X_PC << _X, _PCs;
+        */
         
         vector< vector<int> > mapids;
         vector< vector<string> > erm_prbs;
@@ -960,6 +960,7 @@ namespace EFILE
             }
             else if(nrandcomp==3)
             {
+                // for test only
                 double bonthresh=0.05/assoc_rlts.size();
                 
                 for(int k=(int)(assoc_rlts.size()-1);k>=0;k--)
@@ -1066,6 +1067,7 @@ namespace EFILE
         
         long lrcount=0, wcount=0;
         int outid=0;
+        /*
         if(approximate_flag)
         {
             // bonfferoni for componets and setwise for excluding the targets
@@ -1081,6 +1083,7 @@ namespace EFILE
                 for(int j=0; j<rmsig.size();j++) mapids[0][j+slcted.size()]=rmsig[j];
                 expect_num=(int)slcted.size();
         }
+         */
         if(expect_num<0) expect_num = (int)mapids[outid].size();
         long num2exp=expect_num>mapids[outid].size()?mapids[outid].size():expect_num;
         
@@ -1183,10 +1186,10 @@ namespace EFILE
                 if(within_family) detect_family(&einfo, _A);
                 MatrixXd _Vi;
                 remlstatus=0; //reset reml status
-                //if(norms) reml(&einfo, false, true, reml_priors, reml_priors_var, -2.0, -2.0, no_constrain, true, true, _X_c+1, X,_y,_A,_Vi,outFileName); //exact model
+                //if(norms) reml(&einfo, false, true, reml_priors, reml_priors_var, -2.0, -2.0, no_constrain, true, true, _X_c+1, X,_y,_A,_Vi,outFileName); //exact model for test
                 if(norms) reml(&einfo, false, true, reml_priors, reml_priors_var, -2.0, -2.0, no_constrain, true, true, _X_c, _X,_y,_A,_Vi,outFileName); // null model
-                double beta, se, pval;
-                if(norms && (remlstatus==0  || remlstatus==-5 || (remlstatus==-3 && force_mlm)))
+                double beta=0, se=-9, pval=1;
+                if(norms && (remlstatus==0  || remlstatus==-5 || remlstatus==-3 ))
                 {
                     einfo._P.resize(0,0);
                     _A.clear();
@@ -1202,26 +1205,13 @@ namespace EFILE
                 else
                 {
                     if(remlstatus==-1) {
-                        LOGPRINTF("\nThe matrix is not invertible, ");
+                        LOGPRINTF("ERROR: The matrix is not invertible.\n");
                     } else if(remlstatus==-2) {
-                        LOGPRINTF("\nMore than half of the variance components are constrained, ");
-                    } else if(remlstatus==-3) {
-                        LOGPRINTF("\nVariance component going to 0 or 1, ");
+                        LOGPRINTF("ERROR: More than half of the variance components are constrained.\n");
                     }else if(remlstatus==-4) {
-                        LOGPRINTF("\nLog-likelihood not converged, ");
-                    }/*
-                    else if(remlstatus==-5) {
-                        LOGPRINTF("\nOne or more of the variance components are constrained, ");
-                    }*/
-                    if(i==lrcount && lrcount>=10)
-                    {
-                        expect_num=i;
-                        break;
+                        LOGPRINTF("ERROR:Log-likelihood not converged.\n");
                     }
-                    //LOGPRINTF("\nPerforming association analysis with %d PCs ...\n",expect_pcs);
-                    VectorXd y_buf=_y;
-                    LR(y_buf, x_buf, _X_PC, beta, se, pval);
-                    lrcount++;
+                    TERMINATE();
                 }
                 string chrstr;
                 if(targetChr==23) chrstr="X";
@@ -1234,7 +1224,7 @@ namespace EFILE
                     TERMINATE();
                 }
                 wcount++;
-            }
+        }
         vector<int> leftids;
         if(mapids[outid].size()>expect_num)
             for(int i=expect_num;i<mapids[outid].size();i++)
@@ -1265,10 +1255,9 @@ namespace EFILE
         remlstatus=0; //reset reml status
         remloasi = false;
         reml_priors_var.clear();
-        mute=false;
         reml(&einfo, false, true, reml_priors, reml_priors_var, -2.0, -2.0, no_constrain, true, true, _X_c, _X,_y,A0,_Vi,outFileName);
         
-        if( (remlstatus==0 || (remlstatus==-3 && force_mlm)))
+        if( (remlstatus==0 || remlstatus==-3  || remlstatus==-5 ))
         {
             double beta, se, pval;
             VectorXd y_buf=_y;
@@ -1328,79 +1317,15 @@ namespace EFILE
             }
         else
         {
-                erm_prbs[outid].clear();
-                for(int i=0;i<leftids.size();i++)
-                {
-                    int id=leftids[i];
-                    erm_prbs[outid].push_back(assoc_rlts[id].PROBE);
-                }
-                update_map_kp(erm_prbs[outid], einfo._epi_map, einfo._epi_include);
-                long maxpc2test = (evec.cols()>128)?64:(evec.cols()>>1);
-                long pc2test = (maxpc2test>2)?2:maxpc2test;
-                long regionL = pc2test, regionR=pc2test;
-                vector<ASSOCRLT> out_rlts, otemp;
-                double outlambda=1e6;
-                while(pc2test <= maxpc2test)
-                {
-                    LOGPRINTF("\nPerforming association analysis with %ld PCs ...\n",pc2test);
-                    double upperlambda=1+lambda_wind;
-                    double lowerlambda=(1-lambda_wind)>0?(1-lambda_wind):0;
-                    MatrixXd _X_PC = evec.block(0,evec.cols()-pc2test, evec.rows(),pc2test);
-                    if(fastlinear) testLinear_fast(otemp,NULL, &einfo,_X_PC);
-                    else testLinear(otemp,NULL, &einfo,_X_PC);
-                    double lambda=get_lambda(otemp);
-                    LOGPRINTF("The lambda for %ld PCs is %f.\n",pc2test, lambda);
-                    double curdis=abs(1-lambda);
-                    double predis= abs(1-outlambda);
-                    if( curdis < predis)
-                    {
-                        out_rlts = otemp;
-                        outlambda = lambda;
-                        LOGPRINTF("The lambda for %ld PCs is most close to 1.\n",pc2test);
-                    }
-                    if(lambda>upperlambda)
-                    {
-                        regionL=pc2test;
-                        if(regionR==pc2test)
-                        {
-                            pc2test*=2;
-                            regionR=pc2test;
-                        } else {
-                            pc2test=(regionR+regionL)/2;
-                        }
-                        if(pc2test==regionL || pc2test>maxpc2test) break;
-                    }
-                    else if(lambda<lowerlambda)
-                    {
-                        regionR=pc2test;
-                        if(regionL==pc2test)
-                        {
-                            pc2test/=2;
-                            regionL=pc2test;
-                        } else {
-                            pc2test=(regionR+regionL)/2;
-                        }
-                        if(pc2test==regionR) break;
-                        
-                    }
-                    else break;
-                }
-                for(int k=0;k<out_rlts.size();k++)
-                {
-                    string chrstr;
-                    if(out_rlts[k].CHR==23) chrstr="X";
-                    else if(out_rlts[k].CHR==24) chrstr="Y";
-                    else chrstr=atosm(out_rlts[k].CHR);
-                    outstr = chrstr + '\t' + out_rlts[k].PROBE + '\t' + atosm(out_rlts[k].BP) + '\t' + atos(out_rlts[k].GENE) + '\t' + atos(out_rlts[k].OREN) + '\t' + atos(out_rlts[k].BETA) + '\t' + atos(out_rlts[k].SE) + '\t' + dtos(out_rlts[k].PVAL)  +'\n';
-                    if(fputs_checked(outstr.c_str(),ofile))
-                    {
-                        LOGPRINTF("ERROR: in writing file %s .\n", filename.c_str());
-                        TERMINATE();
-                    }
-                    wcount++;
-                }
-                free_assoclist(otemp);
+            if(remlstatus==-1) {
+                LOGPRINTF("ERROR: The matrix is not invertible.\n");
+            } else if(remlstatus==-2) {
+                LOGPRINTF("ERROR: More than half of the variance components are constrained.\n");
+            }else if(remlstatus==-4) {
+                LOGPRINTF("ERROR:Log-likelihood not converged.\n");
             }
+            TERMINATE();
+        }
         LOGPRINTF("Results of %ld probes have been saved in file %s.\n",wcount,filename.c_str());
         fclose(ofile);
         free_assoclist(assoc_rlts);
@@ -1508,9 +1433,10 @@ namespace EFILE
         int _X_c;
         _X_c=construct_X(&einfo, E_float, qE_float,_X); //_X has the dimension of [einfo._eii_include.size(),_X_c]
         
+        /*
         //LOGPRINTF("Performing principal component analysis ...\n");
         make_erm( &einfo,erm_alg); //use the whole
-        mute = true;
+     
         SelfAdjointEigenSolver<MatrixXd> eigensolver(einfo._grm.cast<double>());
         MatrixXd evec = (eigensolver.eigenvectors());
         VectorXd eval = eigensolver.eigenvalues();
@@ -1523,7 +1449,7 @@ namespace EFILE
         MatrixXd _PCs = evec.block(0,evec.cols()-expect_pcs, evec.rows(),expect_pcs);
         MatrixXd _X_PC(_X.rows(), _X.cols()+expect_pcs);
         _X_PC << _X, _PCs;
-        
+        */
         
         vector< vector<int> > mapids;
         vector< vector<string> > erm_prbs;
@@ -1853,7 +1779,7 @@ namespace EFILE
             MatrixXd _Vi;
             remlstatus=0; //reset reml status
             if(norms) reml(&einfo, false, true, reml_priors, reml_priors_var, -2.0, -2.0, no_constrain, true, true, _X_c, X,_y,_A,_Vi,outFileName);
-            if(remlstatus==0 || remlstatus==-5 || (remlstatus==-3 && force_mlm))
+            if(remlstatus==0 || remlstatus==-5 || remlstatus==-3)
             {
                 beta=einfo._b[_X_c-1];
                 se=sqrt(einfo._se(_X_c-1));
@@ -1861,10 +1787,14 @@ namespace EFILE
             }
             else
             {
-                //probes which failed in REML
-                VectorXd y_buf=_y;
-                double pval;
-                LR(y_buf, x, _X_PC, beta, se, pval);
+                if(remlstatus==-1) {
+                    LOGPRINTF("ERROR: The matrix is not invertible.\n");
+                } else if(remlstatus==-2) {
+                    LOGPRINTF("ERROR: More than half of the variance components are constrained.\n");
+                }else if(remlstatus==-4) {
+                    LOGPRINTF("ERROR:Log-likelihood not converged.\n");
+                }
+                TERMINATE();
             }
             double chisq=beta/se;
             double pval=pchisq(chisq*chisq, 1);

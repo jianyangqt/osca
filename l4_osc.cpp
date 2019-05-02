@@ -15,7 +15,7 @@ int main(int argc, char * argv[])
 {
     cout << "*******************************************************************" << endl;
     cout << "* OmicS-data-based Complex trait Analysis (OSCA)" << endl;
-    cout << "* version 0.43" << endl;
+    cout << "* version 0.60" << endl;
     cout << "* (C) 2016 Futao Zhang, Zhihong Zhu and Jian Yang" << endl;
     cout << "* The University of Queensland" << endl;
     cout << "* MIT License" << endl;
@@ -278,7 +278,6 @@ void option(int option_num, char* option_str[])
     bool fastlinear =false;
     bool nofastlinear =false;
     
-    bool bcflag=false;
     int slctmtd =0; //0 for linear, 1 for MOA
     double momentpercent = -9;
     //int bc_mth=0; // 0 for bonferroni, 1 for variance bin, 2 for seperating ORM
@@ -753,11 +752,11 @@ void option(int option_num, char* option_str[])
             FileExist(simu_causal);
             LOGPRINTF("--simu-causal-loci %s\n",simu_causal);
         }
-        if (strcmp(option_str[i], "--simu-hsq") == 0) { //heritability
+        if (strcmp(option_str[i], "--simu-rsq") == 0) { //heritability
             simu_h2 = atof(option_str[++i]);
-            LOGPRINTF("--simu-hsq %f\n", simu_h2);
+            LOGPRINTF("--simu-rsq %f\n", simu_h2);
             if (simu_h2 > 1.0 || simu_h2 < 0.0) {
-                LOGPRINTF("Error: --simu-h2 should be within the range from 0 to 1.\n");
+                LOGPRINTF("Error: --simu-rsq should be within the range from 0 to 1.\n");
                 TERMINATE();
             }
         }
@@ -1277,22 +1276,6 @@ void option(int option_num, char* option_str[])
             nofastlinear=true;
             LOGPRINTF("--no-fast-linear \n");
         }
-        
-        if(0==strcmp(option_str[i],"--bc")){
-            bcflag=true;
-            LOGPRINTF("--bc \n");
-        }
-        /*
-         //disabled
-        if(0==strcmp(option_str[i],"--bc-mth")){
-            bc_mth=atoi(option_str[++i]);
-            LOGPRINTF( "--bc-mth %d\n",  bc_mth);
-            if (bc_mth <0 || bc_mth > 2) {
-                LOGPRINTF("\nError: --bc-mth should be 0,1 or 2.\n");
-                TERMINATE();
-            }
-        }
-         */
         if(0==strcmp(option_str[i],"--force-mlm")){
             force_mlm=true;
             LOGPRINTF("--force-mlm \n");
@@ -1413,11 +1396,11 @@ void option(int option_num, char* option_str[])
             FileExist(simu_causal2);
             LOGPRINTF("--simu-causal-loci2 %s\n",simu_causal2);
         }
-        if (strcmp(option_str[i], "--simu-hsq2") == 0) { //heritability
+        if (strcmp(option_str[i], "--simu-rsq2") == 0) { //heritability
             simu_h22 = atof(option_str[++i]);
-            LOGPRINTF("--simu-hsq2 %f\n", simu_h22);
+            LOGPRINTF("--simu-rsq2 %f\n", simu_h22);
             if (simu_h22 > 1.0 || simu_h22 < 0.0) {
-                LOGPRINTF("Error: --simu-h22 should be within the range from 0 to 1.\n");
+                LOGPRINTF("Error: --simu-rsq2 should be within the range from 0 to 1.\n");
                 TERMINATE();
             }
         }
@@ -1438,7 +1421,7 @@ void option(int option_num, char* option_str[])
             }
             LOGPRINTF("--feature-slct-mtd %d\n",slctmtd);
         }
-        if (strcmp(option_str[i], "--moment-percent") == 0) { //heritability
+        if (strcmp(option_str[i], "--moment-percent") == 0) {
             momentpercent = atof(option_str[++i]);
             LOGPRINTF("--moment-percent %f\n", momentpercent);
             if (momentpercent > 1.0 || momentpercent < 0.0) {
@@ -1472,7 +1455,11 @@ void option(int option_num, char* option_str[])
         }
         if(0==strcmp(option_str[i],"--simu-reverse")){
             rev_simu=true;
-            LOGPRINTF("--simu-reversen \n");
+            LOGPRINTF("--simu-reverse \n");
+        }
+        if(0==strcmp(option_str[i],"--loud")){
+            loud=true;
+            LOGPRINTF("--loud \n");
         }
     }
 
@@ -1497,10 +1484,9 @@ void option(int option_num, char* option_str[])
     else if(make_erm_flag) make_erm(outfileName, efileName,befileName, erm_file, problstName, problst2exclde, genelistName,  chr,prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName, indilst2remove,phenofileName,mpheno,erm_bin_flag, erm_alg, beta2m, m2beta,std_thresh,upperBeta,lowerBeta, transposedin, efileType, no_fid_flag, valueType,erm_cutoff,erm_cutoff_2sides, m_erm_flag);
      else if(mlma_exact_flag) moa(outfileName, befileName, problstName, problst2exclde, genelistName,  chr,prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName, indilst2remove,phenofileName,mpheno, erm_bin_flag,  erm_alg,  covfileName, qcovfileName,  erm_file,  subtract_erm_file,  m_erm_flag,priors,priors_var,no_constrain,reml_mtd,MaxIter,reml_fixed_var_flag,reml_force_inv_fac_flag,reml_force_converge_flag, reml_no_converge_flag, mlma_preadj_covar,force_mlm, tsk_ttl, tsk_id);
     else if(moment_exact_flag) moment_exact(outfileName, befileName,problstName,problst2exclde, genelistName, chr, prbname,  fromprbname, toprbname, prbWind, fromprbkb,toprbkb, prbwindFlag,  genename, probe2rm, indilstName, indilst2remove,  phenofileName, mpheno,  covfileName, qcovfileName,  within_family, priors, priors_var,  no_constrain, reml_mtd, MaxIter, reml_fixed_var_flag, reml_force_inv_fac_flag,  reml_force_converge_flag,   reml_no_converge_flag,  mlma_preadj_covar, lambda_wind,  fastlinear, force_mlm, bcthresh, moment_wind,moment_pcs, nrandcomp, slctmtd,r2thresh,momentpercent,approximate_stepwise,erm_alg,swthresh,tsk_ttl, tsk_id);
-     else if(bcflag) moment2(outfileName, befileName,problstName,problst2exclde, genelistName, chr, prbname,  fromprbname, toprbname, prbWind, fromprbkb,toprbkb, prbwindFlag,  genename, probe2rm, indilstName, indilst2remove,  phenofileName, mpheno,  covfileName, qcovfileName,  within_family, priors, priors_var,  no_constrain, reml_mtd, MaxIter, reml_fixed_var_flag, reml_force_inv_fac_flag,  reml_force_converge_flag,   reml_no_converge_flag,  mlma_preadj_covar, lambda_wind,  fastlinear, force_mlm, bcthresh, moment_wind, moment_num,moment_pcs,r2thresh,erm_alg);
     else if(moment_flag) moment(outfileName, befileName,problstName,problst2exclde, genelistName, chr, prbname,  fromprbname, toprbname, prbWind, fromprbkb,toprbkb, prbwindFlag,  genename, probe2rm, indilstName, indilst2remove,  phenofileName, mpheno,  covfileName, qcovfileName,  within_family, priors, priors_var,  no_constrain, reml_mtd, MaxIter, reml_fixed_var_flag, reml_force_inv_fac_flag,  reml_force_converge_flag,   reml_no_converge_flag,  mlma_preadj_covar, lambda_wind,  fastlinear, force_mlm, bcthresh, moment_wind, moment_num,moment_pcs, nrandcomp, slctmtd,r2thresh,momentpercent,approximate_flag,approximate_stepwise,erm_alg,swthresh);
     else if(mlma_flag) mlma(outfileName, befileName, problstName, problst2exclde, genelistName,  chr,prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName, indilst2remove,phenofileName,mpheno, erm_bin_flag,  erm_alg,  covfileName, qcovfileName,  erm_file,  subtract_erm_file,  m_erm_flag,within_family,priors,priors_var,no_constrain,reml_mtd,MaxIter,reml_fixed_var_flag,reml_force_inv_fac_flag,reml_force_converge_flag, reml_no_converge_flag, mlma_preadj_covar,percentage_out, lambda_wind,fastlinear,force_mlm);
-    else if(pca_flag) pca(outfileName, erm_file, indilstName, indilst2remove,  erm_cutoff,erm_cutoff_2sides, m_erm_flag,  out_pc_num);
+    else if(pca_flag) pca(outfileName, efileName,befileName, erm_file, problstName, problst2exclde, genelistName,  chr,prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName, indilst2remove,phenofileName,mpheno,erm_bin_flag, erm_alg, beta2m, m2beta,std_thresh,upperBeta,lowerBeta, transposedin, efileType, no_fid_flag, valueType,erm_cutoff,erm_cutoff_2sides, m_erm_flag,  out_pc_num);
     else if(diffflag) diff(befileName,befileName2);
     else if(update_epi_file_flag) update_epifile(befileName, epifname);
     else if(refacotr_flag) getRefactor(outfileName, befileName,problstName, problst2exclde, genelistName,  chr, prbname, fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm,indilstName,indilst2remove, covfileName, qcovfileName, celltype_num,dmr_num,out_pc_num);

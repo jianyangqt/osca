@@ -80,7 +80,7 @@ extern int remlstatus;
 extern uintptr_t wkspace_left;
 extern bool prt_mid_rlt;
 
-extern bool mute;
+extern bool loud;
 extern bool remloasi;
 extern void logprintb();
 extern void TERMINATE();

@@ -715,7 +715,7 @@ void constrain_rg(eInfo* einfo, VectorXd &varcmp) {
             // output log
             if (!no_constrain) constrain_num = constrain_varcmp( y_Ssq, varcmp);
            
-            if(!mute)
+            if(loud)
             {
                 if (iter > 0) {
                     //cout << iter << "\t" << setiosflags(ios::fixed) << setprecision(2) << lgL << "\t";
@@ -745,7 +745,7 @@ void constrain_rg(eInfo* einfo, VectorXd &varcmp) {
             }
             if (constrain_num * 2 > _A.size())
             {
-                if(!mute) {LOGPRINTF("Error: analysis stopped because more than half of the variance components are constrained. The result would be unreliable.\n Please have a try to add the option --reml-no-constrain.\n");}
+                if(loud) {LOGPRINTF("Error: analysis stopped because more than half of the variance components are constrained. The result would be unreliable.\n Please have a try to add the option --reml-no-constrain.\n");}
                 remlstatus = -2;
                 return lgL;
             }
@@ -779,7 +779,7 @@ void constrain_rg(eInfo* einfo, VectorXd &varcmp) {
         }
             if(converged_flag)
             {
-                if(!mute) {LOGPRINTF( "Log-likelihood ratio converged.\n" );}
+                if(loud) {LOGPRINTF( "Log-likelihood ratio converged.\n" );}
             }
             else
             {
@@ -810,7 +810,7 @@ double reml_iteration(eInfo* einfo, MatrixXd &Vi_X, MatrixXd &Xt_Vi_X_i, MatrixX
         if (iter == 0) {
             prev_varcmp = varcomp_init;
             if (prior_var_flag){
-                if(!mute)
+                if(loud)
                 {
                     if(einfo->_reml_fixed_var) cout << "Variance components are fixed at: " << varcmp.transpose() << endl;
                     else cout << "Prior values of variance components: " << varcmp.transpose() << endl;
@@ -818,7 +818,7 @@ double reml_iteration(eInfo* einfo, MatrixXd &Vi_X, MatrixXd &Xt_Vi_X_i, MatrixX
             }
             else {
                 einfo->_reml_mtd = 2;
-                if(!mute)
+                if(loud)
                 {
                     LOGPRINTF("Calculating prior values of variance components by EM-REML ...\n");
                 }
@@ -826,7 +826,7 @@ double reml_iteration(eInfo* einfo, MatrixXd &Vi_X, MatrixXd &Xt_Vi_X_i, MatrixX
         }
         if (iter == 1) {
             einfo->_reml_mtd = reml_mtd_tmp;
-            if(!mute)
+            if(loud)
             {
                 LOGPRINTF("Running %s algorithm ...\nIter.\tlogL\t",mtd_str[einfo->_reml_mtd]);
                 for (i = 0; i < einfo->_r_indx.size(); i++) {LOGPRINTF("%s\t",einfo->_var_name[einfo->_r_indx[i]].c_str())};
@@ -863,7 +863,7 @@ double reml_iteration(eInfo* einfo, MatrixXd &Vi_X, MatrixXd &Xt_Vi_X_i, MatrixX
         // output log
         if (!no_constrain) constrain_num = constrain_varcmp(einfo, varcmp);
         if (einfo->_bivar_reml && !einfo->_bivar_no_constrain) constrain_rg(einfo, varcmp);
-        if(!mute)
+        if(loud)
         {
             if (iter > 0) {
                 //cout << iter << "\t" << setiosflags(ios::fixed) << setprecision(2) << lgL << "\t";
@@ -945,14 +945,14 @@ double reml_iteration(eInfo* einfo, MatrixXd &Vi_X, MatrixXd &Xt_Vi_X_i, MatrixX
     }
     else {
         if(converged_flag) {
-            if(!mute)
+            if(loud)
             {
                 LOGPRINTF( "Log-likelihood ratio converged.\n" );
             }
         }
         else {
             if(einfo->_reml_force_converge || einfo->_reml_no_converge) {
-                if(!mute)
+                if(loud)
                 {
                     LOGPRINTF( "Warning: Log-likelihood not converged. Results are not reliable.\n" );
                 }
@@ -1191,13 +1191,13 @@ void reml( eInfo* einfo, bool pred_rand_eff, bool est_fix_eff, vector<double> &r
          LOGPRINTF("Error: in option --reml-priors-var. There are %ld variance components. At least %ld prior values should be specified.\n", einfo->_r_indx.size(),einfo->_r_indx.size() - 1 );
         TERMINATE();
     }
-    if(!mute)
+    if(loud)
     {
         LOGPRINTF("\nPerforming %s REML analysis ...\n",(einfo->_bivar_reml ? "bivariate" : ""));
     }
     
     if (_n < 10) {LOGPRINTF ("Error: sample size is too small.");exit(EXIT_FAILURE);}
-    if(!mute)
+    if(loud)
     {
     LOGPRINTF("%d observations, %d fixed effect(s), and %ld variance component(s)(including residual variance).\n",_n,_X_c,einfo->_r_indx.size());
     }
@@ -1261,7 +1261,7 @@ void reml( eInfo* einfo, bool pred_rand_eff, bool est_fix_eff, vector<double> &r
     // output results
     double sum_hsq = 0.0, var_sum_hsq = 0.0;
     if (!einfo->_bivar_reml && einfo->_r_indx.size() > 2) calcu_sum_hsq(einfo, Vp, VarVp, sum_hsq, var_sum_hsq, varcmp, Hi);
-    if(!mute)
+    if(loud)
     {
         LOGPRINTF("\nSummary result of REML analysis:\n");
         cout << "Source\tVariance\tSE" << setiosflags(ios::fixed) << setprecision(6) << endl;
@@ -1381,7 +1381,7 @@ void reml( eInfo* einfo, bool pred_rand_eff, bool est_fix_eff, vector<double> &r
         for (i = 0; i < _X_c; i++) o_reml << setprecision(6) << einfo->_b[i] << "\t" << sqrt(Xt_Vi_X_i(i, i)) << endl;
         o_reml.close();
     }
-    if(!mute)
+    if(loud)
     {
         cout << "\nSummary result of REML analysis has been saved in the file [" + reml_rst_file + "]." << endl;
     }
@@ -1419,7 +1419,7 @@ void reml( bool pred_rand_eff, bool est_fix_eff, vector<double> &reml_priors, ve
         }
         
         if (_n < 10) {LOGPRINTF ("Error: sample size is too small.");exit(EXIT_FAILURE);}
-        if(!mute)
+        if(loud)
         {
             LOGPRINTF("%d observations, %d fixed effect(s), and %d variance component(s)(including residual variance).\n",_n,_X_c,nr);
         }
@@ -1475,7 +1475,7 @@ void reml( bool pred_rand_eff, bool est_fix_eff, vector<double> &reml_priors, ve
         // output results
         double sum_hsq = 0.0, var_sum_hsq = 0.0;
        
-        if(!mute)
+        if(loud)
         {
             LOGPRINTF("\nSummary result of REML analysis:\n");
             cout << "Source\tVariance\tSE" << setiosflags(ios::fixed) << setprecision(6) << endl;

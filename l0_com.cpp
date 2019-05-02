@@ -18,7 +18,7 @@ long long mem_left=0;
 char logbuf[MAX_LINE_SIZE];
 char Tbuf[MAX_LINE_SIZE];
 bool prt_mid_rlt=false;
-bool mute = false;
+bool loud = false;
 int MOMENT_APPROX = 0x0;
 bool remloasi = true;
 struct IncGenerator {

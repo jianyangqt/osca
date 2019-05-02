@@ -630,7 +630,6 @@ namespace EFILE {
             VectorXd y_buf=_y;
             
                 y_buf=_y.array()-(_X*einfo->_b).array(); // adjust phenotype for covariates
-                mute=true;
                 if(einfo->_eii_qcov_num>0 || einfo->_eii_cov_num>0) adjprobe(einfo);
             
             
@@ -733,6 +732,7 @@ namespace EFILE {
         
         memcpy(suffix,".bod",5);
         read_beed(inputname,&einfo); // eii and epi are updated in it.
+        stdprobe(&einfo);
         
         vector<string> grm_id;
         vector<string> erm_files;
@@ -928,7 +928,7 @@ namespace EFILE {
         LOGPRINTF("\nPerforming MLMA analyses %s ...\n",(subtract_erm_file?"":" (including the candidate probes)"));
         MatrixXd _Vi;
         reml(&einfo, false, true, reml_priors, reml_priors_var, -2.0, -2.0, no_constrain, true, true, _X_c, _X,_y,_A,_Vi,outFileName);
-        if(remlstatus==0 || (remlstatus==-3 && force_mlm))
+        if(remlstatus == 0 || remlstatus == -3 || remlstatus == -5 )
         {
             einfo._P.resize(0,0);
             _A.clear();
@@ -937,14 +937,12 @@ namespace EFILE {
             VectorXd y_buf=_y;
             if(_X_c==1 || mlma_preadj_covar){
                 y_buf=_y.array()-(_X*einfo._b).array(); // adjust phenotype for covariates
-                mute=true;
                 if(einfo._eii_qcov_num>0 || einfo._eii_cov_num>0) adjprobe(&einfo);
             }
             
             VectorXd beta, se, pval;
             if(_X_c==1 || mlma_preadj_covar) mlma_calcu_stat(y_buf, &einfo, _Vi, beta, se, pval);
             else mlma_calcu_stat_covar(y_buf, &einfo, _X_c, _Vi, _X, beta, se, pval);
-            
             
             string filename=string(outFileName)+".mlma";
             LOGPRINTF("\nSaving the association analysis results of %ld probes to %s ...\n",m,filename.c_str());
@@ -964,120 +962,17 @@ namespace EFILE {
             }
             ofile.close();
 
-        } else {
+        }
+        else
+        {
             if(remlstatus==-1) {
-                LOGPRINTF("\nThe matrix is not invertible, ");
+                LOGPRINTF("ERROR: The matrix is not invertible.\n");
             } else if(remlstatus==-2) {
-                LOGPRINTF("\nMore than half of the variance components are constrained, ");
-            } else if(remlstatus==-3) {
-                LOGPRINTF("\nVariance component going to 0 or 1, ");
+                LOGPRINTF("ERROR: More than half of the variance components are constrained.\n");
             }else if(remlstatus==-4) {
-                LOGPRINTF("\nLog-likelihood not converged, ");
-            }else if(remlstatus==-5) {
-                LOGPRINTF("\nOne or more of the variance components are constrained, ");
+                LOGPRINTF("ERROR:Log-likelihood not converged.\n");
             }
-            LOGPRINTF("standard PCA based linear regression actived \n");
-            double upperlambda=1+lambda_wind;
-            double lowerlambda=(1-lambda_wind)>0?(1-lambda_wind):0;
-            LOGPRINTF("Iteratively identify the number of PCs to achieve lambda between the region [%f,%f].\n ", lowerlambda,upperlambda);
-            LOGPRINTF("\nPerforming principal component analysis ...\n");
-            if(einfo._grm.cols()==0) make_erm( &einfo,erm_alg);
-            SelfAdjointEigenSolver<MatrixXd> eigensolver(einfo._grm.cast<double>());
-            MatrixXd evec = (eigensolver.eigenvectors());
-            VectorXd eval = eigensolver.eigenvalues();
-            long maxpc2test = evec.cols()/2;
-            long pc2test = (maxpc2test>2)?2:maxpc2test;
-            long regionL = pc2test, regionR=pc2test;
-            char outputname[FNAMESIZE];
-            outputname[0]='\0';
-            vector<ASSOCRLT> out_rlts;
-            double outlambda=1e6;
-            while(pc2test <= maxpc2test)
-            {
-                LOGPRINTF("\nPerforming association analysis with %ld PCs ...\n",pc2test);
-                if(outFileName!=NULL) {
-                    string tmp=  string(outFileName)+"_PC"+atos(pc2test);
-                    strcpy(outputname,tmp.c_str());
-                }
-                MatrixXd _X_PC = evec.block(0,evec.cols()-pc2test, evec.rows(),pc2test);
-                /****/
-                if(_X_PC.cols()>0)
-                {
-                    LOGPRINTF("Saving the %ld PCs...\n",pc2test);
-                    string filename=string(outfileName)+"."+atos(pc2test)+"PC.eigenvec";
-                    FILE* tmpfile=fopen(filename.c_str(),"w");
-                    if(!tmpfile)
-                    {
-                        LOGPRINTF("error open file.\n");
-                        TERMINATE();
-                    }
-                    for(int t=0;t<einfo._eii_include.size();t++)
-                    {
-                        string str=einfo._eii_fid[einfo._eii_include[t]]+'\t'+einfo._eii_iid[einfo._eii_include[t]];
-                        for(long k=(_X_PC.cols()-1);k>=0;k--)
-                        {
-                            str +='\t'+atos(_X_PC(t,k));
-                        }
-                        str += '\n';
-                        fputs(str.c_str(),tmpfile);
-                    }
-                    fclose(tmpfile);
-                    LOGPRINTF("These PCs are saved in the file %s.\n",filename.c_str());
-                }
-                /****/
-                vector<ASSOCRLT> assoc_rlts;
-                if(fastlinear) testLinear_fast(assoc_rlts,outputname, &einfo,_X_PC);
-                else testLinear(assoc_rlts,outputname, &einfo,_X_PC);
-                double lambda=get_lambda(assoc_rlts);
-                LOGPRINTF("The genomic inflation factor lambda with %ld PCs is %f.\n",pc2test, lambda);
-                double curdis=abs(1-lambda);
-                double predis= abs(1-outlambda);
-                if( curdis < predis)
-                {
-                    out_rlts = assoc_rlts;
-                    outlambda = lambda;
-                    LOGPRINTF("The genomic inflation factor lambda with %ld PCs is most close to 1.\n",pc2test);
-                }
-                if(lambda>upperlambda)
-                {
-                    regionL=pc2test;
-                    if(regionR==pc2test)
-                    {
-                        pc2test*=2;
-                        regionR=pc2test;
-                    } else {
-                        pc2test=(regionR+regionL)/2;
-                    }
-                    if(pc2test==regionL || pc2test>maxpc2test)
-                    {
-                        write_assoc_rlt(out_rlts, outFileName);
-                        break;
-                    }
-                }
-                else if(lambda<lowerlambda)
-                {
-                    regionR=pc2test;
-                    if(regionL==pc2test)
-                    {
-                        pc2test/=2;
-                        regionL=pc2test;
-                    } else {
-                        pc2test=(regionR+regionL)/2;
-                    }
-                    if(pc2test==regionR)
-                    {
-                        write_assoc_rlt(out_rlts, outFileName);
-                        break;
-                    }
-                    
-                }
-                else
-                {
-                    write_assoc_rlt(out_rlts, outFileName);
-                    break;
-                }
-            }
-           
+            TERMINATE();
         }
     }
     
@@ -1870,10 +1765,57 @@ namespace EFILE {
             }
         }
     }
-    void pca(char* outFileName, char* grm_file, char* indilstName, char* indilst2remove, double grm_cutoff, bool erm_cutoff_2sides, bool merge_grm_flag, int out_pc_num)
+    void pca(char* outFileName, char* efileName, char* befileName, char* erm_file,char* problstName,char* problst2exclde,char* genelistName, int chr,char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* probe2exclde,char* indilstName,char* indilst2remove, char* phenofileName,char* mpheno,bool erm_bin_flag, int erm_alg,bool beta2m,bool m2beta, double std_thresh,double upperBeta,double lowerBeta,bool transposed, int efileType,bool no_fid_flag,int valueType, double grm_cutoff, bool erm_cutoff_2sides, bool merge_grm_flag, int out_pc_num)
     {
         eInfo einfo;
-        manipulate_orm(&einfo, grm_file, indilstName, indilst2remove, NULL, grm_cutoff,erm_cutoff_2sides, -2.0, -2, merge_grm_flag, true);
+        init_einfo(&einfo);
+        if(befileName==NULL && efileName==NULL && erm_file==NULL)
+        {
+            LOGPRINTF("Error: please input the Gene expression / Methylation data by the option --efile or --befile or input ORM by --orm.\n");
+            TERMINATE();
+        }
+        if(erm_file!=NULL)
+        {
+        manipulate_orm(&einfo, erm_file, indilstName, indilst2remove, NULL, grm_cutoff,erm_cutoff_2sides, -2.0, -2, merge_grm_flag, true);
+        }
+        else
+        {
+            if(efileName!=NULL)
+            {
+                if(transposed) read_efile_t(efileName,&einfo,efileType,no_fid_flag,valueType);
+                else read_efile(efileName,&einfo,efileType,no_fid_flag,valueType);
+                epi_man(&einfo,problstName,problst2exclde,genelistName, chr,prbname, fromprbname, toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag, genename,probe2exclde);
+                eii_man(&einfo,indilstName,indilst2remove);
+                if(std_thresh>0) std_probe_filtering( &einfo, std_thresh);
+                if(upperBeta<1 ||lowerBeta>0) filtering_constitutive_probes(&einfo, upperBeta, lowerBeta);
+            }else{
+                char inputname[FNAMESIZE];
+                memcpy(inputname,befileName,strlen(befileName)+1);
+                char* suffix=inputname+strlen(befileName);
+                memcpy(suffix,".oii",5);
+                read_eii(inputname,&einfo);
+                eii_man(&einfo,indilstName,indilst2remove);
+                memcpy(suffix,".opi",5);
+                read_epi(inputname,&einfo);
+                epi_man(&einfo,problstName,problst2exclde,genelistName, chr,prbname, fromprbname, toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag, genename,probe2exclde);
+                if(phenofileName !=NULL) read_phen(&einfo, phenofileName, mpheno,false);
+                memcpy(suffix,".bod",5);
+                read_beed(inputname,&einfo);
+                if(std_thresh>0) std_probe_filtering( &einfo, std_thresh);
+                if(upperBeta<1 ||lowerBeta>0) filtering_constitutive_probes(&einfo, upperBeta, lowerBeta);
+            }
+            if(einfo._eType == METHYLATION)
+            {
+                if(beta2m && m2beta){
+                    //no chance to enter here
+                    LOGPRINTF("Error: --m2beta should not be with --beta2m.\n");
+                    TERMINATE();
+                }
+                if(beta2m && einfo._valType==BETAVALUE) beta_2_m(&einfo);
+                if(m2beta && einfo._valType==MVALUE) m_2_beta(&einfo);
+            }
+            make_erm(&einfo, erm_alg, erm_bin_flag,  outFileName, false);
+        }
         einfo._grm_N.resize(0, 0);
         int i = 0, j = 0, n = (int)einfo._eii_include.size();
         LOGPRINTF("\nPerforming principal component analysis ...\n");
@@ -2057,7 +1999,7 @@ namespace EFILE {
     }
     void  stdprobe(eInfo* einfo)
     {
-        if(!mute) {LOGPRINTF("\nStandardizing probes...\n");}
+        if(loud) {LOGPRINTF("\nStandardizing probes...\n");}
         for(int i=0;i<einfo->_epi_include.size();i++)
         {
             //printf("%3.0f%%\r", 100.0*i/einfo->_epi_include.size());
@@ -2103,7 +2045,7 @@ namespace EFILE {
             }
             
         }
-        if(!mute) {LOGPRINTF("%ld probes have been standardized.\n",einfo->_epi_include.size());}
+        if(loud) {LOGPRINTF("%ld probes have been standardized.\n",einfo->_epi_include.size());}
     }
     void rintprobe(eInfo* einfo)
     {
@@ -2527,10 +2469,19 @@ namespace EFILE {
             //LOGPRINTF("%ld covariates are attached.\n",COV_plus.cols());
         }
         LOGPRINTF("\nPerforming linear regression analysis...\n");
+        double cr=0;
         for(int i=0;i<einfo->_epi_include.size();i++)
         {
-            printf("%3.0f%%\r", 100.0*i/einfo->_epi_include.size());
-            fflush(stdout);
+            double desti=1.0*i/(einfo->_epi_include.size()-1);
+            if(desti>=cr)
+            {
+                printf("%3.0f%%\r", 100.0*desti);
+                fflush(stdout);
+                if(cr==0) cr+=0.05;
+                else if(cr==0.05) cr+=0.2;
+                else if(cr==0.25) cr+=0.5;
+                else cr+=0.25;
+            }
 
             vector<double> yvec;
             vector<double> cvec;
@@ -4263,10 +4214,9 @@ namespace EFILE {
                 remlstatus=0; //reset reml status
                 MatrixXd _Vi;
                 VectorXd _b,_se;
-                mute=true;
                 reml( false, true, reml_priors, reml_priors_var,  no_constrain,  _X_c,X, _y,_A, U, eval, _Vi,  reml_mtd,  MaxIter,_b,_se);
                 //reml(&einfo, false, true, reml_priors, reml_priors_var, -2.0, -2.0, no_constrain, true, true, _X_c, X,_y,_A,_Vi,outFileName);
-                if(remlstatus==0 || remlstatus==-5 || (remlstatus==-3 && force_mlm))
+                if(remlstatus==0 || remlstatus==-5 || remlstatus==-3)
                 {
                     betas[jj]=_b[_X_c-1];
                     ses[jj]=sqrt(_se(_X_c-1));
@@ -4274,13 +4224,20 @@ namespace EFILE {
                 }
                 else
                 {
+                    if(remlstatus==-1) {
+                        LOGPRINTF("ERROR: The matrix is not invertible.\n");
+                    } else if(remlstatus==-2) {
+                        LOGPRINTF("ERROR: More than half of the variance components are constrained.\n");
+                    }else if(remlstatus==-4) {
+                        LOGPRINTF("ERROR:Log-likelihood not converged.\n");
+                    }
+                    TERMINATE();
                     //probes which failed in REML
-                    betas[jj]=0;
-                    ses[jj]=1;
+                    //betas[jj]=0;
+                    //ses[jj]=1;
                 }
             }
        // }
-        
         
             string filename=string(outFileName)+".mlma";
             if(tsk_ttl>1) filename=string(outFileName)+"_"+atos(tsk_ttl)+"_"+atos(tsk_id)+".mlma";
