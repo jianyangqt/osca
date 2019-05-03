@@ -15,7 +15,7 @@ int main(int argc, char * argv[])
 {
     cout << "*******************************************************************" << endl;
     cout << "* OmicS-data-based Complex trait Analysis (OSCA)" << endl;
-    cout << "* version 0.60" << endl;
+    cout << "* version 0.44" << endl;
     cout << "* (C) 2016 Futao Zhang, Zhihong Zhu and Jian Yang" << endl;
     cout << "* The University of Queensland" << endl;
     cout << "* MIT License" << endl;

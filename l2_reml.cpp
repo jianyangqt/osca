@@ -898,7 +898,7 @@ double reml_iteration(eInfo* einfo, MatrixXd &Vi_X, MatrixXd &Xt_Vi_X_i, MatrixX
         }
         if (constrain_num * 2 > einfo->_r_indx.size())
         {
-            LOGPRINTF("Error: analysis stopped because more than half of the variance components are constrained. The result would be unreliable.\n Please have a try to add the option --reml-no-constrain.\n");
+            LOGPRINTF("Error: analysis stopped because more than half of the variance components are constrained. The result would be unreliable.\nPlease have a try to add the option --reml-no-constrain.\n");
             remlstatus = -2;
             return lgL;
         }
@@ -1205,6 +1205,8 @@ void reml( eInfo* einfo, bool pred_rand_eff, bool est_fix_eff, vector<double> &r
     VectorXd Py(_n), varcmp;
     init_varcomp(einfo,reml_priors_var, reml_priors, varcmp);
     double lgL = reml_iteration(einfo, Vi_X, Xt_Vi_X_i, Hi, Py, varcmp, reml_priors_var_flag | reml_priors_flag, no_constrain,false,_Vi, _A,   _X,_y );
+    if(remlstatus!=0 && remlstatus!=-3 && remlstatus!=-5) return;
+    
     if(remloasi)
     {
         reml_priors_var.clear();
@@ -1213,8 +1215,6 @@ void reml( eInfo* einfo, bool pred_rand_eff, bool est_fix_eff, vector<double> &r
             reml_priors_var.push_back(varcmp[j]);
         }
     }
-    
-    if(remlstatus!=0 && remlstatus!=-3 && remlstatus!=-5) return;
     
     MatrixXd u;
     if (pred_rand_eff) {

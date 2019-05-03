@@ -410,7 +410,7 @@ namespace EFILE
         LOGPRINTF("For each probe, the analysis will exclude probes in %d Kb region of centered at the probe to be tested.\n",expect_wind);
         int exwind=expect_wind*1000;
         
-        string filename=string(outFileName)+".mlma";
+        string filename=string(outFileName)+".moment";
         FILE* ofile = fopen(filename.c_str(), "w");
         if (!(ofile)) {
             LOGPRINTF("ERROR: open error %s\n", filename.c_str());
@@ -1052,7 +1052,7 @@ namespace EFILE
         LOGPRINTF("For each probe, the analysis will exclude probes in %d Kb region of centered at the probe to be tested.\n",expect_wind);
         int exwind=expect_wind*1000;
        
-        string filename=string(outFileName)+".mlma";
+        string filename=string(outFileName)+".moment";
         FILE* ofile = fopen(filename.c_str(), "w");
         if (!(ofile)) {
             LOGPRINTF("ERROR: open error %s\n", filename.c_str());
@@ -1605,8 +1605,8 @@ namespace EFILE
         LOGPRINTF("For each probe, the analysis will exclude probes in %d Kb region of centered at the probe to be tested.\n",expect_wind);
         int exwind=expect_wind*1000;
         
-        string filename=string(outFileName)+".mlma";
-        if(tsk_ttl>1) filename=string(outFileName)+"_"+atos(tsk_ttl)+"_"+atos(tsk_id)+".mlma";
+        string filename=string(outFileName)+".moment";
+        if(tsk_ttl>1) filename=string(outFileName)+"_"+atos(tsk_ttl)+"_"+atos(tsk_id)+".moment";
         FILE* ofile = fopen(filename.c_str(), "w");
         if (!(ofile)) {
             LOGPRINTF("ERROR: open error %s\n", filename.c_str());
@@ -1631,7 +1631,7 @@ namespace EFILE
         int x_idx=_X_c++;
         
         double cr=0;
-        #pragma omp parallel for private(remlstatus)
+        //#pragma omp parallel for private(remlstatus)
         for(int id=start;id<=end;id++)
         {
             double desti=1.0*wcount/nrun;

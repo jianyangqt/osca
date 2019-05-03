@@ -925,7 +925,7 @@ namespace EFILE {
         if(within_family) detect_family(&einfo, _A);
         
         // run REML algorithm
-        LOGPRINTF("\nPerforming MLMA analyses %s ...\n",(subtract_erm_file?"":" (including the candidate probes)"));
+        LOGPRINTF("\nPerforming MOA analyses %s ...\n",(subtract_erm_file?"":" (including the candidate probes)"));
         MatrixXd _Vi;
         reml(&einfo, false, true, reml_priors, reml_priors_var, -2.0, -2.0, no_constrain, true, true, _X_c, _X,_y,_A,_Vi,outFileName);
         if(remlstatus == 0 || remlstatus == -3 || remlstatus == -5 )
@@ -944,7 +944,7 @@ namespace EFILE {
             if(_X_c==1 || mlma_preadj_covar) mlma_calcu_stat(y_buf, &einfo, _Vi, beta, se, pval);
             else mlma_calcu_stat_covar(y_buf, &einfo, _X_c, _Vi, _X, beta, se, pval);
             
-            string filename=string(outFileName)+".mlma";
+            string filename=string(outFileName)+".moa";
             LOGPRINTF("\nSaving the association analysis results of %ld probes to %s ...\n",m,filename.c_str());
             ofstream ofile(filename.c_str());
             if(!ofile) throw("Can not open the file ["+filename+"] to write.");
@@ -1604,7 +1604,7 @@ namespace EFILE {
         }
         if(remlstatus==0)
         {
-            string filename=string(outFileName)+".loco.mlma";
+            string filename=string(outFileName)+".loco.moa";
             LOGPRINTF("\nSaving the results of the mixed linear model association analyses of %ld probes to %s ...\n",include_raw.size(),filename.c_str());
             ofstream ofile(filename.c_str());
             if(!ofile) throw("Can not open the file ["+filename+"] to write.");
@@ -4156,12 +4156,21 @@ namespace EFILE {
             MatrixXd XX(_X.rows(), _X.cols()+1);
             XX.block(0,0,_X.rows(),_X.cols())=_X;
             int x_idx=_X_c++;
-        
-            #pragma omp parallel for private(remlstatus)
+            double cr=0;
+            #pragma omp parallel for private(remlstatus, cr)
             for(int jj=0;jj<einfo._epi_include.size();jj++)
             {
-                printf("%3.0f%%\r", 100.0*jj/einfo._epi_include.size());
-                fflush(stdout);
+                double desti=1.0*jj/(einfo._epi_include.size()-1);
+                if(desti>=cr)
+                {
+                    printf("%3.0f%%\r", 100.0*desti);
+                    fflush(stdout);
+                    if(cr==0) cr+=0.05;
+                    else if(cr==0.05) cr+=0.2;
+                    else if(cr==0.25) cr+=0.5;
+                    else cr+=0.25;
+                }
+                
                 string prbid=einfo._epi_prb[einfo._epi_include[jj]];
                 vector<double> reml_priors,reml_priors_var;
                 MatrixXd X=XX;
@@ -4239,8 +4248,8 @@ namespace EFILE {
             }
        // }
         
-            string filename=string(outFileName)+".mlma";
-            if(tsk_ttl>1) filename=string(outFileName)+"_"+atos(tsk_ttl)+"_"+atos(tsk_id)+".mlma";
+            string filename=string(outFileName)+".moa";
+            if(tsk_ttl>1) filename=string(outFileName)+"_"+atos(tsk_ttl)+"_"+atos(tsk_id)+".moa";
             LOGPRINTF("\nSaving the association analysis results of %ld probes to %s ...\n",einfo._epi_include.size(),filename.c_str());
             ofstream ofile(filename.c_str());
             if(!ofile) throw("Can not open the file ["+filename+"] to write.");
