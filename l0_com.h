@@ -37,6 +37,7 @@
 #include <random>
 #ifndef __APPLE__
 #include <omp.h>
+#include <mkl.h>
 #endif
 
 using namespace std;
@@ -67,6 +68,7 @@ typedef unsigned long		uintptr_t;
 const char err_fopen[] = "Error: Failed to open %s.\n";
 const double FloatErr=numeric_limits<double>::epsilon();
 extern int thread_num;
+extern double PFISHER;
 extern FILE* logfile;
 extern char logbuf[];
 extern char Tbuf[];
@@ -223,4 +225,6 @@ extern double sum(const vector<double> &x);
 extern double cov(const vector<double> &x, const vector<double> &y);
 extern double cor(vector<double> &y, vector<double> &x);
 extern void standardise(vector<double> &data, bool divid_by_std);
+extern void coeff_mat(const vector<string> &vec, MatrixXd &coeff_mat, string errmsg1, string errmsg2);
+extern void progress(int &cur, double &disp, int ttl);
 #endif /* defined(__osc__l0_com__) */

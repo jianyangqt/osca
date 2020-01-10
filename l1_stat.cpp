@@ -491,6 +491,49 @@ int flignerTest(vector<double> &y,vector<double> &x, vector<double> &rst,double 
     rst.push_back(k-1);
     return 1;
 }
+void getStd(VectorXd &y)
+{
+    //for vector with missing as 1e10
+    
+        double nonmiss=0.0, mu=0.0,sd=0.0;
+        for(int j=0; j<y.size(); j++)
+        {
+            double val=y(j);
+            if(val<1e9){
+                mu+=val;
+                nonmiss+=1.0;
+            }
+        }
+        if(nonmiss>0)
+        {
+            mu/=nonmiss;
+            for(int j=0; j<y.size(); j++)
+            {
+                double val=y(j);
+                if(val<1e9)
+                    y(j)=val-mu;
+            }
+        }
+        
+        if(nonmiss>1)
+        {
+            for(int j=0; j<y.size(); j++)
+            {
+                double val=y(j);
+                if(val<1e9) sd+=val*val;
+            }
+            sd=sqrt(sd/(nonmiss-1.0));
+            if(sd>1e-30)
+            {
+                for(int j=0; j<y.size(); j++)
+                {
+                    double val=y(j);
+                    if(val<1e9) y(j)=val/sd;
+                }
+            }
+        }
+}
+
 void  getResidual(VectorXd &y, MatrixXd &_X)
 {
     if(y.size()!=_X.rows() || y.size()<1) {
@@ -656,7 +699,195 @@ void mlma_cal_stat(VectorXd &_Y, VectorXd &_x, MatrixXd &_Vi, double &beta, doub
         chisq=beta/se;
         pval=pchisq(chisq*chisq, 1);
     }
+
 }
+#ifndef __APPLE__
+void mlma_cal_stat_mkl(float* y_mkl, float* x_mkl, float* Vi_mkl, int n, double &beta, double &se, double &pval)
+{
+    double Xt_Vi_X=0.0, chisq=0.0;
+    float *Vi_X_mkl=new float[n];
+    double nonmiss=0.0;
+    double mu=0.0;
+    for(int j = 0; j < n; j++) {
+        double val=x_mkl[j];
+        if(val<1e9){
+            mu+=val;
+            nonmiss+=1.0;
+        }
+    }
+    mu/=nonmiss;
+    for(int j = 0; j < n; j++) {
+        double val=x_mkl[j];
+        if(val<1e9){
+            x_mkl[j] = val-mu;
+        } else {
+            x_mkl[j]=0.0;
+        }
+    }
+    cblas_sgemv(CblasRowMajor, CblasNoTrans, n, n, 1.0, Vi_mkl, n, x_mkl, 1, 0.0, Vi_X_mkl, 1);
+    Xt_Vi_X=cblas_sdot(n, x_mkl, 1, Vi_X_mkl, 1);
+    se=1.0/Xt_Vi_X;
+    beta=se*cblas_sdot(n, y_mkl, 1, Vi_X_mkl, 1);
+    if(se>1.0e-30){
+        se=sqrt(se);
+        double chisq=beta/se;
+        pval=pchisq(chisq*chisq, 1);
+    }
+    delete[] Vi_X_mkl;
+}
+  
+
+bool comput_inverse_logdet_LDLT_mkl(MatrixXd &Vi, double &logdet)
+{
+    unsigned long i = 0, j = 0, n = Vi.cols();
+    double* Vi_mkl = new double[n * n];
+    //float* Vi_mkl=new float[n*n];
+    
+#pragma omp parallel for private(j)
+    for (i = 0; i < n; i++) {
+        for (j = 0; j < n; j++) {
+            Vi_mkl[i * n + j] = Vi(i, j);
+        }
+    }
+    
+    // MKL's Cholesky decomposition
+    int info = 0, int_n = (int) n;
+    char uplo = 'L';
+    dpotrf(&uplo, &int_n, Vi_mkl, &int_n, &info);
+    //spotrf( &uplo, &n, Vi_mkl, &n, &info );
+    if (info < 0) throw ("Error: Cholesky decomposition failed. Invalid values found in the matrix.\n");
+    else if (info > 0) return false;
+    else {
+        logdet = 0.0;
+        for (i = 0; i < n; i++) {
+            double d_buf = Vi_mkl[i * n + i];
+            logdet += log(d_buf * d_buf);
+        }
+        
+        // Calcualte V inverse
+        dpotri(&uplo, &int_n, Vi_mkl, &int_n, &info);
+        //spotri( &uplo, &n, Vi_mkl, &n, &info );
+        if (info < 0) throw ("Error: invalid values found in the varaince-covaraince (V) matrix.\n");
+        else if (info > 0) return false;
+        else {
+#pragma omp parallel for private(j)
+            for (j = 0; j < n; j++) {
+                for (i = 0; i <= j; i++) Vi(i, j) = Vi(j, i) = Vi_mkl[i * n + j];
+            }
+        }
+    }
+    
+    // free memory
+    delete[] Vi_mkl;
+    
+    return true;
+}
+
+bool comput_inverse_logdet_LDLT_mkl_(MatrixXd &Vi, double &logdet)
+{
+    auto * Vi_mkl = Vi.data();
+    Matrix<typename MatrixXd::Scalar, Eigen::Dynamic, 1> diag = Vi.diagonal();
+    
+    int info = 0, int_n = (int)Vi.cols();;
+    char uplo = 'L';
+    dpotrf(&uplo, &int_n, Vi_mkl, &int_n, &info);
+    if (info == 0) {
+        logdet = Vi.diagonal().array().square().log().sum();
+        dpotri(&uplo, &int_n, Vi_mkl, &int_n, &info);
+        if (info ==0 ) {
+            Vi.template triangularView<Eigen::Upper>() = Vi.transpose();
+            return true;
+        }
+    }
+    Vi.template triangularView<Eigen::Lower>() = Vi.transpose();
+    Vi.diagonal() = diag;
+    return false;
+}
+
+bool comput_inverse_logdet_LU_mkl(MatrixXd &Vi, double &logdet)
+{
+    unsigned long i = 0, j = 0, n = Vi.cols();
+    double* Vi_mkl = new double[n * n];
+    
+#pragma omp parallel for private(j)
+    for (i = 0; i < n; i++) {
+        for (j = 0; j < n; j++) {
+            Vi_mkl[i * n + j] = Vi(i, j);
+        }
+    }
+    
+    int N = (int) n;
+    int *IPIV = new int[n + 1];
+    int LWORK = N*N;
+    double *WORK = new double[n * n];
+    int INFO;
+    dgetrf(&N, &N, Vi_mkl, &N, IPIV, &INFO);
+    if (INFO < 0) throw ("Error: LU decomposition failed. Invalid values found in the matrix.\n");
+    else if (INFO > 0) {
+        delete[] Vi_mkl;
+        return false;
+    } else {
+        logdet = 0.0;
+        for (i = 0; i < n; i++) {
+            double d_buf = Vi_mkl[i * n + i];
+            logdet += log(fabs(d_buf));
+        }
+        
+        // Calcualte V inverse
+        dgetri(&N, Vi_mkl, &N, IPIV, WORK, &LWORK, &INFO);
+        if (INFO < 0) throw ("Error: invalid values found in the varaince-covaraince (V) matrix.\n");
+        else if (INFO > 0) return false;
+        else {
+#pragma omp parallel for private(j)
+            for (j = 0; j < n; j++) {
+                for (i = 0; i <= j; i++) Vi(i, j) = Vi(j, i) = Vi_mkl[i * n + j];
+            }
+        }
+    }
+    
+    // free memory
+    delete[] Vi_mkl;
+    delete[] IPIV;
+    delete[] WORK;
+    
+    return true;
+}
+#endif
+bool comput_inverse_logdet_LDLT(MatrixXd &Vi, double &logdet)
+{
+    LDLT<MatrixXd> ldlt(Vi);
+    VectorXd d = ldlt.vectorD();
+    if (d.minCoeff() < 0)
+    {
+        /***for test***/
+        /*
+         string filena=string(outfileName)+".H.mat";
+         FILE* tmpfi=fopen(filena.c_str(),"w");
+         if(!tmpfi)
+         {
+         LOGPRINTF("error open file.\n");
+         TERMINATE();
+         }
+         for( int j=0;j<Vi.rows();j++)
+         {
+         string str ="";
+         for(int t=0;t<Vi.cols();t++) str +=atos(Vi(j,t)) + '\t';
+         str += '\n';
+         fputs(str.c_str(),tmpfi);
+         }
+         fclose(tmpfi);
+         */
+        /***end of test***/
+        return false;
+    } else {
+        logdet = 0.0;
+        for (int i = 0; i < Vi.rows(); i++) logdet += log(d[i]);
+        Vi.setIdentity();
+        ldlt.solveInPlace(Vi);
+    }
+    return true;
+}
+
 bool comput_inverse_logdet_LU(MatrixXd &Vi, double &logdet)
 {
     long n = Vi.cols();
@@ -669,7 +900,49 @@ bool comput_inverse_logdet_LU(MatrixXd &Vi, double &logdet)
     Vi = lu.inverse();
     return true;
 }
-
+void mlma_cal_stat_covar(VectorXd &_Y,VectorXd &_x,   MatrixXd &_Vi, MatrixXd &Vi_C, MatrixXd &A, VectorXd &Ct_vi_y, double &beta, double &se, double &pval)
+{
+    uint64_t n=_Y.size();
+    double chisq=0.0;
+    
+    VectorXd x(n);
+    double nonmiss=0.0;
+    double mu=0.0;
+    for(int j = 0; j < n; j++) {
+        double val=_x(j);
+        if(val<1e9){
+            mu+=val;
+            nonmiss+=1.0;
+        }
+    }
+    mu/=nonmiss;
+    for(int j = 0; j < n; j++) {
+        double val=_x(j);
+        if(val<1e9){
+            x(j) = val-mu;
+        } else {
+            x(j)=0.0;
+        }
+    }
+    
+    VectorXd B = x.transpose()*Vi_C;
+    VectorXd xt_Vi = x.transpose()*_Vi;
+    double D = xt_Vi.transpose()*x;
+    double xt_Vi_y = xt_Vi.transpose()*_Y;
+    double D_BTAiB = D - B.transpose()*A*B;
+    D_BTAiB = 1/D_BTAiB;
+    VectorXd AiBD_BTAiB = A*B*D_BTAiB;
+    AiBD_BTAiB = -1 * AiBD_BTAiB;
+    
+    beta=Ct_vi_y.dot(AiBD_BTAiB) + D_BTAiB*xt_Vi_y;
+    se=D_BTAiB;
+    if(se>1.0e-30){
+        se=sqrt(se);
+        chisq=beta/se;
+        pval=pchisq(chisq*chisq, 1);
+    }
+    
+}
 void mlma_cal_stat_covar(VectorXd &_Y,VectorXd &_x,  MatrixXd &_Vi,  MatrixXd &_X, double &beta, double &se, double &pval)
 {
     
@@ -708,7 +981,11 @@ void mlma_cal_stat_covar(VectorXd &_Y,VectorXd &_x,  MatrixXd &_Vi,  MatrixXd &_
         Vi_X=_Vi*X;
         Xt_Vi_X=X.transpose()*Vi_X;
         double logdt=0.0;
-        if(!comput_inverse_logdet_LU( Xt_Vi_X, logdt)) throw("Error: Xt_Vi_X is not invertable.");
+    #ifndef __APPLE__
+        if(!comput_inverse_logdet_LU_mkl( Xt_Vi_X, logdt)) throw("Error: Xt_Vi_X is not invertable.");
+#else
+     if(!comput_inverse_logdet_LU( Xt_Vi_X, logdt)) throw("Error: Xt_Vi_X is not invertable.");
+#endif
         Xt_Vi_y=Vi_X.transpose()*_Y;
         b_vec=Xt_Vi_X*Xt_Vi_y;
         
@@ -1322,7 +1599,7 @@ void LogisticReg(VectorXi &_Y,  MatrixXd &_X, double &beta, double &se, double &
         T = svd_inverse(T,flag);
         if(!flag)
         {
-            printf("Warning: fitted probabilities numerically 0 or 1 occurred.\n");
+            //printf("Warning: fitted probabilities numerically 0 or 1 occurred.\n");
             //exit(1);
             beta=0;
             se=-9;
@@ -1409,7 +1686,11 @@ void mlm_stat_covar(VectorXd &_Y,  MatrixXd &_Vi,  MatrixXd &_X, double &beta, d
     if(se>1.0e-30){
         se=sqrt(se);
         double chisq=beta/se;
+        #pragma omp critical
+        {
         pval=pchisq(chisq*chisq, 1);
+        }
+        
     }
 }
 void mlm_stat(VectorXd &_y,MatrixXd &_Vi, VectorXd &_x, double &beta, double &se, double &pval)
@@ -1426,7 +1707,21 @@ void mlm_stat(VectorXd &_y,MatrixXd &_Vi, VectorXd &_x, double &beta, double &se
     if(se>1.0e-30){
         se=sqrt(se);
         double chisq=beta/se;
-        pval=pchisq(chisq*chisq, 1);
+        #pragma omp critical
+        {
+            pval=pchisq(chisq*chisq, 1);
+        }
     }
 }
 
+void getQval(vector<double> &pval, vector<double> &qval)
+{
+    long m = pval.size();
+    if(m==0)
+    {
+         LOGPRINTF("ERROR: no p-values found.\n");
+        TERMINATE();
+    }
+    getRank2R(pval, qval);
+    for(int i=0;i<qval.size();i++) qval[i]=pval[i]*m/qval[i];
+}

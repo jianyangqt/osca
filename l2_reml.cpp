@@ -76,21 +76,6 @@ void update_A(eInfo* einfo,VectorXd &prev_varcmp) {
 }
 
 
-bool comput_inverse_logdet_LDLT(MatrixXd &Vi, double &logdet)
-    {
-    LDLT<MatrixXd> ldlt(Vi);
-    VectorXd d = ldlt.vectorD();
-    if (d.minCoeff() < 0) return false;
-    else {
-        logdet = 0.0;
-        for (int i = 0; i < Vi.rows(); i++) logdet += log(d[i]);
-        Vi.setIdentity();
-        ldlt.solveInPlace(Vi);
-    }
-    return true;
-}
-
-
 bool bending_eigenval(VectorXd &eval) {
     int j = 0;
     double eval_m = eval.mean();
@@ -119,8 +104,6 @@ void bend_V(MatrixXd &Vi)
     eval.array() = 1.0 / eval.array();
     Vi = eigensolver.eigenvectors() * DiagonalMatrix<double, Dynamic, Dynamic>(eval) * eigensolver.eigenvectors().transpose();
 }
-
-
 bool calcu_Vi(eInfo* einfo, MatrixXd &Vi, VectorXd &prev_varcmp, double &logdet, int &iter,vector<MatrixXd> &_A)
 {
     int i = 0;
@@ -136,56 +119,94 @@ bool calcu_Vi(eInfo* einfo, MatrixXd &Vi, VectorXd &prev_varcmp, double &logdet,
         for (i = 0; i < einfo->_r_indx.size(); i++) Vi += (_A[einfo->_r_indx[i]]) * prev_varcmp[i];
         
         if (einfo->_V_inv_mtd == 0) {
-            if (!comput_inverse_logdet_LDLT(Vi, logdet)) {
+            #ifndef __APPLE__
+            if (!comput_inverse_logdet_LDLT_mkl_(Vi, logdet))
+            #else
+            if (!comput_inverse_logdet_LDLT(Vi, logdet))
+            #endif
+            {
                 if(einfo->_reml_force_inv) {
                     LOGPRINTF("Warning: the variance-covaraince matrix V is non-positive definite.\n" );
                     einfo->_V_inv_mtd = 1;
                     LOGPRINTF("\nSwitching to the \"bending\" approach to invert V. This method hasn't been tested. The results might not be reliable!\n" );
                 }
-                /*else {
-                 if(_reml_no_converge){
-                 cout<<"Warning: the variance-covaraince matrix is invertible. A small positive value is added to the diagonals. The results might not be reliable!"<<endl;
-                 double d_buf = Vi.diagonal().mean() * 0.01;
-                 for(j = 0; j < _n ; j++) Vi(j,j) += d_buf;
-                 if(!comput_inverse_logdet_LDLT_mkl(Vi, logdet)) return false;
-                 }
-                 else throw("Error: the variance-covaraince matrix V is not positive definite.");
-                 }*/
             }
         }
         if (einfo->_V_inv_mtd == 1) bend_V(Vi);
-         /*if (_V_inv_mtd == 2) {
-          if(!_reml_force_converge){
-          cout << "Switching from Cholesky to LU decomposition approach. The results might not be reliable!" << endl;
-          if (!comput_inverse_logdet_LU_mkl(Vi, logdet)){
-          if(_reml_no_converge){
-          cout<<"Warning: the variance-covaraince matrix is invertible. A small positive value is added to the diagonals. The results might not be reliable!"<<endl;
-          double d_buf = Vi.diagonal().mean() * 0.01;
-          for(j = 0; j < _n ; j++) Vi(j,j) += d_buf;
-          if(!comput_inverse_logdet_LDLT_mkl(Vi, logdet)) return false;
-          }
-          else throw ("Error: the variance-covaraince matrix V is still not invertible using LU decomposition.");
-          }
-          }
-          else{
-          cout<<"Warning: the variance-covaraince matrix is invertible. A small positive value is added to the diagonals. The results might not be reliable!"<<endl;
-          double d_buf = Vi.diagonal().mean() * 0.01;
-          for(j = 0; j < _n ; j++) Vi(j,j) += d_buf;
-          comput_inverse_logdet_LU_mkl(Vi, logdet);
-          }
-          }*/
     }
-    
     return true;
 }
 
+bool calcu_Vi( MatrixXd &Vi, VectorXd &prev_varcmp, double &logdet, vector<MatrixXd> &_A)
+    {
+        int i = 0;
+        string errmsg = "\nError: the V (variance-covariance) matrix is not invertible.";
+        int _n=(int)_A[0].rows();
+        Vi = MatrixXd::Zero(_n, _n);
+        
+        if (_A.size() == 1) {
+            Vi.diagonal() = VectorXd::Constant(_n, 1.0 / prev_varcmp[0]);
+            logdet = _n * log(prev_varcmp[0]);
+        }
+        else {
+            for (i = 0; i < _A.size(); i++) Vi += (_A[i]) * prev_varcmp[i];
+            #ifndef __APPLE__
+            if (!comput_inverse_logdet_LDLT_mkl_(Vi, logdet))
+            #else
+            if (!comput_inverse_logdet_LDLT(Vi, logdet))
+            #endif
+            //bool determinant_zero = false; // updated by futao.zhang 2/1/2019 eigen decomposition is very slow when the matrix is big
+            //inverse_V(Vi, determinant_zero);
+            //if(determinant_zero)
+            {
+                /***for test***/
+                /*
+                for (i = 0; i < _A.size(); i++)
+                {
+                    string filena=string(outfileName)+".A"+atos(i)+".mat";
+                    FILE* tmpfi=fopen(filena.c_str(),"w");
+                    if(!tmpfi)
+                    {
+                        LOGPRINTF("error open file.\n");
+                        TERMINATE();
+                    }
+                    for( int j=0;j<_A[i].rows();j++)
+                    {
+                        string str ="";
+                        for(int t=0;t<_A[i].cols();t++) str +=atos(_A[i](j,t)) + '\t';
+                        str += '\n';
+                        fputs(str.c_str(),tmpfi);
+                    }
+                    fclose(tmpfi);
+                }
+                string filena=string(outfileName)+".prev";
+                FILE* tmpf=fopen(filena.c_str(),"w");
+                if(!tmpf)
+                {
+                    LOGPRINTF("error open file.\n");
+                    TERMINATE();
+                }
+                for (i = 0; i < _A.size(); i++) {
+                    string str = atos(prev_varcmp[i]) + '\n';
+                    fputs(str.c_str(),tmpf);
+                }
+                fclose(tmpf);
+                */
+                /***end of test***/
+                return false;
+            }
+        }
+        
+        return true;
+}
+    
 bool calcu_Vi(MatrixXd &Vi, VectorXd &prev_varcmp, double &logdet,MatrixXd &_U, VectorXd &_S)
     {
         VectorXd S=_S.array()*prev_varcmp[0]+prev_varcmp[1];
         logdet = 0.0;
         for(int i=0;i<S.size();i++)
         {
-            if(S(i)<1e-10) {
+            if(S(i)<1e-8) {
                 S(i)=0;
                 return false;
             } else {
@@ -196,14 +217,14 @@ bool calcu_Vi(MatrixXd &Vi, VectorXd &prev_varcmp, double &logdet,MatrixXd &_U, 
         Vi=_U*S.asDiagonal()*_U.transpose();
         return true;
     }
-    bool calcu_Vii(MatrixXd &Vi, VectorXd &prev_varcmp, double &logdet,MatrixXd &_U, VectorXd &_S)
+bool calcu_Vii(MatrixXd &Vi, VectorXd &prev_varcmp, double &logdet,MatrixXd &_U, VectorXd &_S)
     {
         VectorXd S=_S.array()*prev_varcmp[0]+prev_varcmp[1];
         Vi.setZero(S.size(),S.size());
         logdet = 0.0;
         for(int i=0;i<S.size();i++)
         {
-            if(S(i)<1e-10) {
+            if(S(i)<1e-8) {
                 return false;
             } else {
                 logdet += log(S(i));
@@ -225,13 +246,23 @@ void calcu_Vi_bivar(eInfo* einfo, MatrixXd &Vi, VectorXd &prev_varcmp, double &l
     for (i = 0; i < einfo->_r_indx.size(); i++) Vi += (einfo->_Asp[einfo->_r_indx[i]]) * prev_varcmp[i];
     
     if (einfo->_V_inv_mtd == 0) {
-        if (!comput_inverse_logdet_LDLT(Vi, logdet)) {
+        #ifndef __APPLE__
+        if (!comput_inverse_logdet_LDLT_mkl_(Vi, logdet))
+        #else
+        if (!comput_inverse_logdet_LDLT(Vi, logdet))
+        #endif
+        {
             //cout<<"Note: the variance-covaraince matrix V is non-positive definite. Switching to Cholesky to LU decomposition approach."<<endl;
             einfo->_V_inv_mtd = 1;
         }
     }
     if (einfo->_V_inv_mtd == 1) {
-        if (!comput_inverse_logdet_LU(Vi, logdet)) {
+        #ifndef __APPLE__
+        if (!comput_inverse_logdet_LU_mkl(Vi, logdet))
+        #else
+        if (!comput_inverse_logdet_LU(Vi, logdet))
+        #endif
+        {
             LOGPRINTF("Error: the variance-covaraince matrix V is not invertible.\n");
             remlstatus=-1;
         }
@@ -258,7 +289,12 @@ bool calcu_Vi_within_family(eInfo* einfo, MatrixXd &Vi, VectorXd &prev_varcmp, d
             if(i==einfo->_fam_brk_pnt.size()) subn=_n-prev_pnt;
             else subn=einfo->_fam_brk_pnt[i]-prev_pnt+1;
             MatrixXd subVi=Vi.block(prev_pnt, prev_pnt, subn, subn);
-            if(!comput_inverse_logdet_LDLT(subVi, logdet_buf)) {
+            #ifndef __APPLE__
+            if(!comput_inverse_logdet_LDLT_mkl_(subVi, logdet_buf))
+            #else
+            if(!comput_inverse_logdet_LDLT(subVi, logdet_buf))
+             #endif
+            {
                 LOGPRINTF("Error: the sub-matrix of V for the %d-th family is not invertible.\n",i+1);
                 remlstatus=-1;
             }
@@ -277,8 +313,17 @@ bool calcu_Vi_within_family(eInfo* einfo, MatrixXd &Vi, VectorXd &prev_varcmp, d
 bool inverse_H(MatrixXd &H)
 {
     double d_buf = 0.0;
-    if (!comput_inverse_logdet_LDLT(H, d_buf)) return false;
-    
+    #ifndef __APPLE__
+    if (!comput_inverse_logdet_LDLT_mkl_(H, d_buf))
+    #else
+    if (!comput_inverse_logdet_LDLT(H, d_buf))
+    #endif
+    //bool determinant_zero = false;
+    //inverse_V(H, determinant_zero);
+    //if(determinant_zero)
+    {
+        return false;
+    }
     else return true;
 }
 
@@ -313,7 +358,7 @@ void calcu_Hi(eInfo* einfo, MatrixXd &P, MatrixXd &Hi, vector<MatrixXd> &_A)
             cout << "Warning: the information matrix is not invertible." << endl;
             einfo->_reml_AI_not_invertible = true;
         }
-        else {LOGPRINTF("Error: the information matrix is not invertible."); TERMINATE();}
+        else {LOGPRINTF("Error: matrix H is not invertible.\n"); TERMINATE();}
     }
 }
 
@@ -323,9 +368,66 @@ double calcu_P(MatrixXd &Vi, MatrixXd &Vi_X, MatrixXd &Xt_Vi_X_i, MatrixXd &P, M
     Vi_X = Vi*_X;
     Xt_Vi_X_i = _X.transpose() * Vi_X;
     double logdet_Xt_Vi_X = 0.0;
+    #ifndef __APPLE__
+    if(!comput_inverse_logdet_LU_mkl(Xt_Vi_X_i, logdet_Xt_Vi_X))
+    #else
     if(!comput_inverse_logdet_LU(Xt_Vi_X_i, logdet_Xt_Vi_X))
+    #endif
     {
-        LOGPRINTF("\nError: the X^t * V^-1 * X matrix is not invertible. Please check the covariate(s) and/or the environmental factor(s).");
+        /***for test***/
+        /*
+        string fila=string(outfileName)+".x.mat";
+        FILE* tmpfi=fopen(fila.c_str(),"w");
+        if(!tmpfi)
+        {
+            LOGPRINTF("error open file.\n");
+            TERMINATE();
+        }
+        for( int j=0;j<_X.rows();j++)
+        {
+            string str ="";
+            for(int t=0;t<_X.cols();t++) str +=atos(_X(j,t)) + '\t';
+            str += '\n';
+            fputs(str.c_str(),tmpfi);
+        }
+        fclose(tmpfi);
+        
+        fila=string(outfileName)+".vi.mat";
+        tmpfi=fopen(fila.c_str(),"w");
+        if(!tmpfi)
+        {
+            LOGPRINTF("error open file.\n");
+            TERMINATE();
+        }
+        for( int j=0;j<Vi.rows();j++)
+        {
+            string str ="";
+            for(int t=0;t<Vi.cols();t++) str +=atos(Vi(j,t)) + '\t';
+            str += '\n';
+            fputs(str.c_str(),tmpfi);
+        }
+        fclose(tmpfi);
+        
+        Vi_X = Vi*_X;
+        Xt_Vi_X_i = _X.transpose() * Vi_X;
+        string filena=string(outfileName)+".xvx.mat";
+        tmpfi=fopen(filena.c_str(),"w");
+        if(!tmpfi)
+        {
+            LOGPRINTF("error open file.\n");
+            TERMINATE();
+        }
+        for( int j=0;j<Xt_Vi_X_i.rows();j++)
+        {
+            string str ="";
+            for(int t=0;t<Xt_Vi_X_i.cols();t++) str +=atos(Xt_Vi_X_i(j,t)) + '\t';
+            str += '\n';
+            fputs(str.c_str(),tmpfi);
+        }
+        fclose(tmpfi);
+        */
+        /***end of test***/
+        LOGPRINTF("\nError: the X^t * V^-1 * X matrix is not invertible. Please check the covariate(s) and/or the environmental factor(s).\n"); TERMINATE();
         remlstatus=-1;
         return logdet_Xt_Vi_X;
     }
@@ -384,6 +486,7 @@ void calcu_tr_PA(eInfo* einfo, MatrixXd &P, VectorXd &tr_PA,vector<MatrixXd> &_A
 
 void em_reml(eInfo* einfo, MatrixXd &P, VectorXd &Py, VectorXd &prev_varcmp, VectorXd &varcmp,VectorXd &_y,vector<MatrixXd> &_A)
 {
+    
     int i = 0;
     int _n=(int)einfo->_eii_include.size();
     // Calculate trace(PA)
@@ -397,10 +500,10 @@ void em_reml(eInfo* einfo, MatrixXd &P, VectorXd &Py, VectorXd &prev_varcmp, Vec
         if (einfo->_bivar_reml || einfo->_within_family) R(i) = (Py.transpose()*(einfo->_Asp[einfo->_r_indx[i]]) * Py)(0, 0);
         else R(i) = (Py.transpose()*(_A[einfo->_r_indx[i]]) * Py)(0, 0);
     }
-    
+   
     // Calculate variance component
     for (i = 0; i < einfo->_r_indx.size(); i++) varcmp(i) = (prev_varcmp(i) * _n - prev_varcmp(i) * prev_varcmp(i) * tr_PA(i) + prev_varcmp(i) * prev_varcmp(i) * R(i)) / _n;
-    
+
     // added by Jian Yang Dec 2014
     //varcmp = (varcmp.array() - prev_varcmp.array())*2 + prev_varcmp.array();
 }
@@ -465,7 +568,7 @@ void reml_equation(eInfo* einfo, MatrixXd &P, MatrixXd &Hi, VectorXd &Py, Vector
         }
         
         if (!inverse_H(Hi)){
-            LOGPRINTF("Error: the information matrix is not invertible.");
+            LOGPRINTF("Error: matrix H is not invertible.\n");
             TERMINATE();
         }
     }
@@ -515,7 +618,7 @@ void reml_equation(eInfo* einfo, MatrixXd &P, MatrixXd &Hi, VectorXd &Py, Vector
         
         // Calculate variance component
         if (!inverse_H(Hi)){
-             LOGPRINTF("Error: the information matrix is not invertible.");
+             LOGPRINTF("Error: matrix H is not invertible.\n");
             remlstatus=-1;
         }
         
@@ -561,7 +664,7 @@ void ai_reml(eInfo* einfo, MatrixXd &P, MatrixXd &Hi, VectorXd &Py, VectorXd &pr
             einfo->_reml_AI_not_invertible = true;
             return;
         }
-        else { LOGPRINTF("Error: the information matrix is not invertible."); remlstatus=-1;}
+        else { LOGPRINTF("Error: matrix H is not invertible.\n"); remlstatus=-1;}
     }
     
     VectorXd delta(einfo->_r_indx.size());
@@ -697,7 +800,7 @@ void constrain_rg(eInfo* einfo, VectorXd &varcmp) {
             if (iter == 1) reml_mtd = reml_mtd_tmp;
             if(!calcu_Vi(_Vi, prev_varcmp, logdet,U, eval))
             {
-                LOGPRINTF("Error: V matrix is not positive-definite.");
+                LOGPRINTF("Error: V matrix is not positive-definite.\n");
                 remlstatus=-1;
                 return lgL;
             }
@@ -710,7 +813,6 @@ void constrain_rg(eInfo* einfo, VectorXd &varcmp) {
             else if (reml_mtd == 2) em_reml(_P, Py, prev_varcmp, varcmp, _y,_A);
             lgL = -0.5 * (logdet_Xt_Vi_X + logdet + (_y.transpose() * Py)(0, 0));
             if(remlstatus==-1) return lgL;
-            
             
             // output log
             if (!no_constrain) constrain_num = constrain_varcmp( y_Ssq, varcmp);
@@ -795,6 +897,123 @@ void constrain_rg(eInfo* einfo, VectorXd &varcmp) {
         return lgL;
     }
 
+    double reml_iter( MatrixXd &Vi_X, MatrixXd &Xt_Vi_X_i, MatrixXd &Hi, VectorXd &Py, VectorXd &varcmp, bool prior_var_flag, bool no_constrain, MatrixXd &_Vi,vector<MatrixXd> &_A, MatrixXd &_X,VectorXd &_y,int reml_mtd, int reml_max_iter, double y_Ssq)
+    {
+        MatrixXd _P;
+        string mtd_str[] = {"AI-REML", "Fisher-scoring REML", "EM-REML"};
+        int constrain_num = 0, iter = 0, reml_mtd_tmp = reml_mtd;
+        double logdet = 0.0, logdet_Xt_Vi_X = 0.0, prev_lgL = -1e20, lgL = -1e20, dlogL = 1000.0;
+        VectorXd prev_prev_varcmp(varcmp), prev_varcmp(varcmp), varcomp_init(varcmp);
+        bool converged_flag = false;
+        
+        for (iter = 0; iter < reml_max_iter; iter++)
+        {
+            if (iter == 0) {
+                prev_varcmp = varcomp_init;
+                if (!prior_var_flag) reml_mtd = 2;
+            }
+            if (iter == 1) reml_mtd = reml_mtd_tmp;
+            
+            if(!calcu_Vi(_Vi, prev_varcmp, logdet,_A))
+            {
+                LOGPRINTF("Error: V matrix is not positive-definite.\n");
+                remlstatus=-1;
+                return lgL;
+            }
+            
+            logdet_Xt_Vi_X = calcu_P(_Vi, Vi_X, Xt_Vi_X_i, _P,_X); // Calculate P
+            if(remlstatus==-1) return lgL;
+            
+            if (reml_mtd == 0) ai_reml( _P, Hi, Py, prev_varcmp, varcmp, dlogL, _y,_A );
+            else if (reml_mtd == 1) reml_equation( _P, Hi, Py, varcmp, _y, _A);
+            else if (reml_mtd == 2) em_reml(_P, Py, prev_varcmp, varcmp, _y,_A);
+            lgL = -0.5 * (logdet_Xt_Vi_X + logdet + (_y.transpose() * Py)(0, 0));
+            if(remlstatus==-1) return lgL;
+            
+            
+            // output log
+            if (!no_constrain) constrain_num = constrain_varcmp( y_Ssq, varcmp);
+
+            if(loud)
+            {
+                if (iter > 0) {
+                    //cout << iter << "\t" << setiosflags(ios::fixed) << setprecision(2) << lgL << "\t";
+                    LOGPRINTF("%d\t%.2f\t",iter,lgL);
+                    for (int i = 0; i < _A.size(); i++)
+                    {
+                        LOGPRINTF("%.5f\t",varcmp[i]);
+                    }//cout << setprecision(5) << varcmp[i] << "\t";
+                    
+                    if (constrain_num > 0) {
+                        LOGPRINTF("(%d component(s) constrained)\n",constrain_num);
+                    } else {
+                        LOGPRINTF("\n");
+                    }
+                } else {
+                    if (!prior_var_flag) //cout << "Updated prior values: " << varcmp.transpose() << endl;
+                    {
+                        LOGPRINTF("Updated prior values: ");
+                        for(int k=0;k<varcmp.size();k++) {
+                            LOGPRINTF("%f\t",varcmp(k));
+                        }
+                        LOGPRINTF("\n");
+                    }
+                    LOGPRINTF("logL: %.3f\n", lgL);
+                    //if(_reml_max_iter==1) cout<<"logL: "<<lgL<<endl;
+                }
+            }
+            if (constrain_num * 2 > _A.size())
+            {
+                if(loud) {LOGPRINTF("Error: analysis stopped because more than half of the variance components are constrained. The result would be unreliable.\n Please have a try to add the option --reml-no-constrain.\n");}
+                remlstatus = -2;
+                return lgL;
+            }
+            
+            // convergence
+            dlogL = lgL - prev_lgL;
+            if ((varcmp - prev_varcmp).squaredNorm() / varcmp.squaredNorm() < 1e-8 && (fabs(dlogL) < 1e-4 || (fabs(dlogL) < 1e-2 && dlogL < 0)))
+            {
+                converged_flag = true;
+                for(int k=0;k<varcmp.size();k++)
+                    if(varcmp(k)<1e-6) remlstatus = -3;
+                double vp=0;
+                for(int k=0;k<varcmp.size();k++) vp+=varcmp(k);
+                if(abs(vp)<1e-6) remlstatus = -3;
+                else {
+                    for(int k=0;k<(varcmp.size()-1);k++) // the last one is v(e)
+                    {
+                        if(varcmp(k)/vp > 0.999999) remlstatus = -3;
+                    }
+                }
+                if (constrain_num > 0) remlstatus = -5;
+                if (reml_mtd == 2) {
+                    calcu_Hi(_P, Hi, _A);
+                    Hi = 2 * Hi;
+                } // for calculation of SE
+                break;
+            }
+            prev_prev_varcmp = prev_varcmp;
+            prev_varcmp = varcmp;
+            prev_lgL = lgL;
+        }
+        if(converged_flag)
+        {
+            if(loud) {LOGPRINTF( "Log-likelihood ratio converged.\n" );}
+        }
+        else
+        {
+            if(iter == reml_max_iter)
+            {
+                if (reml_max_iter > 1) {
+                    LOGPRINTF("Error: Log-likelihood not converged (stop after %d iteractions). \nYou can specify the option --reml-maxit to allow for more iterations.\n",reml_max_iter);
+                    remlstatus = -4;
+                }
+            }
+        }
+        
+        return lgL;
+    }
+    
 double reml_iteration(eInfo* einfo, MatrixXd &Vi_X, MatrixXd &Xt_Vi_X_i, MatrixXd &Hi, VectorXd &Py, VectorXd &varcmp, bool prior_var_flag, bool no_constrain, bool reml_bivar_fix_rg,MatrixXd &_Vi,vector<MatrixXd> &_A, MatrixXd &_X,VectorXd &_y)
 {
  
@@ -835,14 +1054,13 @@ double reml_iteration(eInfo* einfo, MatrixXd &Vi_X, MatrixXd &Xt_Vi_X_i, MatrixX
         }
         
         
-        
         if (einfo->_bivar_reml) calcu_Vi_bivar(einfo, _Vi, prev_varcmp, logdet, iter); // Calculate Vi, bivariate analysis
         else if (einfo->_within_family) calcu_Vi_within_family(einfo, _Vi, prev_varcmp, logdet, iter); // within-family REML
         else {
             if (!calcu_Vi(einfo, _Vi, prev_varcmp, logdet, iter, _A )){ // Calculate Vi
                 LOGPRINTF("Warning: V matrix is not positive-definite.\n");
                 varcmp = prev_prev_varcmp;
-                if(!calcu_Vi(einfo, _Vi, varcmp, logdet, iter,_A)) {LOGPRINTF("Error: V matrix is not positive-definite."); remlstatus=-1;}
+                if(!calcu_Vi(einfo, _Vi, varcmp, logdet, iter,_A)) {LOGPRINTF("Error: V matrix is not positive-definite.\n"); remlstatus=-1;}
                 calcu_Hi(einfo, einfo->_P, Hi,_A);
                 Hi = 2 * Hi;
                 break;
@@ -1254,10 +1472,11 @@ void reml( eInfo* einfo, bool pred_rand_eff, bool est_fix_eff, vector<double> &r
         if (LRT < 0.0) LRT = 0.0;
     }
     
-    if (mlmassoc) {
-        if(remlstatus==0) eigenVector2Vector(varcmp, einfo->_varcmp);
+    //if (mlmassoc) {
+        //if(remlstatus==0)
+            eigenVector2Vector(varcmp, einfo->_varcmp);
         //return;
-    }
+    //}
     // output results
     double sum_hsq = 0.0, var_sum_hsq = 0.0;
     if (!einfo->_bivar_reml && einfo->_r_indx.size() > 2) calcu_sum_hsq(einfo, Vp, VarVp, sum_hsq, var_sum_hsq, varcmp, Hi);
@@ -1400,7 +1619,79 @@ void reml( eInfo* einfo, bool pred_rand_eff, bool est_fix_eff, vector<double> &r
         cout << "\nBLUP of the genetic effects for " << einfo->_eii_include.size() << " individuals has been saved in the file [" + rand_eff_file + "]." << endl;
     }
 }
-
+    void reml( bool pred_rand_eff, bool est_fix_eff, vector<double> &reml_priors, vector<double> &reml_priors_var, bool no_constrain, int _X_c,MatrixXd &_X, VectorXd &_y,vector<MatrixXd> &_A, MatrixXd &_Vi, int reml_mtd, int reml_max_iter,VectorXd &_b,VectorXd &_se, vector<double> &_varcmp)
+    {
+        int _n=(int)_y.size(), nr=(int)_A.size();
+        VectorXd y_tmp = _y.array() - _y.mean();
+        double y_Ssq = y_tmp.squaredNorm() / (_n - 1.0);
+        if (!(fabs(y_Ssq) < 1e30)) {LOGPRINTF ("Error: the phenotypic variance is infinite. Please check the missing data in your phenotype file. Missing values should be represented by \"NA\" or \"-9\"."); TERMINATE();}
+        
+        bool reml_priors_flag = !reml_priors.empty(), reml_priors_var_flag = !reml_priors_var.empty();
+        if (reml_priors_flag && reml_priors.size() < nr - 1) {
+            LOGPRINTF("Error: in option --reml-priors. There are %d variance components. At least %d prior values should be specified.\n", nr,nr - 1 );
+            TERMINATE();
+        }
+        if (reml_priors_var_flag && reml_priors_var.size() < _A.size() - 1) {
+            LOGPRINTF("Error: in option --reml-priors-var. There are %d variance components. At least %d prior values should be specified.\n", nr,nr - 1 );
+            TERMINATE();
+        }
+        
+        if (_n < 10) {LOGPRINTF ("Error: sample size is too small.");exit(EXIT_FAILURE);}
+        if(loud)
+        {
+            LOGPRINTF("%d observations, %d fixed effect(s), and %d variance component(s)(including residual variance).\n",_n,_X_c,nr);
+        }
+        MatrixXd Vi_X(_n, _X_c), Xt_Vi_X_i(_X_c, _X_c), Hi(_A.size(), _A.size());
+        VectorXd Py(_n), varcmp=VectorXd::Zero(_A.size());;
+        double d_buf=0;
+        if (!reml_priors_var.empty()) {
+            for (int i = 0; i < nr - 1; i++) varcmp[i] = reml_priors_var[i];
+            if (reml_priors_var.size() < nr) varcmp[nr - 1] = y_Ssq - varcmp.sum();
+            else varcmp[nr - 1] = reml_priors_var[nr - 1];
+        }
+        else if (!reml_priors.empty()) {
+            for (int i = 0; i < nr - 1; i++) {
+                varcmp[i] = reml_priors[i] * y_Ssq;
+                d_buf += reml_priors[i];
+            }
+            if (d_buf > 1.0) {LOGPRINTF ("\nError: --reml-priors. The sum of all prior values should not exceed 1.0.\n"); TERMINATE();}
+            varcmp[_A.size() - 1] = (1.0 - d_buf) * y_Ssq;
+        }
+        else varcmp.setConstant(y_Ssq / nr);
+        
+        double lgL = reml_iter( Vi_X,Xt_Vi_X_i, Hi, Py, varcmp,  reml_priors_var_flag,  no_constrain, _Vi,_A, _X,_y, reml_mtd,  reml_max_iter,  y_Ssq);
+        if(remloasi)
+        {
+            reml_priors_var.clear();
+            for(int j=0;j<varcmp.size();j++)
+            {
+                reml_priors_var.push_back(varcmp[j]);
+            }
+        }
+        _varcmp.clear();
+        for(int j=0;j<varcmp.size();j++) _varcmp.push_back(varcmp[j]);
+        if(remlstatus!=0 && remlstatus!=-3 && remlstatus!=-5) return;
+        
+        MatrixXd u;
+        if (pred_rand_eff) {
+            u.resize(_n, _A.size());
+            for (int i = 0; i < _A.size(); i++) {
+                (u.col(i)) = (((_A[i]) * Py) * varcmp[i]);
+            }
+        }
+        if (est_fix_eff)
+        {
+            _b = Xt_Vi_X_i * (Vi_X.transpose() * _y);
+            _se=Xt_Vi_X_i.diagonal();
+        }
+        
+        // calculate rsq and SE
+        double Vp = 0.0, VarVp = 0.0;
+        vector<double> Hsq(_A.size() - 1), VarHsq(_A.size() - 1);
+        calcu_Vp( Vp, VarVp, varcmp, Hi);
+        for (int i = 0; i < Hsq.size(); i++) calcu_rsq( i, Vp, VarVp, Hsq[i], VarHsq[i], varcmp, Hi);
+    }
+    
 void reml( bool pred_rand_eff, bool est_fix_eff, vector<double> &reml_priors, vector<double> &reml_priors_var, bool no_constrain, int _X_c,MatrixXd &_X, VectorXd &_y,vector<MatrixXd> &_A, MatrixXd &_U, VectorXd &_eval, MatrixXd &_Vi, int reml_mtd, int reml_max_iter,VectorXd &_b,VectorXd &_se)
     {
         int _n=(int)_y.size(), nr=2;
@@ -1440,7 +1731,8 @@ void reml( bool pred_rand_eff, bool est_fix_eff, vector<double> &reml_priors, ve
             varcmp[_A.size() - 1] = (1.0 - d_buf) * y_Ssq;
         }
         else varcmp.setConstant(y_Ssq / nr);
-           double lgL = reml_iter( Vi_X,Xt_Vi_X_i, Hi, Py, varcmp,  reml_priors_var_flag,  no_constrain, _Vi,_U, _eval,_A, _X,_y, reml_mtd,  reml_max_iter,  y_Ssq);
+       
+           double lgL = reml_iter( Vi_X,Xt_Vi_X_i, Hi, Py, varcmp, reml_priors_var_flag,  no_constrain, _Vi,_U, _eval,_A, _X,_y, reml_mtd,  reml_max_iter,  y_Ssq);
         if(remloasi)
         {
             reml_priors_var.clear();
@@ -1546,7 +1838,47 @@ void detect_family(eInfo* einfo,  vector<MatrixXd> &_A)
 
 void mlma_calcu_stat_covar(VectorXd &_Y, double *predictor, unsigned long n, unsigned long m, int _X_c,  MatrixXd &_Vi,  MatrixXd &_X, VectorXd &beta, VectorXd &se, VectorXd &pval)
     {
+      
+        double chisq=0.0;
+        beta.resize(m);
+        se=VectorXd::Zero(m);
+        pval=VectorXd::Constant(m,2);
+        LOGPRINTF("\nRunning association tests for %lu probes ...\n",m);
         
+        VectorXd x(n);
+        MatrixXd Vi_C = _Vi*_X; // n by m
+        MatrixXd A = _X.transpose()*Vi_C; // Ct_Vi_C : m by m
+        bool determinant_zero=false;
+        inverse_V(A, determinant_zero);
+        if(determinant_zero)
+        {
+            LOGPRINTF("The matrix is not invertible.\n");
+            TERMINATE();
+        }
+        VectorXd Ct_vi_y = _X.transpose()*_Vi*_Y;
+        
+        for(int i = 0; i < m; i++ )
+        {
+            for(int j = 0; j < n; j++) x(j) = predictor[j*m+i];
+            
+            VectorXd B = x.transpose()*Vi_C;
+            VectorXd xt_Vi = x.transpose()*_Vi;
+            double D = xt_Vi.transpose()*x;
+            double xt_Vi_y = xt_Vi.transpose()*_Y;
+            double D_BTAiB = D - B.transpose()*A*B;
+            D_BTAiB = 1/D_BTAiB;
+            VectorXd AiBD_BTAiB = A*B*D_BTAiB;
+            AiBD_BTAiB = -1 * AiBD_BTAiB;
+            
+            beta[i]=Ct_vi_y.dot(AiBD_BTAiB) + D_BTAiB*xt_Vi_y;
+            se[i]=D_BTAiB;
+            if(se[i]>1.0e-30){
+                se[i]=sqrt(se[i]);
+                chisq=beta[i]/se[i];
+                pval[i]=pchisq(chisq*chisq, 1);
+            }
+        }
+        /*
         unsigned long col_num=_X_c+1;
         double chisq=0.0;
         
@@ -1582,32 +1914,80 @@ void mlma_calcu_stat_covar(VectorXd &_Y, double *predictor, unsigned long n, uns
                 pval[i]=pchisq(chisq*chisq, 1);
             }
         }
-        
+        */
     }
 
     
 void mlma_calcu_stat_covar(VectorXd &_Y, eInfo* einfo, int _X_c,  MatrixXd &_Vi,  MatrixXd &_X, VectorXd &beta, VectorXd &se, VectorXd &pval)
     {
-        
-        unsigned long col_num=_X_c+1;
-        double chisq=0.0;
         uint64_t n=einfo->_eii_include.size();
         uint64_t m=einfo->_epi_include.size();
-        
-        MatrixXd X(n,col_num);
-        MatrixXd Vi_X(n,col_num);
-        MatrixXd Xt_Vi_X(col_num,col_num);
-        VectorXd Xt_Vi_y(col_num);
-        VectorXd b_vec(col_num);
-
-        X.block(0, 0, n, _X_c)=_X;
-        
+       
+        double chisq=0.0;
         beta.resize(m);
         se=VectorXd::Zero(m);
         pval=VectorXd::Constant(m,2);
         LOGPRINTF("\nRunning association tests for %llu probes ...\n",m);
-     
-       
+        
+        VectorXd x(n);
+        MatrixXd Vi_C = _Vi*_X; // n by m
+        MatrixXd A = _X.transpose()*Vi_C; // Ct_Vi_C : m by m
+        bool determinant_zero=false;
+        inverse_V(A, determinant_zero);
+        if(determinant_zero)
+        {
+            LOGPRINTF("The matrix is not invertible.\n");
+            TERMINATE();
+        }
+        VectorXd Ct_vi_y = _X.transpose()*_Vi*_Y;
+        
+        for(int i = 0; i < m; i++ )
+        {
+            double nonmiss=0.0;
+            double mu=0.0;
+            for(int j = 0; j < n; j++) {
+                double val=einfo->_val[einfo->_epi_include[i]*einfo->_eii_num+einfo->_eii_include[j]];
+                if(val<1e9){
+                    mu+=val;
+                    nonmiss+=1.0;
+                }
+            }
+            mu/=nonmiss;
+            for(int j = 0; j < n; j++) {
+                double val=einfo->_val[einfo->_epi_include[i]*einfo->_eii_num+einfo->_eii_include[j]];
+                if(val<1e9){
+                    x(j) = val-mu;
+                } else {
+                    x(j)=0.0;
+                }
+            }
+            
+            VectorXd B = x.transpose()*Vi_C; //  xt_Vi_C : 1 by m
+            VectorXd xt_Vi = x.transpose()*_Vi;
+            double D = xt_Vi.transpose()*x; // xt_Vi_x
+            double xt_Vi_y = xt_Vi.transpose()*_Y;
+            
+            double D_BTAiB = D - B.transpose()*A*B;
+            D_BTAiB = 1/D_BTAiB;
+            VectorXd AiBD_BTAiB = A*B*D_BTAiB; // m by 1
+            AiBD_BTAiB = -1 * AiBD_BTAiB;
+            
+            beta[i]=Ct_vi_y.dot(AiBD_BTAiB) + D_BTAiB*xt_Vi_y;
+            se[i]=D_BTAiB;
+            if(se[i]>1.0e-30){
+                se[i]=sqrt(se[i]);
+                chisq=beta[i]/se[i];
+                pval[i]=pchisq(chisq*chisq, 1);
+            }
+        }
+        /*
+        unsigned long col_num=_X_c+1;
+        MatrixXd X(n,col_num);
+        MatrixXd Xt_Vi_X(col_num,col_num);
+        MatrixXd Vi_X(n,col_num);
+        VectorXd Xt_Vi_y(col_num);
+        VectorXd b_vec(col_num);
+        X.block(0, 0, n, _X_c)=_X;
         for(int i = 0; i < m; i++ ){
             double nonmiss=0.0;
             double mu=0.0;
@@ -1643,6 +2023,7 @@ void mlma_calcu_stat_covar(VectorXd &_Y, eInfo* einfo, int _X_c,  MatrixXd &_Vi,
                 pval[i]=pchisq(chisq*chisq, 1);
             }
         }
+       */
     }
     
 void mlma_calcu_stat(VectorXd &_Y, eInfo* einfo, MatrixXd &_Vi, VectorXd &beta, VectorXd &se, VectorXd &pval)
@@ -1653,6 +2034,18 @@ void mlma_calcu_stat(VectorXd &_Y, eInfo* einfo, MatrixXd &_Vi, VectorXd &beta, 
         uint64_t m=einfo->_epi_include.size();
         VectorXd X(n);
         VectorXd Vi_X(n);
+#ifndef __APPLE__
+        float * Vi_mkl = new float[n*n];
+        float *X_mkl=new float[n];
+        float *Vi_X_mkl=new float[n];
+        float *y = new float[n];
+        for(int i=0; i<n; i++) y[i] = _Y[i];
+#pragma omp parallel for
+        for(int i=0; i<n; i++){
+            for(int j=0; j<n; j++) Vi_mkl[i*n+j]=_Vi(i,j);
+        }
+#endif
+        
         
         beta.resize(m);
         se=VectorXd::Zero(m);
@@ -1679,17 +2072,37 @@ void mlma_calcu_stat(VectorXd &_Y, eInfo* einfo, MatrixXd &_Vi, VectorXd &beta, 
                     X(j)=0.0;
                 }
             }
-            Vi_X=_Vi*X;
-            Xt_Vi_X=Vi_X.dot(X);
+#ifndef __APPLE__
+            for(int j = 0; j < n; j++) X_mkl[j] = X(j);
+            cblas_sgemv(CblasRowMajor, CblasNoTrans, n, n, 1.0, Vi_mkl, n, X_mkl, 1, 0.0, Vi_X_mkl, 1);
+            Xt_Vi_X=cblas_sdot(n, X_mkl, 1, Vi_X_mkl, 1);
             se[i]=1.0/Xt_Vi_X;
-            beta[i]=se[i]*(Vi_X.dot(_Y));
+            beta[i]=se[i]*cblas_sdot(n, y, 1, Vi_X_mkl, 1);
             if(se[i]>1.0e-30){
                 se[i]=sqrt(se[i]);
-                chisq=beta[i]/se[i];
+                double chisq=beta[i]/se[i];
                 pval[i]=pchisq(chisq*chisq, 1);
             }
+#else
+            Vi_X=_Vi*X;
+            Xt_Vi_X=Vi_X.dot(X);
+            se(i)=1.0/Xt_Vi_X;
+            beta(i)=se(i)*(Vi_X.dot(_Y));
+            if(se(i)>1.0e-30){
+                se(i)=sqrt(se(i));
+                double chisq=beta(i)/se(i);
+                pval(i)=pchisq(chisq*chisq, 1);
+            }
+#endif
         }
+#ifndef __APPLE__
+        delete[] X_mkl;
+        delete[] Vi_X_mkl;
+        delete[] Vi_mkl;
+        delete[] y;
+#endif
     }
+    
     void mlma_calcu_stat(VectorXd &_Y, double *predictor, unsigned long n, unsigned long m, MatrixXd &_Vi, VectorXd &beta, VectorXd &se, VectorXd &pval)
     {
         
@@ -1697,6 +2110,17 @@ void mlma_calcu_stat(VectorXd &_Y, eInfo* einfo, MatrixXd &_Vi, VectorXd &beta, 
        
         VectorXd X(n);
         VectorXd Vi_X(n);
+#ifndef __APPLE__
+        float * Vi_mkl = new float[n*n];
+        float *X_mkl=new float[n];
+        float *Vi_X_mkl=new float[n];
+        float *y = new float[n];
+        for(int i=0; i<n; i++) y[i] = _Y[i];
+#pragma omp parallel for
+        for(int i=0; i<n; i++){
+            for(int j=0; j<n; j++) Vi_mkl[i*n+j]=_Vi(i,j);
+        }
+#endif
         
         beta.resize(m);
         se=VectorXd::Zero(m);
@@ -1704,6 +2128,18 @@ void mlma_calcu_stat(VectorXd &_Y, eInfo* einfo, MatrixXd &_Vi, VectorXd &beta, 
         LOGPRINTF("\nRunning association tests for %ld probes ...\n",m);
         
         for(int i = 0; i < m; i++){
+#ifndef __APPLE__
+            for(int j = 0; j < n; j++) X_mkl[j] = predictor[j*m+i];
+            cblas_sgemv(CblasRowMajor, CblasNoTrans, n, n, 1.0, Vi_mkl, n, X_mkl, 1, 0.0, Vi_X_mkl, 1);
+            Xt_Vi_X=cblas_sdot(n, X_mkl, 1, Vi_X_mkl, 1);
+            se[i]=1.0/Xt_Vi_X;
+            beta[i]=se[i]*cblas_sdot(n, y, 1, Vi_X_mkl, 1);
+            if(se[i]>1.0e-30){
+                se[i]=sqrt(se[i]);
+                double chisq=beta[i]/se[i];
+                pval[i]=pchisq(chisq*chisq, 1);
+            }
+#else
             for(int j = 0; j < n; j++) X(j) = predictor[j*m+i];
             Vi_X=_Vi*X;
             
@@ -1715,8 +2151,14 @@ void mlma_calcu_stat(VectorXd &_Y, eInfo* einfo, MatrixXd &_Vi, VectorXd &beta, 
                 chisq=beta[i]/se[i];
                 pval[i]=pchisq(chisq*chisq, 1);
             }
+#endif
         }
-
+#ifndef __APPLE__
+        delete[] X_mkl;
+        delete[] Vi_X_mkl;
+        delete[] Vi_mkl;
+        delete[] y;
+#endif
     }
     
     void read_indi_blup(eInfo* einfo, string blup_indi_file) {

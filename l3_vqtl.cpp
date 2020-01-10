@@ -41,6 +41,112 @@ namespace VQTL {
         
         LOGPRINTF("%ld individuals in common are kept.\n",  einfo->_eii_include.size());
     }
+    void indi_check(bInfo* bdata,eInfo* einfo, eInfo* eCov)
+    {
+        map<string, int>::iterator iter0, iter1;
+        vector<string> indi_list;
+        vector<int> bkeep,ekeep,ckeep;
+        map<string,int> bmap,emap,cmap;
+        
+        for(int i=0;i<bdata->_keep.size();i++)
+        {
+            int idx=bdata->_keep[i];
+            string iid=bdata->_fid[idx]+":"+bdata->_pid[idx];
+            iter0 = einfo->_eii_map.find(iid);
+            iter1 = eCov->_eii_map.find(iid);
+            if (iter0 != einfo->_eii_map.end() && iter1 != eCov->_eii_map.end()) {
+                indi_list.push_back(iid);
+                bkeep.push_back(idx);
+                ekeep.push_back(iter0->second);
+                ckeep.push_back(iter1->second);
+                bmap.insert(pair<string,int>(iid,idx));
+                emap.insert(pair<string,int>(iid,iter0->second));
+                cmap.insert(pair<string,int>(iid,iter1->second));
+            }
+        }
+        
+        if(indi_list.size()==0){
+            LOGPRINTF("No individual in common.\n");
+            TERMINATE();
+        }
+        bdata->_keep.swap(bkeep);
+        einfo->_eii_include.swap(ekeep);
+        eCov->_eii_include.swap(ckeep);
+        bdata->_id_map.swap(bmap);
+        einfo->_eii_map.swap(emap);
+        eCov->_eii_map.swap(cmap);
+        
+        LOGPRINTF("%ld individuals in common are kept.\n",  einfo->_eii_include.size());
+    }
+    void indi_check(eInfo* edata,eInfo* einfo)
+    {
+        map<string, int>::iterator iter;
+        vector<string> indi_list;
+        vector<int> bkeep,ekeep;
+        map<string,int> bmap,emap;
+        
+        for(int i=0;i<edata->_eii_include.size();i++)
+        {
+            int idx=edata->_eii_include[i];
+            string iid=edata->_eii_fid[idx]+":"+edata->_eii_iid[idx];
+            iter = einfo->_eii_map.find(iid);
+            if (iter != einfo->_eii_map.end()) {
+                indi_list.push_back(iid);
+                bkeep.push_back(idx);
+                ekeep.push_back(iter->second);
+                bmap.insert(pair<string,int>(iid,idx));
+                emap.insert(pair<string,int>(iid,iter->second));
+            }
+        }
+        
+        if(indi_list.size()==0){
+            LOGPRINTF("No individual in common.\n");
+            TERMINATE();
+        }
+        edata->_eii_include.swap(bkeep);
+        einfo->_eii_include.swap(ekeep);
+        edata->_eii_map.swap(bmap);
+        einfo->_eii_map.swap(emap);
+        
+        LOGPRINTF("%ld individuals in common are kept.\n",  einfo->_eii_include.size());
+    }
+    void indi_check(eInfo* edata,eInfo* einfo, eInfo* eCov)
+    {
+        map<string, int>::iterator iter0, iter1;
+        vector<string> indi_list;
+        vector<int> bkeep,ekeep,ckeep;
+        map<string,int> bmap,emap,cmap;
+        
+        for(int i=0;i<edata->_eii_include.size();i++)
+        {
+            int idx=edata->_eii_include[i];
+            string iid=edata->_eii_fid[idx]+":"+edata->_eii_iid[idx];
+            iter0 = einfo->_eii_map.find(iid);
+            iter1 = eCov->_eii_map.find(iid);
+            if (iter0 != einfo->_eii_map.end() && iter1 != eCov->_eii_map.end()) {
+                indi_list.push_back(iid);
+                bkeep.push_back(idx);
+                ekeep.push_back(iter0->second);
+                ckeep.push_back(iter1->second);
+                bmap.insert(pair<string,int>(iid,idx));
+                emap.insert(pair<string,int>(iid,iter0->second));
+                cmap.insert(pair<string,int>(iid,iter1->second));
+            }
+        }
+        
+        if(indi_list.size()==0){
+            LOGPRINTF("No individual in common.\n");
+            TERMINATE();
+        }
+        edata->_eii_include.swap(bkeep);
+        einfo->_eii_include.swap(ekeep);
+        eCov->_eii_include.swap(ckeep);
+        edata->_eii_map.swap(bmap);
+        einfo->_eii_map.swap(emap);
+        eCov->_eii_map.swap(cmap);
+        
+        LOGPRINTF("%ld individuals in common are kept.\n",  einfo->_eii_include.size());
+    }
     void indi_check2(bInfo* bdata,eInfo* einfo)
     {
         map<string, int>::iterator iter;
@@ -73,8 +179,8 @@ namespace VQTL {
         
         LOGPRINTF("%ld individuals in common are kept.\n",  einfo->_eii_include.size());
     }
-
-    void load_vqtl_workspace(eInfo* einfo,bInfo* bdata, char* efileName, char* befileName, char* phenofileName, char* bFileName, bool transposed, int efileType,char* problstName,char* problst2exclde,char* genelistName, int chr,char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* probe2exclde,char* indilstName,char* indilst2remove, bool no_fid_flag,int valueType,bool beta2m,bool m2beta, double std_thresh,double upperBeta,double lowerBeta,char* dpvalfName, double dp_thresh, double prb_thresh, double spl_thresh, int filter_mth, double mssratio_prob, int autosome_num,char* snplstName,char* snplst2exclde,int tsk_ttl,int tsk_id, char* covfileName, char* qcovfileName,char* grm_file)
+ 
+    void load_vqtl_workspace(eInfo* einfo,bInfo* bdata, char* efileName, char* befileName, char* phenofileName, char* bFileName, bool transposed, int efileType,char* problstName,char* problst2exclde,char* genelistName, int chr,char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* probe2exclde,char* indilstName,char* indilst2remove, bool no_fid_flag,int valueType,bool beta2m,bool m2beta, double std_thresh,double upperBeta,double lowerBeta,char* dpvalfName, double dp_thresh, double prb_thresh, double spl_thresh, int filter_mth, double mssratio_prob, int autosome_num,char* snplstName,char* snplst2exclde,int tsk_ttl,int tsk_id, char* covfileName, char* qcovfileName,char* grm_file, int xqtlNO, double zeroratio, eInfo* eCov, char* covbodfileName, char* covefileName, bool transopse_ecov)
     {
         
         if(befileName==NULL && efileName==NULL && phenofileName==NULL)
@@ -92,7 +198,7 @@ namespace VQTL {
             LOGPRINTF("Error: please input the Plink file by the option --bfile.\n");
             TERMINATE();
         }
-
+        char bcname[FNAMESIZE];
         if(efileName!=NULL || phenofileName!=NULL)
         {
             vector<string> grm_id;
@@ -110,13 +216,37 @@ namespace VQTL {
             if(grm_file!=NULL) read_grm_id(bdata,grm_file, grm_id);
             if(covfileName != NULL) read_cov(einfo, covfileName, false);
             if(qcovfileName != NULL) read_cov(einfo, qcovfileName, true);
+            if(covbodfileName!=NULL ||  covefileName!=NULL)
+            {
+                if(covbodfileName!=NULL)
+                {
+                    memcpy(bcname,covbodfileName,strlen(covbodfileName)+1);
+                    char* suffix=bcname+strlen(covbodfileName);
+                    memcpy(suffix,".oii",5);
+                    read_eii(bcname,eCov);
+                } else {
+                    if(transopse_ecov) read_efile_t(covefileName,eCov,efileType,no_fid_flag,valueType);
+                    else read_efile(covefileName,eCov,efileType,no_fid_flag,valueType);
+                }
+            }
             //commn individuals
-            indi_check(bdata,einfo);
+            if(covbodfileName!=NULL || covefileName!=NULL) indi_check(bdata,einfo,eCov);
+            else indi_check(bdata,einfo);
+            if(covbodfileName!=NULL)
+            {
+                char* suffix=bcname+strlen(covbodfileName);
+                memcpy(suffix,".opi",5);
+                read_epi(bcname,eCov);
+                memcpy(suffix,".bod",5);
+                read_beed(bcname,eCov);
+            }
             epi_man(einfo,problstName,problst2exclde,genelistName, chr,prbname, fromprbname, toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag, genename,probe2exclde);
-            if(tsk_ttl>1) extract_probe(einfo,  tsk_ttl,  tsk_id);
+            if(xqtlNO == 3) extract_sqtl_probe(einfo,tsk_ttl,  tsk_id);
+            else if(tsk_ttl>1) extract_probe(einfo,  tsk_ttl,  tsk_id);
             if(dpvalfName!=NULL) filtering_with_detpval(einfo, dpvalfName, dp_thresh, prb_thresh, spl_thresh,filter_mth, no_fid_flag);
             if(std_thresh>0) std_probe_filtering( einfo, std_thresh);
             if(upperBeta<1 ||lowerBeta>0) filtering_constitutive_probes(einfo, upperBeta, lowerBeta);
+            if(xqtlNO == 3 && einfo->_valType ==0) filtering_with_zeroratio(einfo, zeroratio);
             if(mssratio_prob<1) filtering_with_missingratio(einfo, mssratio_prob);
             read_bimfile(bdata, string(bFileName)+".bim");
             if(snplstName != NULL) extract_snp(bdata, snplstName);
@@ -135,11 +265,35 @@ namespace VQTL {
             if(qcovfileName != NULL) read_cov(einfo, qcovfileName, true);
             read_famfile(bdata, string(bFileName)+".fam");
             if(grm_file!=NULL) read_grm_id(bdata,grm_file, grm_id);
-            indi_check(bdata,einfo);
+            if(covbodfileName!=NULL || covefileName!=NULL)
+            {
+                if(covbodfileName!=NULL)
+                {
+                    memcpy(bcname,covbodfileName,strlen(covbodfileName)+1);
+                    char* suffix=bcname+strlen(covbodfileName);
+                    memcpy(suffix,".oii",5);
+                    read_eii(bcname,eCov);
+                } else {
+                    if(transopse_ecov) read_efile_t(covefileName,eCov,efileType,no_fid_flag,valueType);
+                    else read_efile(covefileName,eCov,efileType,no_fid_flag,valueType);
+                }
+            }
+            //commn individuals
+            if(covbodfileName!=NULL || covefileName!=NULL) indi_check(bdata,einfo,eCov);
+            else indi_check(bdata,einfo);
+            if(covbodfileName!=NULL)
+            {
+                char* suffix=bcname+strlen(covbodfileName);
+                memcpy(suffix,".opi",5);
+                read_epi(bcname,eCov);
+                memcpy(suffix,".bod",5);
+                read_beed(bcname,eCov);
+            }
             memcpy(suffix,".opi",5);
             read_epi(inputname,einfo);
             epi_man(einfo,problstName,problst2exclde,genelistName, chr,prbname, fromprbname, toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag, genename,probe2exclde);
-            if(tsk_ttl>1) extract_probe(einfo,  tsk_ttl,  tsk_id);
+            if(xqtlNO == 3) extract_sqtl_probe(einfo,tsk_ttl,  tsk_id);
+            else if(tsk_ttl>1) extract_probe(einfo,  tsk_ttl,  tsk_id);
             memcpy(suffix,".bod",5);
             clock_t begin_time = clock();
             read_beed(inputname,einfo);
@@ -148,10 +302,11 @@ namespace VQTL {
             if(std_thresh>0) std_probe_filtering( einfo, std_thresh);
             if(upperBeta<1 ||lowerBeta>0) filtering_constitutive_probes(einfo, upperBeta, lowerBeta);
             if(mssratio_prob<1) filtering_with_missingratio(einfo, mssratio_prob);
+            if(xqtlNO == 3 && einfo->_valType ==0) filtering_with_zeroratio(einfo, zeroratio);
             read_bimfile(bdata, string(bFileName)+".bim");
             if(snplstName != NULL) extract_snp(bdata, snplstName);
             if(snplst2exclde != NULL) exclude_snp(bdata, snplst2exclde);
-             begin_time = clock();
+            begin_time = clock();
             read_bedfile(bdata, string(bFileName)+".bed");
             //LOGPRINTF("read_bedfile: %f ms.\n",float( clock () - begin_time ) /  1000);
         }
@@ -181,7 +336,7 @@ namespace VQTL {
     }
 
     
-     void V_QTL(char* outFileName,  char* efileName, char* befileName,  char* phenofileName, char* bFileName, bool transposed,  int efileType, char* problstName,char* problst2exclde,char* genelistName, int chr,char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* probe2exclde,char* indilstName,char* indilst2remove, bool no_fid_flag,int valueType,bool beta2m,bool m2beta, double std_thresh,double upperBeta,double lowerBeta,char* dpvalfName, double dp_thresh, double prb_thresh, double spl_thresh, int filter_mth, double mssratio_prob,int autosome_num, double maf,char* snplstName,char* snplst2exclde,int tsk_ttl,int tsk_id,int vqtl_mtd,char* covfileName, char* qcovfileName, bool tosmrflag, bool cis_flag, int cis_itvl)
+     void V_QTL(char* outFileName,  char* efileName, char* befileName, char* phenofileName, char* bFileName, bool transposed,  int efileType, char* problstName,char* problst2exclde,char* genelistName, int chr,char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* probe2exclde,char* indilstName,char* indilst2remove, bool no_fid_flag,int valueType,bool beta2m,bool m2beta, double std_thresh,double upperBeta,double lowerBeta,char* dpvalfName, double dp_thresh, double prb_thresh, double spl_thresh, int filter_mth, double mssratio_prob,int autosome_num, double maf,char* snplstName,char* snplst2exclde,int tsk_ttl,int tsk_id,int vqtl_mtd,char* covfileName, char* qcovfileName, bool tosmrflag,bool cis_flag, int cis_itvl)
     {
         
         setNbThreads(thread_num);
@@ -225,18 +380,27 @@ namespace VQTL {
         if(fopen_checked(&singleton, singletonFName.c_str(),"w")) TERMINATE();
         
         FILE* besd=NULL;
+        FILE* ma=NULL;
         string besdName=string(outFileName)+".besd";
+        string maName = string(outFileName)+".ma";
         string outstr="";
         if(phenofileName!=NULL)
         {
             besdName=string(outFileName)+".vqtl";
             if(fopen_checked(&besd, besdName.c_str(),"w")) TERMINATE();
-            outstr="Chr\tSNP\tbp";
+            outstr="Chr\tSNP\tA1\tA2\tfreq\tbp";
             if(vqtl_mtd==0 || vqtl_mtd==3 ) outstr+="\tstatistic\tdf\tbeta\tse\tP\tNMISS\n";
             else outstr+="\tF-statistic\tdf1\tdf2\tbeta\tse\tP\tNMISS\n";
             if(fputs_checked(outstr.c_str(),besd))
             {
                 LOGPRINTF("ERROR: in writing file %s .\n", besdName.c_str());
+                TERMINATE();
+            }
+            if(fopen_checked(&ma, maName.c_str(),"w")) TERMINATE();
+            outstr="SNP\tA1\tA2\tfreq\tbeta\tse\tP\tNMISS\n";
+            if(fputs_checked(outstr.c_str(),ma))
+            {
+                LOGPRINTF("ERROR: in writing file %s .\n", maName.c_str());
                 TERMINATE();
             }
             
@@ -425,6 +589,8 @@ namespace VQTL {
                     string snprs=bdata._snp_name[bdata._include[snpstart+kk]];
                     int snpchr=bdata._chr[bdata._include[snpstart+kk]];
                     int snpbp=bdata._bp[bdata._include[snpstart+kk]];
+                    string snpa1 = bdata._allele1[bdata._include[snpstart+kk]];
+                    string snpa2 = bdata._allele2[bdata._include[snpstart+kk]];
                     double snpfreq=bdata._mu[bdata._include[snpstart+kk]]/2;
                     if(snpfreq==0 || snpfreq==1)
                     {
@@ -500,7 +666,7 @@ namespace VQTL {
                                 betases[2*jj]=rst[0];
                                 betases[2*jj+1]=rst[1];
                                 if(phenofileName!=NULL && besd) {
-                                    string outstr = atos(snpchr) + '\t' + snprs + '\t' + atos(snpbp) + '\t' + atos(rst[3]) + '\t' + atos(rst[4]) + '\t' + atos(rst[0]) + '\t' + atos(rst[1]) + '\t' + dtos(rst[2]) + '\t' + atos(nonmiss) +'\n';
+                                    string outstr = atos(snpchr) + '\t' + snprs + '\t' +snpa1 + '\t' +snpa2+ '\t' + atos(snpfreq) + '\t'+ atos(snpbp) + '\t' + atos(rst[3]) + '\t' + atos(rst[4]) + '\t' + atos(rst[0]) + '\t' + atos(rst[1]) + '\t' + dtos(rst[2]) + '\t' + atos(nonmiss) +'\n';
                                     if(fputs_checked(outstr.c_str(),besd))
                                     {
                                         LOGPRINTF("ERROR: in writing file %s .\n", besdName.c_str());
@@ -508,7 +674,14 @@ namespace VQTL {
                                     }
                                     write_count++;
                                 }
-
+                                if(phenofileName!=NULL && ma) {
+                                    string outstr = snprs + '\t' +snpa1 + '\t' +snpa2+ '\t' + atos(snpfreq) + '\t' + atos(rst[0]) + '\t' + atos(rst[1]) + '\t' + dtos(rst[2]) + '\t' + atos(nonmiss) +'\n';
+                                    if(fputs_checked(outstr.c_str(),ma))
+                                    {
+                                        LOGPRINTF("ERROR: in writing file %s .\n", maName.c_str());
+                                        TERMINATE();
+                                    }
+                                }
                             }
                         } else if(vqtl_mtd==1)
                         {
@@ -528,13 +701,21 @@ namespace VQTL {
                                 betases[2*jj]=rst[0];
                                 betases[2*jj+1]=rst[1];
                                 if(phenofileName!=NULL && besd) {
-                                    string outstr = atos(snpchr) + '\t' + snprs + '\t' + atos(snpbp) + '\t' + atos(rst[3]) + '\t' + atos(rst[4]) + '\t' + atos(rst[5]) + '\t' + atos(rst[0]) + '\t' + atos(rst[1]) + '\t' + atos(rst[2]) + '\t'  + atos(nonmiss) +'\n';
+                                    string outstr = atos(snpchr) + '\t' + snprs + '\t' +snpa1 + '\t' +snpa2+ '\t' + atos(snpfreq) + '\t' + atos(snpbp) + '\t' + atos(rst[3]) + '\t' + atos(rst[4]) + '\t' + atos(rst[5]) + '\t' + atos(rst[0]) + '\t' + atos(rst[1]) + '\t' + atos(rst[2]) + '\t'  + atos(nonmiss) +'\n';
                                     if(fputs_checked(outstr.c_str(),besd))
                                     {
                                         LOGPRINTF("ERROR: in writing file %s .\n", besdName.c_str());
                                         TERMINATE();
                                     }
                                     write_count++;
+                                }
+                                if(phenofileName!=NULL && ma) {
+                                    string outstr = snprs + '\t' +snpa1 + '\t' +snpa2+ '\t' + atos(snpfreq) + '\t' + atos(rst[0]) + '\t' + atos(rst[1]) + '\t' + dtos(rst[2]) + '\t' + atos(nonmiss) +'\n';
+                                    if(fputs_checked(outstr.c_str(),ma))
+                                    {
+                                        LOGPRINTF("ERROR: in writing file %s .\n", maName.c_str());
+                                        TERMINATE();
+                                    }
                                 }
 
                             }
@@ -556,13 +737,21 @@ namespace VQTL {
                                 betases[2*jj]=rst[0];
                                 betases[2*jj+1]=rst[1];
                                 if(phenofileName!=NULL && besd) {
-                                    string outstr = atos(snpchr) + '\t' + snprs + '\t' + atos(snpbp) + '\t' + atos(rst[3]) + '\t' + atos(rst[4]) + '\t' + atos(rst[5]) + '\t' + atos(rst[0]) + '\t' + atos(rst[1]) + '\t' + atos(rst[2]) + '\t'  + atos(nonmiss) +'\n';
+                                    string outstr = atos(snpchr) + '\t' + snprs + '\t' +snpa1 + '\t' +snpa2+ '\t' + atos(snpfreq) + '\t' + atos(snpbp) + '\t' + atos(rst[3]) + '\t' + atos(rst[4]) + '\t' + atos(rst[5]) + '\t' + atos(rst[0]) + '\t' + atos(rst[1]) + '\t' + atos(rst[2]) + '\t'  + atos(nonmiss) +'\n';
                                     if(fputs_checked(outstr.c_str(),besd))
                                     {
                                         LOGPRINTF("ERROR: in writing file %s .\n", besdName.c_str());
                                         TERMINATE();
                                     }
                                     write_count++;
+                                }
+                                if(phenofileName!=NULL && ma) {
+                                    string outstr = snprs + '\t' +snpa1 + '\t' +snpa2+ '\t' + atos(snpfreq) + '\t' + atos(rst[0]) + '\t' + atos(rst[1]) + '\t' + dtos(rst[2]) + '\t' + atos(nonmiss) +'\n';
+                                    if(fputs_checked(outstr.c_str(),ma))
+                                    {
+                                        LOGPRINTF("ERROR: in writing file %s .\n", maName.c_str());
+                                        TERMINATE();
+                                    }
                                 }
                             }
                             
@@ -584,7 +773,7 @@ namespace VQTL {
                                 betases[2*jj]=rst[0];
                                 betases[2*jj+1]=rst[1];
                                 if(phenofileName!=NULL && besd) {
-                                    string outstr = atos(snpchr) + '\t' + snprs + '\t' + atos(snpbp) + '\t' + atos(rst[3]) + '\t' + atos(rst[4]) + '\t' + atos(rst[0]) + '\t' + atos(rst[1]) + '\t' + dtos(rst[2]) + '\t' + atos(nonmiss) +'\n';
+                                    string outstr = atos(snpchr) + '\t' + snprs + '\t' +snpa1 + '\t' +snpa2+ '\t' + atos(snpfreq) + '\t' + atos(snpbp) + '\t' + atos(rst[3]) + '\t' + atos(rst[4]) + '\t' + atos(rst[0]) + '\t' + atos(rst[1]) + '\t' + dtos(rst[2]) + '\t' + atos(nonmiss) +'\n';
                                     if(fputs_checked(outstr.c_str(),besd))
                                     {
                                         LOGPRINTF("ERROR: in writing file %s .\n", besdName.c_str());
@@ -592,7 +781,14 @@ namespace VQTL {
                                     }
                                     write_count++;
                                 }
-
+                                if(phenofileName!=NULL && ma) {
+                                    string outstr = snprs + '\t' +snpa1 + '\t' +snpa2+ '\t' + atos(snpfreq) + '\t' + atos(rst[0]) + '\t' + atos(rst[1]) + '\t' + dtos(rst[2]) + '\t' + atos(nonmiss) +'\n';
+                                    if(fputs_checked(outstr.c_str(),ma))
+                                    {
+                                        LOGPRINTF("ERROR: in writing file %s .\n", maName.c_str());
+                                        TERMINATE();
+                                    }
+                                }
                             }
                         }
                     }
@@ -794,6 +990,7 @@ namespace VQTL {
         fclose(besd);
         fclose(novar);
         fclose(singleton);
+        if(ma!=NULL) fclose(ma);
         if (tosmrflag) {
              LOGPRINTF("vQTL results in the cis-regions of %ld probes have been saved in sparse binary file %s.\n",einfo._epi_include.size(), besdName.c_str());
         } else {
@@ -829,6 +1026,35 @@ namespace VQTL {
         }
         return maxr;
     }
+    int cis_eQTL_num_2(eInfo* einfo, bInfo* bdata, int cis_itvl, vector< vector<uint32_t> > &snpids, vector<int> &cis_num)
+    {
+        //bp as start and gd as end
+        int maxr=0;
+        cis_num.resize(einfo->_epi_include.size());
+        snpids.resize(einfo->_epi_include.size());
+        for(int i=0;i<einfo->_epi_include.size();i++)
+        {
+            int prbchr=einfo->_epi_chr[einfo->_epi_include[i]];
+            int prbstart=einfo->_epi_bp[einfo->_epi_include[i]];
+            int prbend=einfo->_epi_gd[einfo->_epi_include[i]];
+            int cisstart=(prbstart-cis_itvl*1000>0)?(prbstart-cis_itvl*1000):0;
+            int cisend=prbend+cis_itvl*1000;
+            int r=0;
+            for(int kk=0;kk<bdata->_include.size();kk++)
+            {
+                int snpchr=bdata->_chr[bdata->_include[kk]];
+                int snpbp=bdata->_bp[bdata->_include[kk]];
+                if(snpchr==prbchr && snpbp>=cisstart && snpbp<=cisend)
+                {
+                    snpids[i].push_back(kk);
+                    r++;
+                }
+            }
+            cis_num[i]=r;
+            if(r>maxr) maxr=r;
+        }
+        return maxr;
+    }
     long est_cis_eQTL_num(eInfo* einfo, bInfo* bdata, int cis_itvl)
     {
         srand((int)time(0));
@@ -850,6 +1076,7 @@ namespace VQTL {
         }
         return ncount;
     }
+  
     void eQTL(char* outFileName,  char* efileName, char* befileName,  char* bFileName, bool transposed,  int efileType, char* problstName,char* problst2exclde,char* genelistName, int chr,char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* probe2exclde,char* indilstName,char* indilst2remove, bool no_fid_flag,int valueType,bool beta2m,bool m2beta, double std_thresh,double upperBeta,double lowerBeta,char* dpvalfName, double dp_thresh, double prb_thresh, double spl_thresh, int filter_mth, double mssratio_prob,int autosome_num, double maf,char* snplstName,char* snplst2exclde,int tsk_ttl,int tsk_id,char* covfileName, char* qcovfileName, bool tosmrflag, bool nofastlinear,bool cis_flag,int cis_itvl)
     {
         //default: OSCA format
@@ -1394,7 +1621,7 @@ namespace VQTL {
        // LOGPRINTF("%ld probes cost: %f ms.\n",einfo._epi_include.size(),float( clock () - begin_time ) /  1000);
     }
     
-    void eQTL_MLM(char* outFileName,  char* efileName, char* befileName,  char* bFileName, bool transposed,  int efileType, char* problstName,char* problst2exclde,char* genelistName, int chr,char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* probe2exclde,char* indilstName,char* indilst2remove, bool no_fid_flag,int valueType,bool beta2m,bool m2beta, double std_thresh,double upperBeta,double lowerBeta,char* dpvalfName, double dp_thresh, double prb_thresh, double spl_thresh, int filter_mth, double mssratio_prob,int autosome_num, double maf,char* snplstName,char* snplst2exclde,int tsk_ttl,int tsk_id,char* covfileName, char* qcovfileName, bool tosmrflag,bool cis_flag,int cis_itvl,char* grm_file,bool grm_bin_flag,bool no_constrain,int reml_mtd,int MaxIter,bool mlma_adj_covar)
+    void eQTL_MLM(char* outFileName,  char* efileName, char* befileName,  char* bFileName, bool transposed,  int efileType, char* problstName,char* problst2exclde,char* genelistName, int chr,char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* probe2exclde,char* indilstName,char* indilst2remove, bool no_fid_flag,int valueType,bool beta2m,bool m2beta, double std_thresh,double upperBeta,double lowerBeta,char* dpvalfName, double dp_thresh, double prb_thresh, double spl_thresh, int filter_mth, double mssratio_prob,int autosome_num, double maf,char* snplstName,char* snplst2exclde,int tsk_ttl,int tsk_id,char* covfileName, char* qcovfileName, bool tosmrflag,bool cis_flag,int cis_itvl,char* grm_file,bool grm_bin_flag,bool no_constrain,int reml_mtd,int MaxIter,bool nopreadj_covar)
     {
         setNbThreads(thread_num);
         eInfo einfo;
@@ -1533,10 +1760,8 @@ namespace VQTL {
                 cis_num[ii]=0;
             }
             bool warned = false;
-            MatrixXd Covx(_n,_X_c+1);
-            Covx.block(0,0,_n,_X_c)=_Cov;
-            if(omp_num_threads>2)
-            {
+            //if(omp_num_threads>2)
+            //{
                 #pragma omp parallel for
                 for(int jj=0;jj<einfo._epi_include.size();jj++)
                 {
@@ -1561,10 +1786,13 @@ namespace VQTL {
                     MatrixXd _Vi;
                     VectorXd _b,_se;
                     vector<double> reml_priors,reml_priors_var;
-                
+                    VectorXd y_buf=y;
+                    MatrixXd Covx(_n,_X_c+1);
+                    Covx.block(0,0,_n,_X_c)=_Cov;
                     reml( false, true, reml_priors, reml_priors_var,  no_constrain,  _X_c,_Cov, y,_A, U, eval, _Vi,  reml_mtd,  MaxIter,_b,_se);
                     if(remlstatus==0 || remlstatus==-5 || (remlstatus==-3))
                     {
+                        if(!nopreadj_covar) y_buf=y.array()-(_Cov*_b).array();
                         make_XMat_subset(&bdata,snpids, _X,false);
                         int realcisc=0;
                         bool missing=false;
@@ -1577,11 +1805,10 @@ namespace VQTL {
                                 missing=true;
                                 continue;
                             }
-                            VectorXd y_buf=y;
                             Covx.col(_X_c)=_X.col(kk);
                             VectorXd x_buf=_X.col(kk);
                             double beta, se, pval;
-                            if(mlma_adj_covar) mlm_stat(y_buf, _Vi, x_buf, beta, se, pval);
+                            if(!nopreadj_covar) mlm_stat(y_buf, _Vi, x_buf, beta, se, pval);
                             else mlm_stat_covar(y_buf, _Vi, Covx, beta, se, pval);
                             rowids[jj][realcisc]=snpid;
                             betas[jj][realcisc]=beta;
@@ -1602,9 +1829,10 @@ namespace VQTL {
                         ses[jj].clear();
                     }
                 }
-            }
+            /* }
             else
             {
+                // irfahan found this part can exclude some probes from analysis.
                 int recodc=0;
                 vector<int> remain(einfo._epi_include), start, end;
                 vector< vector<int> > idx;
@@ -1656,6 +1884,8 @@ namespace VQTL {
                     if(window<=0){LOGPRINTF("ERROR: please report to futao.zhang@imb.uq.edu.au.\n");TERMINATE();};
                     MatrixXd _X;
                     VectorXd y(einfo._eii_include.size());
+                    MatrixXd Covx(_n,_X_c+1);
+                    Covx.block(0,0,_n,_X_c)=_Cov;
                     make_XMat_subset(&bdata,snpstart,window, _X,false);
                     for(int i=0;i<idx[ii].size();i++)
                     {
@@ -1668,14 +1898,13 @@ namespace VQTL {
                         MatrixXd _Vi;
                         VectorXd _b,_se;
                         vector<double> reml_priors,reml_priors_var;
-                   
                         reml( false, true, reml_priors, reml_priors_var,  no_constrain,  _X_c,_Cov, y,_A, U, eval, _Vi,  reml_mtd,  MaxIter,_b,_se);
                         if(remlstatus==0 || remlstatus==-5 || (remlstatus==-3))
                         {
                             VectorXd y_buf=y;
                             int realcisc=0;
                             bool missing=false;
-                            if(mlma_adj_covar) y_buf=y.array()-(_Cov*_b).array(); // adjust phenotype for covariates
+                            if(!no_preadj_covar) y_buf=y.array()-(_Cov*_b).array(); // adjust phenotype for covariates
                             for(int kk=0;kk<_X.cols();kk++)
                             {
                                 int snpid=snpstart+kk;
@@ -1692,7 +1921,7 @@ namespace VQTL {
                                     }
                                     Covx.col(_X_c)=_X.col(kk);
                                     VectorXd x_buf=_X.col(kk);
-                                    if(mlma_adj_covar) mlm_stat(y_buf, _Vi, x_buf, beta, se, pval);
+                                    if(!no_preadj_covar) mlm_stat(y_buf, _Vi, x_buf, beta, se, pval);
                                     else mlm_stat_covar(y_buf, _Vi, Covx, beta, se, pval);
                                     rowids[idx[ii][i]][realcisc]=snpid;
                                     betas[idx[ii][i]][realcisc]=beta;
@@ -1717,6 +1946,7 @@ namespace VQTL {
                 }
                 
             }
+            */
             uint64_t valNum=0;
             vector<uint64_t> cols;
             cols.resize(einfo._epi_include.size()+1);
@@ -1772,4 +2002,636 @@ namespace VQTL {
         LOGPRINTF("cis-eQTL summary statistics for %ld probes are saved in file %s.\n", einfo._epi_include.size(), besdName.c_str());
         // LOGPRINTF("%ld probes cost: %f ms.\n",einfo._epi_include.size(),float( clock () - begin_time ) /  1000);
     }
+    
+    void read_annofile(eqtlInfo* eqtlinfo, char* bedFileName)
+    {
+        FILE* epifile=NULL;
+        vector<string> strlist;
+        uint32_t line_idx = 0;
+        int colnum=6;
+        if(fopen_checked(&epifile, bedFileName,"r")) TERMINATE();
+        LOGPRINTF("Reading annotation information from %s ...\n", bedFileName);
+        eqtlinfo->_epi_chr.clear();
+        eqtlinfo->_epi_prbID.clear();
+        eqtlinfo->_epi_gd.clear();
+        eqtlinfo->_epi_bp.clear();
+        eqtlinfo->_epi_gene.clear();
+        eqtlinfo->_epi_orien.clear();
+        eqtlinfo->_include.clear();
+        eqtlinfo->_probe_name_map.clear();
+        eqtlinfo->_snpNum = 0 ;
+        eqtlinfo->_probNum = 0 ;
+        eqtlinfo->_valNum = 0 ;
+        eqtlinfo->_sampleNum = 0 ;
+        bool chrwarning=false;
+        bool genewarning=false;
+        bool orienwarning=false;
+        while(fgets(Tbuf, MAX_LINE_SIZE, epifile))
+        {
+            split_str(Tbuf,strlist,0);
+            if(Tbuf[0]=='\0') {
+                LOGPRINTF("ERROR: Line %u is blank.\n", line_idx);
+                TERMINATE();
+            }
+            if(strlist.size()>colnum)
+            {
+                //LOGPRINTF("WARNING: Line %u has more than %d items. The first %d columns would be used. \n", line_idx,colnum,colnum);
+            }
+            if(strlist.size()<colnum)
+            {
+                LOGPRINTF("ERROR: Line %u has less than %d items.\n", line_idx,colnum);
+                TERMINATE();
+            }
+            eqtlinfo->_probe_name_map.insert(pair<string,int>(strlist[3],line_idx));
+            if(eqtlinfo->_probe_name_map.size()==line_idx)
+            {
+                LOGPRINTF("ERROR: Duplicate probe : %s.\n", strlist[1].c_str());
+                TERMINATE();
+            }
+            if(strlist[0]=="X" || strlist[0]=="x") eqtlinfo->_epi_chr.push_back(23);
+            else if(strlist[0]=="Y" || strlist[0]=="y") eqtlinfo->_epi_chr.push_back(24);
+            else if(strlist[0]=="NA" || strlist[0]=="na"){
+                eqtlinfo->_epi_chr.push_back(-9);
+                if(!chrwarning) {
+                    LOGPRINTF("WARNING: At least one probe chr is missing.\n");
+                    chrwarning=true;
+                }
+            } else if (atoi(strlist[0].c_str())==0 ) {
+                //LOGPRINTF("ERROR: unrecongized chromosome found:\n");
+                //LOGPRINTF("WARNING: unrecongized chromosome found. This chromosome is set to 0:\n");
+                //LOGPRINTF("%s\n",Tbuf);
+                //TERMINATE();
+                eqtlinfo->_epi_chr.push_back(atoi(strlist[0].c_str()));
+            } else if ( atoi(strlist[0].c_str())>24 || atoi(strlist[0].c_str())<0) {
+                //LOGPRINTF("WARNING: abmormal chromosome found:\n");
+                //LOGPRINTF("%s\n",Tbuf);
+                eqtlinfo->_epi_chr.push_back(atoi(strlist[0].c_str()));
+            } else eqtlinfo->_epi_chr.push_back(atoi(strlist[0].c_str()));
+            
+            if(strlist[1]=="NA" || strlist[1]=="na" || strlist[2]=="NA" || strlist[2]=="na") {
+                LOGPRINTF("ERROR: NA start / end position found:\n");
+                LOGPRINTF("%s\n",Tbuf);
+                TERMINATE();
+            }
+            int startp = atoi(strlist[1].c_str());
+            int endp = atoi(strlist[2].c_str());
+            int pos = startp + (endp-startp)/2;
+            eqtlinfo->_epi_bp.push_back(startp);
+            eqtlinfo->_epi_prbID.push_back(strlist[3]);
+            eqtlinfo->_epi_gd.push_back(endp);
+            
+            if(strlist[5]=="NA" || strlist[5]=="na") {
+                if(!genewarning) {
+                    LOGPRINTF("WARNING: at least one gene id is missing.\n");
+                    genewarning=true;
+                }
+            }
+            eqtlinfo->_epi_gene.push_back(strlist[5].c_str());
+            if(strlist[4]=="NA") {
+                eqtlinfo->_epi_orien.push_back('*');
+                if(!orienwarning) {
+                    LOGPRINTF("WARNING: At least one gene strand is missing.\n");
+                    orienwarning=true;
+                }
+            } else eqtlinfo->_epi_orien.push_back(strlist[4][0]);
+            eqtlinfo->_include.push_back(line_idx);
+            line_idx++;
+        }
+        eqtlinfo->_probNum =line_idx;
+        fclose(epifile);
+        LOGPRINTF("%llu probes to be included from  %s .\n", eqtlinfo->_probNum, bedFileName);
+    }
+    
+    void gene_check(eInfo* sqtlinfo,vector< vector<int>> &tranids, char* annofileName, bInfo* bdata,eInfo* einfo)
+    {
+        eqtlInfo tmpinfo;
+        read_annofile(&tmpinfo, annofileName);
+        
+        int ids = 0;
+        map<int, int> bchr_map;
+        map<int, int>::iterator iter1;
+        for(int i=0;i<bdata->_include.size();i++)
+            bchr_map.insert(pair<int,int>(bdata->_chr[bdata->_include[i]],ids));
+        
+        map<string, int> gene_count_map;
+        map<string, int>::iterator iter;
+        vector<string> gene;
+        vector< vector< int> > idx;
+        ids = 0;
+        for(int i=0; i<einfo->_epi_include.size();i++)
+        {
+            string gn = einfo->_epi_gene[einfo->_epi_include[i]];
+            to_upper(gn);
+            iter = gene_count_map.find(gn);
+            if(iter == gene_count_map.end())
+            {
+                gene_count_map.insert(pair<string, int>(gn, ids++));
+                gene.push_back(gn);
+                vector<int> tmpidx;
+                tmpidx.push_back(einfo->_epi_include[i]);
+                idx.push_back(tmpidx);
+            }
+            else
+            {
+                int curid = iter->second;
+                idx[curid].push_back(einfo->_epi_include[i]);
+            }
+        }
+        vector<int> inids;
+        int tmpc=0;
+        for(int i=0;i<idx.size();i++)
+            if(idx[i].size()>1)
+            {
+                iter = tmpinfo._probe_name_map.find(gene[i]);
+                if(iter!=tmpinfo._probe_name_map.end())
+                {
+                    int tid=iter->second;
+                    int tchr = tmpinfo._epi_chr[tid];
+                    iter1 = bchr_map.find(tchr);
+                    if(iter1 != bchr_map.end())
+                    {
+                        sqtlinfo->_epi_prb.push_back(tmpinfo._epi_prbID[tid]);
+                        sqtlinfo->_epi_chr.push_back(tchr);
+                        sqtlinfo->_epi_gd.push_back(tmpinfo._epi_gd[tid]);
+                        sqtlinfo->_epi_gene.push_back(tmpinfo._epi_gene[tid]);
+                        sqtlinfo->_epi_orien.push_back(tmpinfo._epi_orien[tid]);
+                        sqtlinfo->_epi_bp.push_back(tmpinfo._epi_bp[tid]);
+                        sqtlinfo->_epi_include.push_back(tmpc++);
+                        inids.push_back(i);
+                    }
+                }
+            }
+        
+        for(int i=0;i<inids.size();i++)
+        {
+            vector<int> tmp;
+            tmp.swap(idx[inids[i]]);
+            tranids.push_back(tmp);
+        }
+        LOGPRINTF("%ld genes are retained after gene check with annaotation information, genotype information, and gene expression information.\n",tranids.size());
+    }
+    void rankr(VectorXd &a, VectorXd &b)
+    {
+        b.resize(a.size());
+        #pragma omp parallel for
+        for (long i = a.size()-1; i >= 0; i--)
+        {
+            int count = 0 , ecount=0;
+            double w=0;
+            for (int j = 0; j < a.size(); j++) {
+                if (a[j] < a[i]) count++;
+                if (a[j] == a[i]) ecount++;
+            }
+            if(ecount>1)
+            {
+                for(int j=0;j<ecount;j++) w+=j;
+                w/=ecount;
+            }
+            b[i] =1 + count + w;
+        }
+    }
+    void sQTL(char* outFileName,  char* efileName, char* befileName,  char* bFileName, bool transposed,  int efileType, char* problstName,char* problst2exclde,char* genelistName, int chr,char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* probe2exclde,char* indilstName,char* indilst2remove, bool no_fid_flag,int valueType,bool beta2m,bool m2beta, double std_thresh,double upperBeta,double lowerBeta,char* dpvalfName, double dp_thresh, double prb_thresh, double spl_thresh, int filter_mth, double mssratio_prob,int autosome_num, double maf,char* snplstName,char* snplst2exclde,int tsk_ttl,int tsk_id,char* covfileName, char* qcovfileName, bool tosmrflag, bool nofastlinear,bool cis_flag,int cis_itvl, double zeroratio, double call, char* annofileName, char* covbodfileName, char* covefileName, bool transopse_ecov)
+    {
+        
+        setNbThreads(thread_num);
+        eInfo einfo;
+        bInfo bdata;
+        eInfo eCov;
+        char* phenofileName=NULL;
+        int xqtlNO=3;
+        init_einfo(&einfo);
+        init_einfo(&eCov);
+        load_vqtl_workspace(&einfo, &bdata, efileName, befileName, phenofileName, bFileName,transposed, efileType, problstName, problst2exclde, genelistName, chr, prbname, fromprbname, toprbname, prbWind, fromprbkb, toprbkb, prbwindFlag, genename, probe2exclde, indilstName, indilst2remove, no_fid_flag, valueType, beta2m, m2beta, std_thresh, upperBeta, lowerBeta, dpvalfName, dp_thresh, prb_thresh, spl_thresh, filter_mth, mssratio_prob,autosome_num,snplstName,snplst2exclde,tsk_ttl,tsk_id,covfileName,qcovfileName, NULL, xqtlNO, zeroratio,&eCov,covbodfileName,covefileName,transopse_ecov); // using _keep and _eii_include, the individuals are aligned.
+        if(maf > 0) filter_snp_maf(&bdata, maf);
+        if(call > 0) filter_snp_call(&bdata, call);
+        char outputname[FNAMESIZE];
+        outputname[0]='\0';
+        if(tsk_ttl>1) {
+            if(outFileName!=NULL) {
+                string tmp=  string(outFileName)+"_"+atos(tsk_ttl)+"_"+atos(tsk_id);
+                strcpy(outputname,tmp.c_str());
+                outFileName=outputname;
+            }
+        }
+        eInfo sqtlinfo;
+        vector< vector<int>> tranids;  //smaller einfo._epi_include
+        gene_check( &sqtlinfo,tranids, annofileName, &bdata,&einfo);
+        
+        LOGPRINTF("\nPerforming sQTL analysis ...\n");
+        if(outFileName!=NULL){
+            write_smr_esi(outFileName, &bdata);
+            write_smr_epi(outFileName, &sqtlinfo,true);
+        }
+        FILE* besd=NULL;
+        string besdName=string(outFileName)+".besd";
+        if(fopen_checked(&besd, besdName.c_str(),"wb")) TERMINATE();
+        uint32_t filetype=OSCA_SPARSE_1;
+        if(tosmrflag) filetype=SMR_SPARSE_3;
+        
+        vector<int> ten_ints(RESERVEDUNITS);
+        ten_ints[0]=filetype;
+        ten_ints[1]=(int)bdata._keep.size();
+        ten_ints[2]=(int)bdata._include.size();
+        ten_ints[3]=(int)sqtlinfo._epi_include.size();
+        for(int i=4;i<RESERVEDUNITS;i++) ten_ints[i]=-9;
+        if (fwrite_checked(&ten_ints[0],RESERVEDUNITS*sizeof(int), besd))
+        {
+            LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
+            TERMINATE();
+        }
+        
+        // construct X matrix
+        vector<MatrixXd> E_float;
+        MatrixXd qE_float;
+        MatrixXd _Cov;
+        int _X_c;
+        _X_c=construct_X(&einfo, E_float, qE_float,_Cov);
+
+        vector< vector<uint32_t> > rowids(sqtlinfo._epi_include.size());
+        vector< vector<float> > betas(sqtlinfo._epi_include.size());
+        vector< vector<float> > ses(sqtlinfo._epi_include.size());
+        vector<int> cis_num;
+        vector< vector<uint32_t> > snpids; //to save _include id not _include value
+        cis_eQTL_num_2(&sqtlinfo,&bdata,cis_itvl,snpids, cis_num);
+        for(int ii=0;ii<sqtlinfo._epi_include.size();ii++)
+        {
+            rowids[ii].resize(cis_num[ii]);
+            betas[ii].resize(cis_num[ii]);
+            ses[ii].resize(cis_num[ii]);
+        }
+        
+        bool warned = false;
+        int nindi = (int)einfo._eii_include.size();
+        double cr=0.0;
+        
+        #pragma omp parallel for private(cr)
+        for(int jj=0;jj<sqtlinfo._epi_include.size();jj++)
+        {
+            double desti=1.0*jj/(sqtlinfo._epi_include.size()-1);
+            if(desti>=cr)
+            {
+                printf("%3.0f%%\r", 100.0*desti);
+                fflush(stdout);
+                if(cr==0) cr+=0.05;
+                else if(cr==0.05) cr+=0.2;
+                else if(cr==0.25) cr+=0.5;
+                else cr+=0.25;
+            }
+            string prbid=sqtlinfo._epi_prb[sqtlinfo._epi_include[jj]];
+            if(snpids[jj].size()==0)  continue;
+            
+            MatrixXd _X;
+            make_XMat(&bdata,snpids[jj], _X);
+           
+            int numTrans = (int)tranids[jj].size();
+            vector<double> tpm(numTrans*nindi);
+            VectorXd overall;
+            vector<int> missidx;
+            map<int,int> missidx_map;
+            map<int, int>::iterator iter;
+            map<string, int>::iterator citer;
+            for( int kk=0;kk<numTrans;kk++)
+            {
+                for(int ll=0; ll<einfo._eii_include.size(); ll++)
+                {
+                    double val=einfo._val[tranids[jj][kk]*einfo._eii_num+einfo._eii_include[ll]];
+                    int vid=kk*nindi+ll;
+                    tpm[vid]=val;
+                    if(val>1e9)
+                    {
+                        missidx_map.insert(pair<int,int>(vid,missidx_map.size()));
+                        if(missidx_map.size()!=missidx.size()) missidx.push_back(vid);
+                    }
+                }
+            }
+            if(eCov._epi_include.size()>0)
+            {
+                if(nindi != eCov._eii_include.size())
+                {
+                    LOGPRINTF("ERROR: bugs in aligning the individuals.\n");
+                    TERMINATE();
+                }
+                citer = eCov._epi_map.find(prbid);
+                if(citer!=eCov._epi_map.end())
+                {
+                    int kk = citer->second;
+                    overall.resize(nindi);
+                    for(int ll=0;ll<eCov._eii_include.size();ll++)
+                    {
+                        double val=eCov._val[kk*eCov._eii_num+eCov._eii_include[ll]];
+                        overall[ll]=val;
+                        if(val>1e9)
+                        {
+                            for(int qq=0;qq<numTrans;qq++)
+                            {
+                                int vid=qq*nindi+ll;
+                                missidx_map.insert(pair<int,int>(vid,missidx_map.size()));
+                                if(missidx_map.size()!=missidx.size()) missidx.push_back(vid);
+                            }
+                        }
+                    }
+                }
+            }
+            /***test***/
+            if(loud)
+            {
+            string tmm=string(outputname)+".ge";
+            FILE* tmpfile=fopen(tmm.c_str(),"w");
+            if(!tmpfile)
+            {
+                LOGPRINTF("error open file.\n");
+                TERMINATE();
+            }
+            for(int t=0;t<overall.size();t++)
+            {
+                string
+                    str =eCov._eii_fid[eCov._eii_include[t]] + '\t' + eCov._eii_iid[eCov._eii_include[t]] + '\t' +atos(overall(t)) + '\n';
+                
+                fputs(str.c_str(),tmpfile);
+            }
+            fclose(tmpfile);
+            }
+            /**endoftest**/
+            for(int kk=0;kk<_X.cols();kk++) //_X.cols() ==snpids[jj].size()
+            {
+                if(loud)
+                {
+                    printf("%3.0f%%\r", 100.0*kk/_X.cols());
+                    fflush(stdout);
+                }
+                uint32_t snpid=snpids[jj][kk];
+                string snprs=bdata._snp_name[bdata._include[snpid]];
+                
+                double snpfreq=bdata._mu[bdata._include[snpid]]/2;
+                if(snpfreq==0 || snpfreq==1) {
+                    if(!warned) {LOGPRINTF("WARNING: MAF found 0 or 1 with SNP(s).\n"); warned=1;}
+                    rowids[jj][kk]=snpid;
+                    betas[jj][kk]=0;
+                    ses[jj][kk]=1;
+                    continue;
+                }
+                vector<int> midx = missidx;
+                map<int,int> midx_map = missidx_map;
+                vector<string> xstring(einfo._eii_include.size());
+                vector<int> tmpid;
+                string tmpstr;
+                for(int ll=0; ll<einfo._eii_include.size(); ll++)
+                {
+                    if(einfo._eii_fid[einfo._eii_include[ll]]!=bdata._fid[bdata._keep[ll]]){LOGPRINTF("ERROR: Alignment failed. Please report to Futao < futao.zhang@imb.uq.edu.au >.\n");}
+                    double bval=_X(ll,kk);
+                    if(bval>1e5)
+                    {
+                        tmpid.push_back(ll);
+                        for(int qq=0;qq<numTrans;qq++)
+                        {
+                            int vid=qq*nindi+ll;
+                            midx_map.insert(pair<int,int>(vid,midx_map.size()));
+                            if(midx_map.size()!=midx.size()) midx.push_back(vid);
+                        }
+                    }
+                    else
+                    {
+                        tmpstr = to_string((int)bval);
+                        xstring[ll] = tmpstr;
+                    }
+                }
+                for(int ll=0;ll<tmpid.size();ll++) xstring[tmpid[ll]] = tmpstr;
+                
+                MatrixXd xfac0,xfac;
+                string errmsg1 = "Error: too many classes";
+                string errmsg2 = "Error: too few classes";
+                coeff_mat(xstring, xfac0, errmsg1, errmsg1);
+                xfac = xfac0.block(0, 1, xfac0.rows(), xfac0.cols() - 1);//bug of eigenlibrary xfac =xfac.block(0, 1, xfac.rows(), xfac.cols() - 1)
+                MatrixXd coex(nindi*numTrans,xfac.cols());
+                for(int ll=0;ll<numTrans;ll++) coex.block(ll*nindi,0,nindi,xfac.cols())=xfac;
+                MatrixXd coeTran= MatrixXd::Zero(nindi*numTrans,numTrans-1);
+                for(int ll=1;ll<numTrans;ll++) coeTran.block(ll*nindi,ll-1,nindi,1).setOnes();
+                MatrixXd coeInter = MatrixXd::Zero(nindi*numTrans,xfac.cols()*(numTrans-1));
+                for(int ll=1;ll<numTrans;ll++) coeInter.block(ll*nindi,(ll-1)*xfac.cols(),nindi,xfac.cols())=xfac;
+                MatrixXd coeOa = MatrixXd::Zero(nindi*numTrans,1);
+                if(overall.size()>0) for(int ll=0;ll<numTrans;ll++) coeOa.block(ll*nindi,0,nindi,1) = overall;
+                
+                MatrixXd X;
+                if(overall.size()>0) X.resize(nindi*numTrans,_Cov.cols()+coex.cols()+coeTran.cols()+1);
+                else X.resize(nindi*numTrans,_Cov.cols()+coex.cols()+coeTran.cols());
+                for(int ll=0;ll<numTrans;ll++) X.block(ll*nindi,0,_Cov.rows(),_Cov.cols()) = _Cov;
+                X.block(0,_Cov.cols(),coex.rows(),coex.cols())=coex;
+                X.block(0,_Cov.cols()+coex.cols(),coeTran.rows(),coeTran.cols())=coeTran;
+                if(overall.size()>0)  X.block(0,_Cov.cols()+coex.cols()+coeTran.cols(),nindi*numTrans,1)= coeOa;
+               
+                int nomiss=(int)midx.size();
+                VectorXd y(numTrans*nindi-nomiss);
+                if(nomiss>0)
+                {
+                    int miss=0;
+                    stable_sort(midx.begin(), midx.end());
+                    for(int ll=0;ll<midx.size();ll++)
+                    {
+                        removeRow(X, midx[ll]-miss);
+                        removeRow(coeInter, midx[ll]-miss);
+                        miss++;
+                    }
+                    int ptr=0; miss=0;
+                    for(int ll=0;ll<tpm.size();ll++)
+                    {
+                        int maxmisid = midx[midx.size()-1];
+                        if(ll<=maxmisid && ll==midx[ptr])
+                        {
+                            ptr++;
+                            miss++;
+                        }
+                        else
+                        {
+                            y[ll-miss] = tpm[ll];
+                        }
+                    }
+                }
+                else
+                {
+                    for(int ll=0;ll<tpm.size();ll++) y[ll] = tpm[ll];
+                }
+                VectorXd yrint;
+                rankr(y, yrint);
+                for(int j=0;j<yrint.size();j++)
+                    y[j]=qnorm((yrint[j]-0.5)/(yrint.size()));
+                MatrixXd XtX_i;
+                XtX_i=X.transpose()*X;
+                bool determinant_zero=false;
+                inverse_V(XtX_i, determinant_zero);
+                if(determinant_zero)
+                {
+                    LOGPRINTF("The matrix is not invertible.\n");
+                    TERMINATE();
+                }
+                VectorXd b_hat=XtX_i*X.transpose()*y;
+                double ssr0 = b_hat.transpose()*X.transpose()*y;
+                
+                MatrixXd D = coeInter.transpose()*coeInter;
+                MatrixXd B = X.transpose()*coeInter;
+                MatrixXd D_BTAiB = D - B.transpose()*XtX_i*B;
+                determinant_zero=false;
+                inverse_V(D_BTAiB, determinant_zero);
+                if(determinant_zero)
+                {
+                    LOGPRINTF("The matrix is not invertible.\n");
+                    TERMINATE();
+                }
+                MatrixXd AiBD_BTAiB = XtX_i*B*D_BTAiB;
+                MatrixXd AA = XtX_i + AiBD_BTAiB*B.transpose()*XtX_i;
+                AiBD_BTAiB = -1 * AiBD_BTAiB;
+                
+                XtX_i.resize(X.cols()+coeInter.cols(), X.cols()+coeInter.cols());
+                XtX_i.block(0,0,X.cols(),X.cols()) = AA;
+                XtX_i.block(0,X.cols(),X.cols(),coeInter.cols()) = AiBD_BTAiB;
+                XtX_i.block(X.cols(),0,coeInter.cols(),X.cols()) = AiBD_BTAiB.transpose();
+                XtX_i.block(X.cols(),X.cols(),coeInter.cols(),coeInter.cols()) = D_BTAiB;
+                
+                
+                MatrixXd XW(X.rows(),X.cols()+coeInter.cols());
+                XW.block(0,0,X.rows(),X.cols()) = X;
+                XW.block(0,X.cols(),coeInter.rows(),coeInter.cols()) = coeInter;
+                /*
+                 XtX_i=XW.transpose()*XW;
+                 determinant_zero=false;
+                 inverse_V(XtX_i, determinant_zero);
+                 */
+                
+                b_hat=XtX_i*XW.transpose()*y;
+                double ssr = b_hat.transpose()*XW.transpose()*y;
+                
+                double mseI = (ssr - ssr0)/coeInter.cols();
+                double sst = y.transpose()*y;
+                double dfr = y.size() - XW.cols();
+                double sse = sst - ssr;
+                sse /= dfr;
+                double Fval = mseI / sse;
+                double pval = F_prob(coeInter.cols(), dfr, Fval);
+                double z2 = 0;
+                #pragma omp critical
+                {
+                    z2 = qchisq(pval, 1);
+                }
+                double z = sqrt(z2);
+                double se_hat=1/sqrt(2*snpfreq*(1-snpfreq)*(y.size()+z*z));
+                double beta_hat=z*se_hat;
+                
+                rowids[jj][kk]=snpid;
+                betas[jj][kk]=beta_hat;
+                ses[jj][kk]=se_hat;
+            }
+        }
+        if(tosmrflag)
+        {
+            uint64_t valNum=0;
+            vector<uint64_t> cols;
+            cols.resize(2*sqtlinfo._epi_include.size()+1);
+            cols[0]=0;
+            for(int jj=0;jj<betas.size();jj++)
+            {
+                long co=betas[jj].size();
+                valNum+=co;
+                cols[2*jj+1]=cols[2*jj]+co;
+                valNum+=co;
+                cols[2*(jj+1)]=cols[2*jj+1]+co;
+            }
+            if (fwrite_checked(&valNum,sizeof(uint64_t), besd))
+            {
+                LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
+                TERMINATE();
+            }
+            
+            if (fwrite_checked(&cols[0],cols.size()*sizeof(uint64_t), besd))
+            {
+                LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
+                TERMINATE();
+            }
+            for(int jj=0;jj<rowids.size();jj++)
+            {
+                if(rowids[jj].size())
+                {
+                    if (fwrite_checked(&rowids[jj][0],rowids[jj].size()*sizeof(uint32_t), besd))
+                    {
+                        LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
+                        TERMINATE();
+                    }
+                    if (fwrite_checked(&rowids[jj][0],rowids[jj].size()*sizeof(uint32_t), besd))
+                    {
+                        LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
+                        TERMINATE();
+                    }
+                }
+            }
+            for(int jj=0;jj<betas.size();jj++)
+            {
+                if(betas[jj].size())
+                {
+                    if (fwrite_checked(&betas[jj][0],betas[jj].size()*sizeof(float), besd))
+                    {
+                        LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
+                        TERMINATE();
+                    }
+                    if (fwrite_checked(&ses[jj][0],ses[jj].size()*sizeof(float), besd))
+                    {
+                        LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
+                        TERMINATE();
+                    }
+                }
+            }
+            
+        }
+        else
+        {
+            uint64_t valNum=0;
+            vector<uint64_t> cols;
+            cols.resize(sqtlinfo._epi_include.size()+1);
+            cols[0]=0;
+            for(int jj=0;jj<betas.size();jj++)
+            {
+                long co=2*betas[jj].size();
+                valNum+=co;
+                cols[jj+1]=cols[jj]+co;
+            }
+            if (fwrite_checked(&valNum,sizeof(uint64_t), besd))
+            {
+                LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
+                TERMINATE();
+            }
+            
+            if (fwrite_checked(&cols[0],cols.size()*sizeof(uint64_t), besd))
+            {
+                LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
+                TERMINATE();
+            }
+            for(int jj=0;jj<rowids.size();jj++)
+            {
+                if(rowids[jj].size())
+                    if (fwrite_checked(&rowids[jj][0],rowids[jj].size()*sizeof(uint32_t), besd))
+                    {
+                        LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
+                        TERMINATE();
+                    }
+            }
+            for(int jj=0;jj<betas.size();jj++)
+            {
+                if(betas[jj].size())
+                {
+                    if (fwrite_checked(&betas[jj][0],betas[jj].size()*sizeof(float), besd))
+                    {
+                        LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
+                        TERMINATE();
+                    }
+                    if (fwrite_checked(&ses[jj][0],ses[jj].size()*sizeof(float), besd))
+                    {
+                        LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
+                        TERMINATE();
+                    }
+                }
+            }
+        }
+        
+    
+        fclose(besd);
+        LOGPRINTF("sQTL summary statistics for %ld probes and %ld SNPs are saved in file %s.\n", einfo._epi_include.size(),bdata._include.size(), besdName.c_str());
+    }
+    
 }

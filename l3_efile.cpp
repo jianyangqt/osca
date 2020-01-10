@@ -348,7 +348,7 @@ namespace EFILE {
                 if(pid>=0)
                 {
                     extract_prb(fptrs[j], (uint64_t)pid, nprb[j], nindi[j], profval);
-                    printf("%llu individuals  of probe %s extracted from the file %s.\n",nindi[j],probeinfo[i].probeId,befNames[j].c_str());
+                    if(loud) printf("%llu individuals  of probe %s extracted from the file %s.\n",nindi[j],probeinfo[i].probeId,befNames[j].c_str());
                     for(int k=0;k<nindi[j];k++)
                     {
                         int idx=lookup[j][k];
@@ -365,7 +365,7 @@ namespace EFILE {
                         }
                     }
                 } else {
-                    printf("probe %s is not in the file %s.\n",probeinfo[i].probeId,befNames[j].c_str());
+                    if(loud) printf("probe %s is not in the file %s.\n",probeinfo[i].probeId,befNames[j].c_str());
                 }
             }
             if(fwrite_checked(&mprofval[0],sizeof(double)*mprofval.size(), bodfptr)){
@@ -664,7 +664,7 @@ namespace EFILE {
         }
         return true;
     }
-    void mlma(char* outFileName, char* befileName,char* problstName,char* problst2exclde,char* genelistName, int chr,char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* probe2exclde,char* indilstName,char* indilst2remove, char* phenofileName,char* mpheno,bool erm_bin_flag, int erm_alg, char* covfileName,char* qcovfileName, char* erm_file, char* subtract_erm_file, bool m_erm_flag, bool within_family,char* priors,char* priors_var, bool no_constrain,int reml_mtd,int MaxIter,bool reml_fixed_var_flag,bool reml_force_inv_fac_flag, bool reml_force_converge_flag, bool  reml_no_converge_flag, bool mlma_preadj_covar, double percentage_out, double lambda_wind, bool fastlinear, bool force_mlm)
+    void mlma(char* outFileName, char* befileName,char* problstName,char* problst2exclde,char* genelistName, int chr,char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* probe2exclde,char* indilstName,char* indilst2remove, char* phenofileName,char* mpheno,bool erm_bin_flag, int erm_alg, char* covfileName,char* qcovfileName, char* erm_file, char* subtract_erm_file, bool m_erm_flag, bool within_family,char* priors,char* priors_var, bool no_constrain,int reml_mtd,int MaxIter,bool reml_fixed_var_flag,bool reml_force_inv_fac_flag, bool reml_force_converge_flag, bool  reml_no_converge_flag, bool nopreadj_covar, double percentage_out, double lambda_wind, bool fastlinear, bool force_mlm, bool stdprb)
     {
         vector<double> reml_priors;
         vector<double> reml_priors_var;
@@ -732,7 +732,7 @@ namespace EFILE {
         
         memcpy(suffix,".bod",5);
         read_beed(inputname,&einfo); // eii and epi are updated in it.
-        stdprobe(&einfo);
+        if(stdprb) stdprobe(&einfo);
         
         vector<string> grm_id;
         vector<string> erm_files;
@@ -927,7 +927,30 @@ namespace EFILE {
         // run REML algorithm
         LOGPRINTF("\nPerforming MOA analyses %s ...\n",(subtract_erm_file?"":" (including the candidate probes)"));
         MatrixXd _Vi;
+        loud = true;
         reml(&einfo, false, true, reml_priors, reml_priors_var, -2.0, -2.0, no_constrain, true, true, _X_c, _X,_y,_A,_Vi,outFileName);
+        /******/
+        /*
+        string filename=string(outfileName)+".cor.mat";
+        FILE* tmpfile=fopen(filename.c_str(),"w");
+        if(!tmpfile)
+        {
+            LOGPRINTF("error open file.\n");
+            TERMINATE();
+        }
+        for(int t=0;t<_Vi.rows();t++)
+        {
+            string str="";
+            for(int k=0;k<_Vi.cols();k++)
+            {
+                str +=atos(_Vi(t,k)) + '\t';
+            }
+            str += '\n';
+            fputs(str.c_str(),tmpfile);
+        }
+        fclose(tmpfile);
+         */
+        /*****/
         if(remlstatus == 0 || remlstatus == -3 || remlstatus == -5 )
         {
             einfo._P.resize(0,0);
@@ -935,13 +958,13 @@ namespace EFILE {
             unsigned long m=einfo._epi_include.size();
             
             VectorXd y_buf=_y;
-            if(_X_c==1 || mlma_preadj_covar){
+            if(!nopreadj_covar){
                 y_buf=_y.array()-(_X*einfo._b).array(); // adjust phenotype for covariates
                 if(einfo._eii_qcov_num>0 || einfo._eii_cov_num>0) adjprobe(&einfo);
             }
             
             VectorXd beta, se, pval;
-            if(_X_c==1 || mlma_preadj_covar) mlma_calcu_stat(y_buf, &einfo, _Vi, beta, se, pval);
+            if(!nopreadj_covar) mlma_calcu_stat(y_buf, &einfo, _Vi, beta, se, pval);
             else mlma_calcu_stat_covar(y_buf, &einfo, _X_c, _Vi, _X, beta, se, pval);
             
             string filename=string(outFileName)+".moa";
@@ -2206,7 +2229,7 @@ namespace EFILE {
         double lambda=median(chis)/0.455;
         return lambda;
     }
-    void  testLinear_fast(vector<ASSOCRLT> &assoc_rlts,char* outfileName, eInfo* einfo, MatrixXd &COV_plus)
+    void  testLinear_fast(vector<ASSOCRLT> &assoc_rlts,char* outfileName, eInfo* einfo, MatrixXd &COV_plus, bool reverse, bool fdrflag)
     {
         LOGPRINTF("NOTE: the missing value will be imputed by the mean of each probe. This might lead to some differences in result if there are a substantial number of missing values in the data.\n");
         FILE* assoc=NULL;
@@ -2221,6 +2244,7 @@ namespace EFILE {
                 TERMINATE();
             }
             outstr="Chr\tProbe\tbp\tGene\tOrientation\tb\tse\tp\tNMISS\n";
+            if(fdrflag)  outstr="Chr\tProbe\tbp\tGene\tOrientation\tb\tse\tp\tq\tNMISS\n";
             if(fputs_checked(outstr.c_str(),assoc))
             {
                 LOGPRINTF("ERROR: error in writing file %s .\n", assocfile.c_str());
@@ -2251,7 +2275,7 @@ namespace EFILE {
             //LOGPRINTF("%ld covariates are attached.\n",COV_plus.cols());
         }
         LOGPRINTF("\nPerforming linear regression analysis...\n");
-        
+        vector<double> pval, qval;
         LOGPRINTF("\nAdjusting the phenotype...\n");
         /*****/
 //        LOGPRINTF("Saving the _X ...\n");
@@ -2387,9 +2411,10 @@ namespace EFILE {
             VectorXd residual=(x-_X*b_hat);
             vector<double> rst;
             long nmiss=einfo->_eii_include.size()-MISS.size();
-            adjusted_reg(yresi, residual, rst,_X_c-1);
+            if(reverse) adjusted_reg(residual, yresi, rst,_X_c-1);
+            else adjusted_reg(yresi, residual, rst,_X_c-1);
             
-            if(outfileName!=NULL)
+            if(outfileName!=NULL && !fdrflag)
             {
                 outstr = atos(chr) + '\t' + prbid + '\t' + atos(BP) + '\t' + atos(gene) + '\t' + atos(oren) + '\t' + atos(rst[0]) + '\t' + atos(rst[1]) + '\t' + dtos(rst[2]) + '\t' + atos(nmiss) +'\n';
                 if(fputs_checked(outstr.c_str(),assoc))
@@ -2401,20 +2426,33 @@ namespace EFILE {
             }
             
           ASSOCRLT currlt;
-                currlt.BETA=rst[0];
-                currlt.SE=rst[1];
-                currlt.T=-9;
-                currlt.R2=-9;
-                currlt.PVAL=rst[2];
-                currlt.CHR=chr;
-                strcpy2(&currlt.GENE, gene);
-                strcpy2(&currlt.PROBE, prbid);
-                currlt.BP=BP;
-                currlt.OREN=oren;
-                currlt.NMISS=nmiss;
-                assoc_rlts.push_back(currlt);
+            currlt.BETA=rst[0];
+            currlt.SE=rst[1];
+            currlt.T=-9;
+            currlt.R2=-9;
+            currlt.PVAL=rst[2];
+            if(fdrflag) pval.push_back(rst[2]);
+            currlt.CHR=chr;
+            strcpy2(&currlt.GENE, gene);
+            strcpy2(&currlt.PROBE, prbid);
+            currlt.BP=BP;
+            currlt.OREN=oren;
+            currlt.NMISS=nmiss;
+            assoc_rlts.push_back(currlt);
         }
-
+        if(assoc && fdrflag) {
+            getQval(pval,qval);
+            for(int i=0;i<assoc_rlts.size();i++)
+            {
+                string outstr = atos(assoc_rlts[i].CHR) + '\t' + assoc_rlts[i].PROBE + '\t' + atos(assoc_rlts[i].BP) + '\t' + atos(assoc_rlts[i].GENE) + '\t' + atos(assoc_rlts[i].OREN) + '\t' + atos(assoc_rlts[i].BETA) + '\t' + atos(assoc_rlts[i].SE) + '\t' + dtos(assoc_rlts[i].PVAL) + '\t' + dtos(qval[i]) + '\t' + atos(assoc_rlts[i].NMISS) +'\n';
+                if(fputs_checked(outstr.c_str(),assoc))
+                {
+                    LOGPRINTF("ERROR: in writing file %s .\n", assocfile.c_str());
+                    TERMINATE();
+                }
+                write_count++;
+            }
+        }
         if(assoc){
             LOGPRINTF("Results of %ld probes have been saved in file %s.\n",write_count,assocfile.c_str());
             fclose(assoc);
@@ -2424,8 +2462,7 @@ namespace EFILE {
         
         
     }
-   
-    void  testLinear(vector<ASSOCRLT> &assoc_rlts,char* outfileName, eInfo* einfo, MatrixXd &COV_plus)
+    void  testLinear(vector<ASSOCRLT> &assoc_rlts,char* outfileName, eInfo* einfo, MatrixXd &COV_plus, bool reverse, bool fdrflag)
     {
         FILE* assoc=NULL;
         long write_count=0;
@@ -2439,6 +2476,7 @@ namespace EFILE {
                 TERMINATE();
             }
             outstr="Chr\tProbe\tbp\tGene\tOrientation\tb\tse\tp\tNMISS\n";
+            if(fdrflag)  outstr="Chr\tProbe\tbp\tGene\tOrientation\tb\tse\tp\tq\tNMISS\n";
             if(fputs_checked(outstr.c_str(),assoc))
             {
                 LOGPRINTF("ERROR: error in writing file %s .\n", assocfile.c_str());
@@ -2470,6 +2508,7 @@ namespace EFILE {
         }
         LOGPRINTF("\nPerforming linear regression analysis...\n");
         double cr=0;
+        vector<double> pval,qval;
         for(int i=0;i<einfo->_epi_include.size();i++)
         {
             double desti=1.0*i/(einfo->_epi_include.size()-1);
@@ -2483,9 +2522,7 @@ namespace EFILE {
                 else cr+=0.25;
             }
 
-            vector<double> yvec;
-            vector<double> cvec;
-            vector<double> xvec;
+            vector<double> yvec, cvec, xvec;
             MatrixXd X=_X;
             double nonmiss=0.0;
             int miss=0;
@@ -2518,13 +2555,15 @@ namespace EFILE {
                 x(j)=xvec[j];
             }
             vector<double> rst;
-            bool notInvertible=lin(y, X, x, rst);
+            bool notInvertible= false;
+            if(reverse) notInvertible=lin(x, X, y, rst);
+            else notInvertible=lin(y, X, x, rst);
             if(notInvertible) {
                 LOGPRINTF("ERROR: The matrix for probe %s is not invertible. Maybe there are multicollinearity in the covariates.\n",prbid.c_str());
                 TERMINATE();
             }
             ASSOCRLT currlt;
-            if(assoc) {
+            if(assoc && !fdrflag) {
                 string outstr = atos(chr) + '\t' + prbid + '\t' + atos(BP) + '\t' + atos(gene) + '\t' + atos(oren) + '\t' + atos(rst[0]) + '\t' + atos(rst[1]) + '\t' + dtos(rst[2]) + '\t' + atos(nonmiss) +'\n';
                 if(fputs_checked(outstr.c_str(),assoc))
                 {
@@ -2537,6 +2576,7 @@ namespace EFILE {
             currlt.BETA=rst[0];
             currlt.SE=rst[1];
             currlt.PVAL=rst[2];
+            if(fdrflag) pval.push_back(rst[2]);
             currlt.CHR=chr;
             strcpy2(&currlt.GENE, gene);
             strcpy2(&currlt.PROBE, prbid);
@@ -2544,7 +2584,19 @@ namespace EFILE {
             currlt.OREN=oren;
             currlt.NMISS=nonmiss;
             assoc_rlts.push_back(currlt);
-            
+        }
+        if(assoc && fdrflag) {
+            getQval(pval,qval);
+            for(int i=0;i<assoc_rlts.size();i++)
+            {
+                string outstr = atos(assoc_rlts[i].CHR) + '\t' + assoc_rlts[i].PROBE + '\t' + atos(assoc_rlts[i].BP) + '\t' + atos(assoc_rlts[i].GENE) + '\t' + atos(assoc_rlts[i].OREN) + '\t' + atos(assoc_rlts[i].BETA) + '\t' + atos(assoc_rlts[i].SE) + '\t' + dtos(assoc_rlts[i].PVAL) + '\t' + dtos(qval[i]) + '\t' + atos(assoc_rlts[i].NMISS) +'\n';
+                if(fputs_checked(outstr.c_str(),assoc))
+                {
+                    LOGPRINTF("ERROR: in writing file %s .\n", assocfile.c_str());
+                    TERMINATE();
+                }
+                write_count++;
+            }
         }
         if(assoc){
             LOGPRINTF("Results of %ld probes have been saved in file %s.\n",write_count,assocfile.c_str());
@@ -2552,11 +2604,9 @@ namespace EFILE {
         } else {
             LOGPRINTF("Results of %ld probes have been returned.\n",assoc_rlts.size());
         }
-        
-        
     }
 
-    void  linear(char* outfileName, char* befileName, char* problstName, char* problst2exclde, char* genelistName,  int chr,char* prbname,  char* fromprbname,  char* toprbname, int prbWind, int fromprbkb,  int toprbkb, bool prbwindFlag,  char* genename, char* probe2exclde, char* indilstName, char* indilst2remove,char* phenofileName,char* mpheno,  char* covfileName, char* qcovfileName, double std_thresh ,double upperBeta,double lowerBeta ,int tsk_ttl,int tsk_id,bool fastlinear)
+    void  linear(char* outfileName, char* befileName, char* problstName, char* problst2exclde, char* genelistName,  int chr,char* prbname,  char* fromprbname,  char* toprbname, int prbWind, int fromprbkb,  int toprbkb, bool prbwindFlag,  char* genename, char* probe2exclde, char* indilstName, char* indilst2remove,char* phenofileName,char* mpheno,  char* covfileName, char* qcovfileName, double std_thresh ,double upperBeta,double lowerBeta ,int tsk_ttl,int tsk_id,bool fastlinear, bool stdprb, bool reverse, bool fdrflag)
     {
         eInfo einfo;
         init_einfo(&einfo);
@@ -2597,12 +2647,12 @@ namespace EFILE {
         read_beed(inputname,&einfo);
         if(std_thresh>0) std_probe_filtering( &einfo, std_thresh);
         if(upperBeta<1 ||lowerBeta>0) filtering_constitutive_probes(&einfo, upperBeta, lowerBeta);
+        if(stdprb) stdprobe(&einfo);
         
         vector<ASSOCRLT> assoc_rlts;
         MatrixXd COV_plus;
-        if(fastlinear) testLinear_fast(assoc_rlts,outfileName, &einfo,COV_plus);
-        else testLinear(assoc_rlts,outfileName, &einfo,COV_plus);
-        
+        if(fastlinear) testLinear_fast(assoc_rlts,outfileName, &einfo,COV_plus, reverse, fdrflag);
+        else testLinear(assoc_rlts,outfileName, &einfo,COV_plus,reverse,fdrflag);
     }
     void  testLogit(vector<ASSOCRLT> &assoc_rlts,char* outfileName, eInfo* einfo, MatrixXd &COV_plus)
     {
@@ -2648,11 +2698,19 @@ namespace EFILE {
         }
         
         LOGPRINTF("\nPerforming logistic regression analysis...\n");
-        #pragma omp parallel for
+        double cr=0.0;
         for(int i=0;i<einfo->_epi_include.size();i++)
         {
-            printf("%3.0f%%\r", 100.0*i/einfo->_epi_include.size());
-            fflush(stdout);
+            double desti=1.0*i/(einfo->_epi_include.size()-1);
+            if(desti>=cr)
+            {
+                printf("%3.0f%%\r", 100.0*desti);
+                fflush(stdout);
+                if(cr==0) cr+=0.05;
+                else if(cr==0.05) cr+=0.2;
+                else if(cr==0.25) cr+=0.5;
+                else cr+=0.25;
+            }
             
             vector<int> yvec;
             vector<double> cvec;
@@ -2709,37 +2767,37 @@ namespace EFILE {
                 }
                 write_count++;
             }
+        }
+        assoc_rlts.clear();
+        assoc_rlts.resize(einfo->_epi_include.size());
+        for(int i=0;i<einfo->_epi_include.size();i++)
+        {
+            int chr=einfo->_epi_chr[einfo->_epi_include[i]];
+            string prbid=einfo->_epi_prb[einfo->_epi_include[i]];
+            string gene=einfo->_epi_gene[einfo->_epi_include[i]];
+            int BP=einfo->_epi_bp[einfo->_epi_include[i]];
+            char oren=einfo->_epi_orien[einfo->_epi_include[i]];
+            double beta=bvec[i], se=sevec[i];
+            double z=beta/se;
+            double pval=pchisq(z*z, 1);
+            double OR=exp(beta);
+            assoc_rlts[i].BETA=OR;
+            assoc_rlts[i].SE=se;
+            assoc_rlts[i].CHR=chr;
+            assoc_rlts[i].BP=BP;
+            assoc_rlts[i].NMISS=nmvec[i];
+            assoc_rlts[i].PVAL=pval;
+            assoc_rlts[i].OREN=oren;
+            strcpy2(&assoc_rlts[i].GENE, gene);
+            strcpy2(&assoc_rlts[i].PROBE, prbid);
+        }
+        if(assoc)
+        {
             LOGPRINTF("Results of %ld probes have been saved in file %s.\n",write_count,assocfile.c_str());
             fclose(assoc);
         } else {
-            assoc_rlts.clear();
-            assoc_rlts.resize(einfo->_epi_include.size());
-            for(int i=0;i<einfo->_epi_include.size();i++)
-            {
-                int chr=einfo->_epi_chr[einfo->_epi_include[i]];
-                string prbid=einfo->_epi_prb[einfo->_epi_include[i]];
-                string gene=einfo->_epi_gene[einfo->_epi_include[i]];
-                int BP=einfo->_epi_bp[einfo->_epi_include[i]];
-                char oren=einfo->_epi_orien[einfo->_epi_include[i]];
-                double beta=bvec[i], se=sevec[i];
-                double z=beta/se;
-                double pval=pchisq(z*z, 1);
-                double OR=exp(beta);
-                assoc_rlts[i].BETA=OR;
-                assoc_rlts[i].SE=se;
-                assoc_rlts[i].CHR=chr;
-                assoc_rlts[i].BP=BP;
-                assoc_rlts[i].NMISS=nmvec[i];
-                assoc_rlts[i].PVAL=pval;
-                assoc_rlts[i].OREN=oren;
-                strcpy2(&assoc_rlts[i].GENE, gene);
-                strcpy2(&assoc_rlts[i].PROBE, prbid);
-            }
-
             LOGPRINTF("Results of %ld probes have been returned.\n",assoc_rlts.size());
         }
-        
-        
     }
     void  logistic(char* outfileName, char* befileName, char* problstName, char* problst2exclde, char* genelistName,  int chr,char* prbname,  char* fromprbname,  char* toprbname, int prbWind, int fromprbkb,  int toprbkb, bool prbwindFlag,  char* genename, char* probe2exclde, char* indilstName, char* indilst2remove,char* phenofileName,char* mpheno,  char* covfileName, char* qcovfileName, double std_thresh ,double upperBeta,double lowerBeta ,int tsk_ttl,int tsk_id)
     {
@@ -3323,8 +3381,9 @@ namespace EFILE {
     }
     
     
-    void fit_reml(char* outFileName, char* phenofileName,char* mpheno,bool erm_bin_flag, bool grm_bin_flag,int erm_alg, char* covfileName,char* qcovfileName, char* erm_file, char* grm_file, bool m_erm_flag, bool within_family,char* priors,char* priors_var, bool no_constrain,int reml_mtd,int MaxIter,bool reml_fixed_var_flag,bool reml_force_inv_fac_flag, bool reml_force_converge_flag, bool  reml_no_converge_flag, bool mlma_preadj_covar, bool pred_rand_eff, bool est_fix_eff,bool no_lrt,double prevalence, bool mlmassoc,vector<int> drop, char* indilstName, char* indilst2remove, char* sex_file, double grm_cutoff, bool erm_cutoff_2sides, double adj_grm_fac, int dosage_compen,bool prt_residiual)
+    void fit_reml(char* outFileName, char* befileName, char* problstName,char* problst2exclde,char* genelistName, int chr,char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* probe2exclde, char* phenofileName,char* mpheno,bool erm_bin_flag, bool grm_bin_flag,int erm_alg, char* covfileName,char* qcovfileName, char* erm_file, char* grm_file, bool m_erm_flag, bool within_family,char* priors,char* priors_var, bool no_constrain,int reml_mtd,int MaxIter,bool reml_fixed_var_flag,bool reml_force_inv_fac_flag, bool reml_force_converge_flag, bool  reml_no_converge_flag, bool pred_rand_eff, bool est_fix_eff,bool no_lrt,double prevalence, bool mlmassoc,vector<int> drop, char* indilstName, char* indilst2remove, char* sex_file, double grm_cutoff, bool erm_cutoff_2sides, double adj_grm_fac, int dosage_compen,bool prt_residiual)
     {
+        loud = true;
         vector<double> reml_priors;
         vector<double> reml_priors_var;
         vector<string> vs_buf;
@@ -3368,19 +3427,34 @@ namespace EFILE {
         
         vector<string> grm_id;
         vector<string> erm_files;
-        
-        if (m_erm_flag || grm_file!=NULL) {
-            read_msglist(erm_file, erm_files,"ORM file names");
-            if(grm_file!=NULL) {
-                erm_files.push_back(grm_file);
+        char inputname[FNAMESIZE];
+        char* suffix = NULL;
+        if(befileName != NULL)
+        {
+            memcpy(inputname,befileName,strlen(befileName)+1);
+            suffix=inputname+strlen(befileName);
+            memcpy(suffix,".oii",5);
+            read_eii(inputname,&einfo);
+            eii_man(&einfo,indilstName,indilst2remove);
+            memcpy(suffix,".opi",5);
+            read_epi(inputname,&einfo);
+            epi_man(&einfo,problstName,problst2exclde,genelistName, chr,prbname, fromprbname, toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag, genename,probe2exclde);
+            erm_files.push_back(befileName);
+        } else {
+            if (m_erm_flag || grm_file!=NULL) {
+                read_msglist(erm_file, erm_files,"ORM file names");
+                if(grm_file!=NULL) {
+                    erm_files.push_back(grm_file);
+                }
+                for (int i = 0; i < erm_files.size(); i++) {
+                    read_grm(&einfo,erm_files[i], grm_id, false, true, true,erm_bin_flag);
+                }
+            } else if(erm_file!=NULL){
+                erm_files.push_back(erm_file);
+                read_grm(&einfo,erm_file, grm_id, true, false, true,erm_bin_flag);
             }
-            for (int i = 0; i < erm_files.size(); i++) {
-                read_grm(&einfo,erm_files[i], grm_id, false, true, true,erm_bin_flag);
-            }
-        } else if(erm_file!=NULL){
-            erm_files.push_back(erm_file);
-            read_grm(&einfo,erm_file, grm_id, true, false, true,erm_bin_flag);
         }
+        
         
         if(phenofileName !=NULL) read_phen(&einfo, phenofileName, mpheno,false);
         else {
@@ -3392,12 +3466,22 @@ namespace EFILE {
         
         if (indilstName!=NULL) keep_indi(&einfo, indilstName);
         if (indilst2remove!=NULL) remove_indi(&einfo, indilst2remove);
-        if(erm_file!=NULL) {
-            if (grm_cutoff>-1.0) rm_cor_indi(&einfo,grm_cutoff,erm_cutoff_2sides);
-            if (sex_file!=NULL) update_sex(&einfo,sex_file);
-            if (adj_grm_fac>-1.0) adj_grm(&einfo,adj_grm_fac);
-            if (dosage_compen>-1) dc(&einfo,dosage_compen);
+        if(befileName != NULL)
+        {
+            memcpy(suffix,".bod",5);
+            read_beed(inputname,&einfo);
+            make_erm(&einfo, erm_alg);
+            for(int i=0; i<einfo._eii_include.size(); i++)
+                grm_id.push_back(einfo._eii_fid[einfo._eii_include[i]]+":"+einfo._eii_iid[einfo._eii_include[i]]);
+        } else {
+            if(erm_file!=NULL) {
+                if (grm_cutoff>-1.0) rm_cor_indi(&einfo,grm_cutoff,erm_cutoff_2sides);
+                if (sex_file!=NULL) update_sex(&einfo,sex_file);
+                if (adj_grm_fac>-1.0) adj_grm(&einfo,adj_grm_fac);
+                if (dosage_compen>-1) dc(&einfo,dosage_compen);
+            }
         }
+        
         
         vector<string> uni_id;
         map<string, int> uni_id_map;
@@ -3435,7 +3519,7 @@ namespace EFILE {
                         }
                     }
                 }
-            } else if(erm_file!=NULL){
+            } else if(erm_file!=NULL || befileName != NULL){
                 for(int i=0; i < 1 + 1; i++) einfo._r_indx.push_back(i);
                 if (!no_lrt) drop_comp(&einfo,drop);
                 _A.resize(einfo._r_indx.size());
@@ -3485,8 +3569,7 @@ namespace EFILE {
         
         
         if(prt_residiual) {
-            VectorXd y_buf=_y;
-            if(mlma_preadj_covar) y_buf=_y.array()-(_X*einfo._b).array(); // adjust phenotype for covariates
+            VectorXd y_buf=_y.array()-(_X*einfo._b).array(); // adjust phenotype for covariates
             
             if(y_buf.size()!=einfo._eii_include.size()) {
                 LOGPRINTF("ERROR: the individual number of adjusted phenotype %ld is inconsistent with the individual numebr seleced %ld.\nplease report this bug.\n",y_buf.size(),einfo._eii_include.size());
@@ -3962,7 +4045,7 @@ namespace EFILE {
 
         
     }
-    void moa(char* outFileName, char* befileName,char* problstName,char* problst2exclde,char* genelistName, int chr,char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* probe2exclde,char* indilstName,char* indilst2remove, char* phenofileName,char* mpheno,bool erm_bin_flag, int erm_alg, char* covfileName,char* qcovfileName, char* erm_file, char* subtract_erm_file, bool m_erm_flag,char* priors,char* priors_var, bool no_constrain,int reml_mtd,int MaxIter,bool reml_fixed_var_flag,bool reml_force_inv_fac_flag, bool reml_force_converge_flag, bool  reml_no_converge_flag, bool mlma_preadj_covar, bool force_mlm,int tsk_ttl,int tsk_id)
+    void moa(char* outFileName, char* befileName,char* problstName,char* problst2exclde,char* genelistName, int chr,char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* probe2exclde,char* indilstName,char* indilst2remove, char* phenofileName,char* mpheno,bool erm_bin_flag, int erm_alg, char* covfileName,char* qcovfileName, char* erm_file, char* subtract_erm_file, bool m_erm_flag,char* priors,char* priors_var, bool no_constrain,int reml_mtd,int MaxIter,bool reml_fixed_var_flag,bool reml_force_inv_fac_flag, bool reml_force_converge_flag, bool  reml_no_converge_flag, bool force_mlm,int tsk_ttl,int tsk_id)
     {
         eInfo einfo;
         init_einfo(&einfo);

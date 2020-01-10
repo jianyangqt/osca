@@ -947,7 +947,7 @@ namespace SMR {
     }
 
 
-    void write_smr_epi(char* outFileName, eInfo* einfo)
+    void write_smr_epi(char* outFileName, eInfo* einfo, bool bpAsstart)
     {
         FILE* efile=NULL;
         string epiName=string(outFileName)+".epi";
@@ -959,8 +959,9 @@ namespace SMR {
             if(einfo->_epi_chr[einfo->_epi_include[i]]==23) chrstr="X";
             else if(einfo->_epi_chr[einfo->_epi_include[i]]==24) chrstr="Y";
             else chrstr=atosm(einfo->_epi_chr[einfo->_epi_include[i]]);
-            
-            string str=chrstr+'\t'+einfo->_epi_prb[einfo->_epi_include[i]]+'\t'+atos(0)+'\t'+atosm(einfo->_epi_bp[einfo->_epi_include[i]])+'\t'+einfo->_epi_gene[einfo->_epi_include[i]]+'\t'+(einfo->_epi_orien[einfo->_epi_include[i]]=='*'?"NA":atos(einfo->_epi_orien[einfo->_epi_include[i]]))+'\n';
+            int curbp = einfo->_epi_bp[einfo->_epi_include[i]];
+            if(bpAsstart) curbp = einfo->_epi_bp[einfo->_epi_include[i]] + (einfo->_epi_gd[einfo->_epi_include[i]] -einfo->_epi_bp[einfo->_epi_include[i]])/2;
+            string str=chrstr+'\t'+einfo->_epi_prb[einfo->_epi_include[i]]+'\t'+atos(0)+'\t'+atosm(curbp)+'\t'+einfo->_epi_gene[einfo->_epi_include[i]]+'\t'+(einfo->_epi_orien[einfo->_epi_include[i]]=='*'?"NA":atos(einfo->_epi_orien[einfo->_epi_include[i]]))+'\n';
             if(fputs_checked(str.c_str(),efile))
             {
                 LOGPRINTF("ERROR: in writing file %s .\n", epiName.c_str());

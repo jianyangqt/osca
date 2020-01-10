@@ -79,7 +79,7 @@ namespace SMR {
         map<string,int> _snp_name_map;
     } gwasData;
 
-    void write_smr_epi(char* outFileName, eInfo* einfo);
+    void write_smr_epi(char* outFileName, eInfo* einfo, bool bpAsstart=false);
     void write_smr_esi(char* outFileName, bInfo* binfo);
     void read_smr_epifile(eqtlInfo* eqtlinfo, char* epiFileName);
     void read_smr_esifile(eqtlInfo* eqtlinfo, char* esiFileName);

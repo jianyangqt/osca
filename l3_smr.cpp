@@ -215,7 +215,7 @@ namespace SMR {
             else smpsize.push_back(headers[1]);
         }
     }
-    void combine_epi(vector<smr_probeinfo> &probeinfo, vector<string> &besds, vector<uint64_t> &nprb)
+    void combine_epi(vector<smr_probeinfo> &probeinfo, vector<string> &besds, vector<uint64_t> &nprb,char* problstName, char* problst2exclde, char* genelistName, int chr,int prbchr, char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename, char* probe2exclde)
     {
         long counter = 0;
         map<string, int> prb_map;
@@ -230,6 +230,7 @@ namespace SMR {
             char* suffix=inputname+besds[i].length();
             memcpy(suffix,".epi",5);
             read_smr_epifile(&etmp, inputname);
+            smr_epi_man(&etmp, problstName, problst2exclde, genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2exclde);
             nprb.push_back(etmp._probNum);
             for (int j = 0; j<etmp._probNum; j++)
             {
@@ -280,7 +281,7 @@ namespace SMR {
         }
         LOGPRINTF("Total %ld probes to be included from %ld epi files.\n",probeinfo.size(),besds.size());
     }
-    void combine_esi(vector<smr_snpinfo> &snpinfo, vector<string> &besds, vector<uint64_t> &nsnp)
+    void combine_esi(vector<smr_snpinfo> &snpinfo, vector<string> &besds, vector<uint64_t> &nsnp,char* snplstName, char* snplst2exclde, int chr,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb, bool smpwindFlag, char* snprs2excld)
     {
         long ex_counter = 0;
         snpinfo.clear();
@@ -298,8 +299,9 @@ namespace SMR {
             char* suffix=inputname+besds[i].length();
             memcpy(suffix,".esi",5);
             read_smr_esifile(&etmp, inputname);
+            smr_esi_man(&etmp, snplstName, snplst2exclde, chr, snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, smpwindFlag, false,  0, NULL, snprs2excld);
             nsnp.push_back(etmp._snpNum);
-            for (int j = 0; j<etmp._snpNum; j++)
+            for (int j = 0; j<etmp._esi_include.size(); j++)
             {
                 if(ex_map.size()>0) {
                     iter=ex_map.find(etmp._esi_rs[j]);
@@ -670,9 +672,22 @@ namespace SMR {
             }
         }
     }
-    void meta_gwas_fun(vector<gwasinfo> &snpinfo, long cohortnum, vector<int> &comm)
+    void meta_gwas_fun(vector<gwasinfo> &snpinfo, long cohortnum, vector<int> &pairwise_comm, vector<int> &all_comm, bool outcom, bool allcom)
     {
-        comm.clear();
+        string filena=string(outfileName)+".betas";
+        FILE* tmpfi= NULL;
+        if(loud)
+        {
+            tmpfi = fopen(filena.c_str(),"w");
+            if(!tmpfi)
+            {
+                LOGPRINTF("error open file.\n");
+                TERMINATE();
+            }
+        }
+       
+        pairwise_comm.clear();
+        all_comm.clear();
         long snpnum=snpinfo.size();
         #pragma omp parallel for
         for(int j=0;j<snpnum;j++)
@@ -680,6 +695,7 @@ namespace SMR {
             double numerator=0.0;
             double deno=0.0;
             int nmiss=0;
+            string str = atos(snpinfo[j].snprs) + '\t';
             for(int k=0;k<cohortnum;k++)
             {
                 double se=snpinfo[j].se[k];
@@ -689,14 +705,36 @@ namespace SMR {
                     deno+=1/tmp2;
                     numerator+=beta/tmp2;
                     nmiss++;
+                    if(loud) str +=atos(beta) + '\t';
                 }
             }
             if(nmiss>0)
             {
                 *snpinfo[j].beta=numerator/deno;
                 *snpinfo[j].se=1/sqrt(deno);
+                if(loud) str += atos(numerator/deno) + '\n';
             }
-            if(nmiss>1) comm.push_back(j);
+            if(nmiss>1) pairwise_comm.push_back(j);
+            if(nmiss==cohortnum) all_comm.push_back(j);
+            if(loud) {
+                if(outcom)
+                {
+                    if(nmiss>1) fputs(str.c_str(),tmpfi);
+                }
+                else if(allcom)
+                {
+                    if(nmiss==cohortnum) fputs(str.c_str(),tmpfi);
+                }
+                else
+                {
+                    fputs(str.c_str(),tmpfi);
+                }
+            }
+        }
+        
+        if(loud) {
+            if(tmpfi != NULL) fclose(tmpfi);
+            LOGPRINTF("Beta values are saved in the file %s.\n",filena.c_str());
         }
     }
 
@@ -797,7 +835,7 @@ namespace SMR {
     }
 
        
-    void pcc(MatrixXd &PCC, float* buffer_beta,float* buffer_se,long snpnum, long cohortnum, double pmecs)
+    bool pcc(MatrixXd &PCC, float* buffer_beta,float* buffer_se,long snpnum, long cohortnum, double pmecs, int nmecs)
     {
         //pearson correlation with pairwise.complete.obs
         double zmecs=qchisq(pmecs,1);
@@ -830,9 +868,9 @@ namespace SMR {
                         }
                     }
                 }
-                if(beta1.size()<1) {
-                    LOGPRINTF("WARNING: %ld SNP in common between cohort %i and cohort %d (cohort number stats form 0).\n",beta1.size(),i,j);
-                    LOGPRINTF("The correlation value of cohort %d and cohort %d would be imputed with the mean of all the correlation values excluding the diagnoal.\n",i,j);
+                if(beta1.size()<nmecs) {
+                    //LOGPRINTF("WARNING: %ld SNP in common between cohort %i and cohort %d (cohort number stats form 0).\n",beta1.size(),i,j);
+                    //LOGPRINTF("The correlation value of cohort %d and cohort %d would be imputed with the mean of all the correlation values excluding the diagnoal.\n",i,j);
                     pairsNoCor1.push_back(i);
                     pairsNoCor2.push_back(j);
                     PCC(i,j)=PCC(j,i)=0;
@@ -844,13 +882,14 @@ namespace SMR {
                 }
             }
         if(pairsNoCor1.size()>0) {
-            LOGPRINTF("WARNING: %ld cohort pairs didn't get enough common SNPs to calcualte the correlation.\n",pairsNoCor1.size());
+            //LOGPRINTF("WARNING: %ld cohort pairs didn't get enough common SNPs to calcualte the correlation.\n",pairsNoCor1.size());
             if(pairHasCorNUm==0) {
-                LOGPRINTF("ERROR: Every pair of cohort has not enough common SNPs to calcualte the correlation.\n");
-                TERMINATE();
+                //LOGPRINTF("ERROR: Every pair of cohort has not enough common SNPs to calcualte the correlation.\n");
+                //TERMINATE();
+                return false;
             }
             double corMean=sumcor/pairHasCorNUm;
-            LOGPRINTF("WARNING: These missing correlation values are imputed with the mean %f.\n",corMean);
+            //LOGPRINTF("WARNING: These missing correlation values are imputed with the mean %f.\n",corMean);
             for(int i=0;i<pairsNoCor1.size();i++)
             {
                 int p1=pairsNoCor1[i];
@@ -859,15 +898,17 @@ namespace SMR {
             }
         }
         for( int i=0;i<cohortnum;i++) PCC(i,i)=1;
+        return true;
     }
 
-    void mecs_per_prob(float* buffer_beta,float* buffer_se, long snpnum, long cohortnum,double pmecs,vector<int> &noninvertible, vector<int> &negativedeno)
+    bool mecs_per_prob(float* buffer_beta,float* buffer_se, long snpnum, long cohortnum,double pmecs,vector<int> &noninvertible, vector<int> &negativedeno, int nmecs)
     {
         
         MatrixXd Corr(cohortnum,cohortnum);
-        LOGPRINTF("Estimate the cohort correlation using the beta values of pairwised common SNPs.\n");
-        LOGPRINTF("We exclude the significant common SNPs with a p-value threshold %e to estimate the correlation matrix.\n",pmecs);
-        pcc(Corr,buffer_beta,buffer_se,snpnum,cohortnum,pmecs);
+        //LOGPRINTF("Estimate the cohort correlation using the beta values of pairwised common SNPs.\n");
+        //LOGPRINTF("We exclude the significant common SNPs with a p-value threshold %e to estimate the correlation matrix.\n",pmecs);
+        bool enoughsnp = pcc(Corr,buffer_beta,buffer_se,snpnum,cohortnum,pmecs, nmecs);
+        if(!enoughsnp) return false;
         //cout<<Corr<<endl;
         #pragma omp parallel for
         for(int j=0;j<snpnum;j++)
@@ -926,6 +967,7 @@ namespace SMR {
 
             }
         }
+        return true;
     }
 
     void pcc(MatrixXd &PCC, vector<gwasinfo> &snpinfo, long cohortnum, double pmecs, bool zflag)
@@ -1303,7 +1345,7 @@ namespace SMR {
     }
 
     // save to DENSE1 or SPARSE (SMR format)
-    void meta(char* besdlistFileName, char* outFileName, int meta_mth, double pthresh, bool cis_flag, int cis_itvl)
+    void meta(char* besdlistFileName, char* outFileName, int meta_mth, double pthresh, bool cis_flag, int cis_itvl,int nmecs,char* problstName, char* problst2exclde, char* genelistName, int chr,int prbchr, char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* snplstName, char* snplst2exclde,int snpchr, char* snprs, char* fromsnprs, char* tosnprs,int snpWind,int fromsnpkb, int tosnpkb, bool smpwindFlag, char* probe2excld, char* snprs2excld)
     {
         if(meta_mth) {
             cis_flag=true; // for later update. !!!!
@@ -1362,8 +1404,9 @@ namespace SMR {
         }
         if(meta_mth) label=1; // for later update. !!!!
         
-        combine_epi(probeinfo, besds,nprb);
-        combine_esi(snpinfo, besds,nsnp);
+        combine_epi(probeinfo, besds,nprb, problstName, problst2exclde, genelistName,  chr, prbchr, prbname, fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag, genename,probe2excld);
+        combine_esi(snpinfo, besds,nsnp,snplstName, snplst2exclde,  chr, snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb,  smpwindFlag,snprs2excld);
+        
         if(probeinfo.size()==0)
         {
             LOGPRINTF("ERROR: No probe to be included!\n");
@@ -1445,7 +1488,11 @@ namespace SMR {
             }
         }
         
-        LOGPRINTF("\nPerforming %s analysis and save the result in BESD file....\n",analysisType.c_str());
+        LOGPRINTF("\nPerforming %s analysis (the result will be saved in BESD format)....\n",analysisType.c_str());
+        if(meta_mth){
+            LOGPRINTF("Estimate the cohort correlation using the beta values of pair-wised common SNPs.\n");
+            LOGPRINTF("We exclude the significant common SNPs with a p-value threshold %6.2e to estimate the correlation matrix.\n",pthresh);
+        }
         FILE** fptrs = (FILE**)malloc(sizeof(FILE*) * besds.size());
         for(int i=0;i<besdNum;i++) {
             string besdFileName=besds[i]+".besd";
@@ -1505,11 +1552,12 @@ namespace SMR {
         for(int i=0;i<besdNum*metaSNPnum;i++) buffer_se[i]=-9;
         vector<string> noninvtb_prbs;
         vector<string> nega_prbs;
+        vector<string> snpdeficent;
+        double cr=0.0;
         for(int i=0;i<metaPrbNum;i++)
         {
-            printf("%3.0f%%\r", 100.0*i/(metaPrbNum));
-            fflush(stdout);
-            LOGPRINTF("processing with probe %s...\n",probeinfo[i].probeId);
+            progress(i, cr, (int)metaPrbNum);
+            //LOGPRINTF("processing with probe %s...\n",probeinfo[i].probeId);
             vector<float> betases;
             vector<uint32_t> row_ids;
             int probebp=probeinfo[i].bp;
@@ -1527,14 +1575,14 @@ namespace SMR {
                         extract_prb_sparse(fptrs[j], (uint64_t)pid, nprb[j],row_ids, betases);
                         long num=row_ids.size();
                         if(num==0) {
-                            LOGPRINTF("WARNING: empty probe %s found in the sparse file %s.\n",probeinfo[i].probeId,besds[j].c_str());
+                            //LOGPRINTF("WARNING: empty probe %s found in the sparse file %s.\n",probeinfo[i].probeId,besds[j].c_str());
                             continue;
                         }
                         long alignnum=0;
                         if(meta_mth && cis_flag) {
-                            LOGPRINTF("Extract the cis-region of probe %s in the sparse file %s.\n",probeinfo[i].probeId,besds[j].c_str());
+                            //LOGPRINTF("Extract the cis-region of probe %s in the sparse file %s.\n",probeinfo[i].probeId,besds[j].c_str());
                         } else {
-                            LOGPRINTF("Extract the eQTLs of probe %s in the sparse file %s.\n",probeinfo[i].probeId,besds[j].c_str());
+                            //LOGPRINTF("Extract the eQTLs of probe %s in the sparse file %s.\n",probeinfo[i].probeId,besds[j].c_str());
                         }
                         for(int k=0;k<num;k++)
                         {
@@ -1562,17 +1610,19 @@ namespace SMR {
                                 }
                             }
                         }
+                        /*
                         if(alignnum==0) {
                             LOGPRINTF("No eQTLs extracted from probe %s in the sparse file %s for %s analysis.\n",probeinfo[i].probeId,besds[j].c_str(),analysisType.c_str());
                             continue;
                         } else {
                             LOGPRINTF("%ld eQTLs extracted from probe %s in the sparse file %s for %s analysis.\n",alignnum,probeinfo[i].probeId,besds[j].c_str(),analysisType.c_str());
                         }
+                         */
                     }
                     else if(format[j]==SMR_DENSE_1 || format[j]==SMR_DENSE_3 ||  format[j]==OSCA_DENSE_1 )
                     {
                         extract_prb_dense(fptrs[j], (uint64_t)pid, nprb[j], nsnp[j], betases);
-                        LOGPRINTF("%llu eQTLs extracted from probe %s in the dense file %s.\n",nsnp[j],probeinfo[i].probeId,besds[j].c_str());
+                       // LOGPRINTF("%llu eQTLs extracted from probe %s in the dense file %s.\n",nsnp[j],probeinfo[i].probeId,besds[j].c_str());
                         long alignnum=0;
                         if(meta_mth && cis_flag) {
                             LOGPRINTF("Extract the cis-region of probe %s in the file %s.\n",probeinfo[i].probeId,besds[j].c_str());
@@ -1606,17 +1656,19 @@ namespace SMR {
                                 }
                             }
                         }
+                        /*
                         if(alignnum==0) {
                             LOGPRINTF("no eQTLs extracted from probe %s in the dense file %s for %s analysis.\n",probeinfo[i].probeId,besds[j].c_str(),analysisType.c_str());
                             continue;
                         } else {
                             LOGPRINTF("%ld eQTLs extracted from probe %s in the dense file %s for %s analysis.\n",alignnum,probeinfo[i].probeId,besds[j].c_str(),analysisType.c_str());
                         }
+                         */
                     }
                     cohortnum++;
                 }
                 else {
-                    LOGPRINTF("probe %s is not in the file %s.\n",probeinfo[i].probeId,besds[j].c_str());
+                    //LOGPRINTF("probe %s is not in the file %s.\n",probeinfo[i].probeId,besds[j].c_str());
                 }
             }
             
@@ -1649,31 +1701,35 @@ namespace SMR {
             
             
             if(cohortnum==0) {
-                LOGPRINTF("No information of probe %s is included from any cohort for %s analysis.\n\n",probeinfo[i].probeId,analysisType.c_str());
+                //LOGPRINTF("No information of probe %s is included from any cohort for %s analysis.\n\n",probeinfo[i].probeId,analysisType.c_str());
             } else if(cohortnum==1) {
-                LOGPRINTF("The information of probe %s is included from %ld / %ld cohorts for %s analysis.\n",probeinfo[i].probeId,cohortnum,besds.size(),analysisType.c_str());
-                LOGPRINTF("The information of the probe %s would be saved in the result.\n\n",probeinfo[i].probeId);
+                //LOGPRINTF("The information of probe %s is included from %ld / %ld cohorts for %s analysis.\n",probeinfo[i].probeId,cohortnum,besds.size(),analysisType.c_str());
+                //LOGPRINTF("The information of the probe %s would be saved in the result.\n\n",probeinfo[i].probeId);
             
             } else if(cohortnum>1) {
-                LOGPRINTF("The information of probe %s is included from %ld / %ld cohorts for %s analysis.\n",probeinfo[i].probeId,cohortnum,besds.size(),analysisType.c_str());
+                //LOGPRINTF("The information of probe %s is included from %ld / %ld cohorts for %s analysis.\n",probeinfo[i].probeId,cohortnum,besds.size(),analysisType.c_str());
                 if(meta_mth){
-                    LOGPRINTF("Performing %s analysis of probe %s...\n",analysisType.c_str(), probeinfo[i].probeId);
+                    //LOGPRINTF("Performing %s analysis of probe %s...\n",analysisType.c_str(), probeinfo[i].probeId);
                     vector<int> noninvertible, negativedeno;
-                    mecs_per_prob( buffer_beta, buffer_se, metaSNPnum, cohortnum, pthresh,noninvertible,negativedeno);
-                    if(noninvertible.size()>0) {
-                        LOGPRINTF("%ld SNPs of probe %s have non-invertible S matrix.\n",noninvertible.size(), probeinfo[i].probeId);
-                        noninvtb_prbs.push_back(probeinfo[i].probeId);
+                    bool mecsflag = mecs_per_prob( buffer_beta, buffer_se, metaSNPnum, cohortnum, pthresh,noninvertible,negativedeno, nmecs);
+                    if(!mecsflag) snpdeficent.push_back(probeinfo[i].probeId);
+                    else {
+                        if(noninvertible.size()>0) {
+                            //LOGPRINTF("%ld SNPs of probe %s have non-invertible S matrix.\n",noninvertible.size(), probeinfo[i].probeId);
+                            noninvtb_prbs.push_back(probeinfo[i].probeId);
+                        }
+                        if(negativedeno.size()>0) {
+                            //LOGPRINTF("%ld SNPs of probe %s have negative 1'inv(S)1 .\n",negativedeno.size(), probeinfo[i].probeId);
+                            nega_prbs.push_back(probeinfo[i].probeId);
+                        }
                     }
-                    if(negativedeno.size()>0) {
-                        LOGPRINTF("%ld SNPs of probe %s have negative 1'inv(S)1 .\n",negativedeno.size(), probeinfo[i].probeId);
-                        nega_prbs.push_back(probeinfo[i].probeId);
-                    }
-                    LOGPRINTF("end of %s analysis of probe %s.\n\n",analysisType.c_str(), probeinfo[i].probeId);
+                    
+                    //LOGPRINTF("end of %s analysis of probe %s.\n\n",analysisType.c_str(), probeinfo[i].probeId);
                 }
                 else {
-                    LOGPRINTF("Performing %s analysis of probe %s...\n",analysisType.c_str(), probeinfo[i].probeId);
+                    //LOGPRINTF("Performing %s analysis of probe %s...\n",analysisType.c_str(), probeinfo[i].probeId);
                     meta_per_prob(buffer_beta,buffer_se, metaSNPnum, cohortnum);
-                    LOGPRINTF("End of %s analysis of probe %s.\n\n",analysisType.c_str(), probeinfo[i].probeId);
+                    //LOGPRINTF("End of %s analysis of probe %s.\n\n",analysisType.c_str(), probeinfo[i].probeId);
                 }
             }
             
@@ -1734,10 +1790,25 @@ namespace SMR {
                    TERMINATE();
                }
         }
-        
+        if(snpdeficent.size()>0)
+        {
+            string filename=string(outFileName)+".nmecs"+atos(nmecs)+".probe.list";
+            FILE* tmpfile=fopen(filename.c_str(),"w");
+            if(!tmpfile)
+            {
+                printf("ERROR: open file %s.\n",filename.c_str());
+                exit(EXIT_FAILURE);
+            }
+            for(int t=0;t<snpdeficent.size();t++)
+            {
+                string str=snpdeficent[t]+'\n';
+                fputs(str.c_str(),tmpfile);
+            }
+            fclose(tmpfile);
+        }
         if(noninvtb_prbs.size()>0)
         {
-            LOGPRINTF("\nWARNING: %ld probes have at least one eQTL whose S is non-invertible.\n",noninvtb_prbs.size());
+            //LOGPRINTF("\nWARNING: %ld probes have at least one eQTL whose S is non-invertible.\n",noninvtb_prbs.size());
             string filename=string(outFileName)+".non-invertible.probe.list";
             FILE* tmpfile=fopen(filename.c_str(),"w");
             if(!tmpfile)
@@ -1751,14 +1822,14 @@ namespace SMR {
                 fputs(str.c_str(),tmpfile);
             }
             fclose(tmpfile);
-            LOGPRINTF("These probes are saved in file %s.\n",filename.c_str());
+            //LOGPRINTF("These probes are saved in file %s.\n",filename.c_str());
         }
         
         if(nega_prbs.size()>0)
         {
-            LOGPRINTF("\nWARNING: %ld probes have at least one eQTL whose 1'inv(S)1 is negative .\n",nega_prbs.size());
-            LOGPRINTF("WARNING: That means we can't get SE by doing square-root.\n");
-            LOGPRINTF("WARNING: In term of such case we set effect size as 0 and SE as missing (-9).\n");
+            //LOGPRINTF("\nWARNING: %ld probes have at least one eQTL whose 1'inv(S)1 is negative .\n",nega_prbs.size());
+            //LOGPRINTF("WARNING: That means we can't get SE by doing square-root.\n");
+            //LOGPRINTF("WARNING: In term of such case we set effect size as 0 and SE as missing (-9).\n");
             string filename=string(outFileName)+".negative.probe.list";
             FILE* tmpfile=fopen(filename.c_str(),"w");
             if(!tmpfile)
@@ -1772,7 +1843,7 @@ namespace SMR {
                 fputs(str.c_str(),tmpfile);
             }
             fclose(tmpfile);
-            LOGPRINTF("These probes are saved in file %s.\n",filename.c_str());
+            //LOGPRINTF("These probes are saved in file %s.\n",filename.c_str());
         }
 
         
@@ -1804,7 +1875,7 @@ namespace SMR {
         LOGPRINTF("\nThe eQTL infomation of %ld probes and %ld SNPs has been in binary file %s.\n",metaPrbNum,metaSNPnum,besdName.c_str());
     }
     
-    void meta_gwas(char* gwaslistFileName, char* ewaslistFileName, char* outFileName, int meta_mth, double pthresh, int mecs_mth, char* corMatFName, char* snplstName, char* problstName, bool zflag,bool out_comm_flag)
+    void meta_gwas(char* gwaslistFileName, char* ewaslistFileName, char* outFileName, int meta_mth, double pthresh, int mecs_mth, char* corMatFName, char* snplstName, char* problstName, bool zflag,bool out_comm_flag, bool all_comm_flag)
     {
         if(corMatFName!=NULL)
         {
@@ -1864,7 +1935,7 @@ namespace SMR {
             TERMINATE();
         }
 
-        vector<int> itscid;
+        vector<int> itscid,allcomm;
         if(meta_mth){
             vector<int> noninvertible, negativedeno;
             LOGPRINTF("NOTE: MeCS could be sensitive and give a biased result when QC is not pre-performed. e.g. extravagant se such as 1e15...\n");
@@ -1878,7 +1949,7 @@ namespace SMR {
             LOGPRINTF("End of %s analysis.\n",analysisType.c_str());
         }
         else {
-            meta_gwas_fun(snpinfo, cohortNum,itscid);
+            meta_gwas_fun(snpinfo, cohortNum,itscid, allcomm, out_comm_flag, all_comm_flag);
             LOGPRINTF("End of %s analysis.\n",analysisType.c_str());
         }
         LOGPRINTF("Saving %s results...\n",analysisType.c_str());
@@ -1888,6 +1959,35 @@ namespace SMR {
             for(int ii=0;ii<itscid.size();ii++)
             {
                 int i=itscid[ii];
+                double pval= -9;
+                if(abs(*snpinfo[i].se+9)>1e-6) {
+                    double z= *snpinfo[i].beta / *snpinfo[i].se;
+                    pval=pchisq(z*z, 1);
+                }
+                
+                if(gwaslistFileName!=NULL) str = string(snpinfo[i].snprs) + '\t' + snpinfo[i].a1 +'\t' + snpinfo[i].a2 +'\t' + atosm(snpinfo[i].freq) +'\t' + atosm(*snpinfo[i].beta) +'\t' + atosm(*snpinfo[i].se) +'\t' + ((pval==-9)?"NA":dtos(pval)) +'\t' + atosm((snpinfo[i].estn)) + '\n';
+                else
+                {
+                    string chr=atosm(round(snpinfo[i].freq));
+                    if(snpinfo[i].freq==-9) chr="NA";
+                    else if(snpinfo[i].freq==23) chr="X";
+                    else if(snpinfo[i].freq==24) chr="Y";
+                    str = chr + '\t' + snpinfo[i].snprs +'\t' + atosm(snpinfo[i].bp) +'\t'+ snpinfo[i].a1 +'\t' + snpinfo[i].a2 +'\t' + atosm(*snpinfo[i].beta) +'\t' + atosm(*snpinfo[i].se) +'\t' + ((pval==-9)?"NA":dtos(pval)) + '\n';
+                }
+                if(fputs_checked(str.c_str(),rltfile))
+                {
+                    
+                    LOGPRINTF("ERROR: in writing file %s .\n", outFileName);
+                    TERMINATE();
+                }
+            }
+        }
+        else if(all_comm_flag)
+        {
+            metaSNPnum=allcomm.size();
+            for(int ii=0;ii<allcomm.size();ii++)
+            {
+                int i=allcomm[ii];
                 double pval= -9;
                 if(abs(*snpinfo[i].se+9)>1e-6) {
                     double z= *snpinfo[i].beta / *snpinfo[i].se;

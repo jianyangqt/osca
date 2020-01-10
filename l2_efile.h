@@ -18,6 +18,7 @@
 #define BETAVALUE 0
 #define MVALUE 1
 #define VALUE 2
+#define TPM 0
 
 namespace EFILE {
     typedef struct{
@@ -141,7 +142,7 @@ namespace EFILE {
     
 
     string getFileType(uint32_t tid);
-    string getValType(uint32_t tid);
+    string getValType(uint32_t fid, uint32_t vid);
     void  read_efile(char* eFileName, eInfo* einfo,uint32_t filetype, bool no_fid_flag, int valueType);
     void  read_pheno2(char* eFileName, eInfo* einfo,int colid);
     void  read_efile_t(char* eFileName, eInfo* einfo,uint32_t filetype, bool no_fid_flag,int valueType);
@@ -175,6 +176,7 @@ namespace EFILE {
     void read_phen(eInfo* einfo, string phen_file, char* mpheno, bool mvFlg=false);
     void read_cc(eInfo* einfo, string phen_file, char* mpheno, bool mvFlg=false);
     void make_erm(eInfo* einfo, int erm_mtd=0, bool output_bin=true, char* outFileName=NULL, bool output_profile=false);
+    void make_erm(eInfo* einfo, MatrixXd &VZ, int erm_mtd=0, bool output_bin=true, char* outFileName=NULL, bool output_profile=false);
     void output_grm(eInfo* einfo, string _out, bool output_grm_bin);
     void read_cov(eInfo* einfo, string cov_file, bool qcovFlg);
     void read_grm_gz(eInfo* einfo, string grm_file, vector<string> &grm_id, bool out_id_log, bool read_id_only);
@@ -206,5 +208,7 @@ namespace EFILE {
     void free_assoclist(vector<ASSOCRLT> &a);
     bool check_case_control(double &ncase,  VectorXd &y) ;
     void update_startend(int length, int tsk_ttl, int tsk_id, int &start, int &end);
+    void extract_sqtl_probe(eInfo* einfo,int tsk_ttl,int tsk_id);
+    void filtering_with_zeroratio(eInfo* einfo,double zeroratioprobe);
 }
 #endif /* defined(__osc__l2_efile__) */

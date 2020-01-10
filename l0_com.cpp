@@ -9,6 +9,7 @@
 #include "l0_com.h"
 
 int thread_num=1;
+double PFISHER = 0.05;
 FILE* logfile = NULL;
 char* outfileName=NULL;
 int remlstatus = 0; // -1: matrix is not invertible. -2:more than half of the variance components are constrained. -3: variance is <0 or >1 . -4: not coverge. -5 constrained
@@ -467,9 +468,28 @@ void inverse_V(MatrixXd &Vi, bool &determinant_zero)
     VectorXd eval = eigensolver.eigenvalues();
     for(int i=0;i<eval.size();i++)
     {
-        
         //if(abs(eval(i))<1e-6) {
-         if(abs(eval(i))<1e-10) { // I observed a scenario with the min eigenval as 1.393741e-09, the matrix is still invertible.
+         if(abs(eval(i))<1e-8) { // I observed a scenario with the min eigenval as 1.393741e-09, the matrix is still invertible.
+             /***for test***/
+             
+             string filena=string(outfileName)+".H.mat";
+             FILE* tmpfi=fopen(filena.c_str(),"w");
+             if(!tmpfi)
+             {
+                 LOGPRINTF("error open file.\n");
+                 TERMINATE();
+             }
+             for( int j=0;j<Vi.rows();j++)
+             {
+                 string str ="";
+                 for(int t=0;t<Vi.cols();t++) str +=atos(Vi(j,t)) + '\t';
+                 str += '\n';
+                 fputs(str.c_str(),tmpfi);
+             }
+             fclose(tmpfi);
+              
+             /***end of test***/
+             
             determinant_zero=true;
             eval(i)=0;
         } else {
@@ -487,8 +507,8 @@ void inverse_V2(MatrixXd &Vi, bool &determinant_zero)
     
     for(int i=0;i<svdd.size();i++)
     {
-        if(abs(svdd(i))<1e-6) {
-            //if(eval(i)<1e-10) { // I observed a scenario with the min eigenval as 1.393741e-09, the matrix is still invertible.
+        //if(abs(svdd(i))<1e-6) {
+            if(abs(svdd(i))<1e-10) { // I observed a scenario with the min eigenval as 1.393741e-09, the matrix is still invertible.
             determinant_zero=true;
             svdd(i)=0;
         } else {
@@ -624,4 +644,61 @@ void standardise(vector<double> &data, bool divid_by_std)
     
 }
 
+void coeff_mat(const vector<string> &vec, MatrixXd &coeff_mat, string errmsg1, string errmsg2) {
+    vector<string> value(vec);
+    stable_sort(value.begin(), value.end());
+    value.erase(unique(value.begin(), value.end()), value.end());
+    if (value.size() > 0.5 * vec.size()) {
+        printf("%s\n",errmsg1.c_str());
+        exit(EXIT_FAILURE);
+    } // throw("Error: too many classes for the envronmental factor. \nPlease make sure you input a discrete variable as the environmental factor.");
+    if (value.size() == 1) {
+        printf("%s\n",errmsg2.c_str());
+        exit(EXIT_FAILURE);
+    } //throw("Error: the envronmental factor should has more than one classes.");
+    
+    int i = 0, j = 0, row_num = vec.size(), column_num = value.size();
+    map<string, int> val_map;
+    for (i = 0; i < value.size(); i++) val_map.insert(pair<string, int>(value[i], i));
+    
+    coeff_mat.resize(row_num, column_num);
+    coeff_mat.setZero(row_num, column_num);
+    map<string, int>::iterator iter;
+    for (i = 0; i < row_num; i++) {
+        iter = val_map.find(vec[i]);
+        coeff_mat(i, iter->second) = 1.0;
+    }
+}
 
+double ssy(vector<double> &y)
+{
+    double rs = 0.0;
+    for(int i=0;i<y.size();i++)
+    {
+        double tmp=y[i];
+        rs += tmp*tmp;
+    }
+    return rs;
+}
+
+double msy(vector<double> &y)
+{
+    double rs = 0.0;
+    for(int i=0;i<y.size();i++) rs += y[i];
+    return rs*rs/y.size();
+}
+
+
+void progress(int &cur, double &disp, int ttl)
+{
+    double desti=1.0*cur/(ttl-1);
+    if(desti>=disp)
+    {
+        printf("%3.0f%%\r", 100.0*desti);
+        fflush(stdout);
+        if(disp==0) disp+=0.05;
+        else if(disp==0.05) disp+=0.2;
+        else if(disp==0.25) disp+=0.5;
+        else disp+=0.25;
+    }
+}
