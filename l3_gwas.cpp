@@ -428,7 +428,7 @@ namespace BFILE{
                     mapids[1].push_back(k);
                     erm_prbs[1].push_back(assoc_rlts[k].SNP);
                 }
-                LOGPRINTF("%ld probes incldued in the first component and %ld in the second component.\n",mapids[0].size(),mapids[1].size());
+                LOGPRINTF("%ld SNPs incldued in the first component and %ld in the second component.\n",mapids[0].size(),mapids[1].size());
             }
             else
             {
@@ -448,7 +448,7 @@ namespace BFILE{
                         erm_prbs[1].push_back(assoc_rlts[k].SNP);
                     }
                 }
-                LOGPRINTF("%ld probes incldued in the first component and %ld in the second component.\n",mapids[0].size(),mapids[1].size());
+                LOGPRINTF("%ld SNPs incldued in the first component and %ld in the second component.\n",mapids[0].size(),mapids[1].size());
             }
             
         }
@@ -475,54 +475,59 @@ namespace BFILE{
                     erm_prbs[2].push_back(assoc_rlts[k].SNP);
                 }
             }
-            LOGPRINTF("%ld probes included in the 1st random component.\n",mapids[0].size());
-            LOGPRINTF("%ld probes included in the 2nd random component.\n",mapids[1].size());
-            LOGPRINTF("%ld probes included in the 3rd random component.\n",mapids[2].size());
+            LOGPRINTF("%ld SNPs included in the 1st random component.\n",mapids[0].size());
+            LOGPRINTF("%ld SNPs included in the 2nd random component.\n",mapids[1].size());
+            LOGPRINTF("%ld SNPs included in the 3rd random component.\n",mapids[2].size());
         }
         
-         double RSQVO =-9;
+        
         VectorXd mlma_b,mlma_se;
         vector<double> mlma_varcmp;
         int rawORMc=0;
         vector<int> include_o(bdata._include);
         map<string, int> snp_name_map_o(bdata._snp_name_map);
         
+        //
+         double RSQVO =1;
+        for(int i=0; i < 2; i++) bdata._r_indx.push_back(i);
+        if(grm_file==NULL) {
+            make_grm( &bdata,AZERO[nrandcomp-1], grm_alg);
+            AN[nrandcomp-1]=bdata._grm_N;
+        }
+        bdata._geno.resize(0,0);
+        _A.resize(bdata._r_indx.size());
+        (_A[0]).resize(_n, _n);
+#pragma omp parallel for
+        for(int i=0; i<_n; i++)
+        {
+            for(int j=0; j<=i; j++) (_A[0])(j,i)=(_A[0])(i,j)=bdata._grm(i,j);
+        }
+        _A[bdata._r_indx.size()-1]=MatrixXd::Identity(_n, _n);
+        bdata._var_name.clear();
+        bdata._hsq_name.clear();
+        for (int i = 0; i < 1; i++) {
+            stringstream strstrm;
+            strstrm << "";
+            bdata._var_name.push_back("V(O" + strstrm.str() + ")");
+            bdata._hsq_name.push_back("V(O" + strstrm.str() + ")/Vp");
+        }
+        
+        bdata._var_name.push_back("V(e)");
+        remlstatus=0;
+        reml( false, true, reml_priors, reml_priors_var,  no_constrain,  _X_c,_X, _y,_A, _Vi,  reml_mtd,  MaxIter,mlma_b,mlma_se, mlma_varcmp);
+        _A.clear();
+        bdata._r_indx.clear();
+        reml_priors_var.clear();
+        if( (remlstatus==0 || remlstatus==-3  || remlstatus==-5 ))
+        {
+            RSQVO=mlma_varcmp[0]/(mlma_varcmp[0] + mlma_varcmp[1]);
+            bdata._varcmp_Py = _Vi;
+        } else RSQVO=1;
+        //
+        
         if( approximate_stepwise && mapids[0].size()>0)
         {
-            for(int i=0; i < 2; i++) bdata._r_indx.push_back(i);
-            if(grm_file==NULL) {
-                make_grm( &bdata,AZERO[nrandcomp-1], grm_alg);
-                AN[nrandcomp-1]=bdata._grm_N;
-            }
-            bdata._geno.resize(0,0);
-                _A.resize(bdata._r_indx.size());
-                (_A[0]).resize(_n, _n);
-                #pragma omp parallel for
-                for(int i=0; i<_n; i++)
-                {
-                    for(int j=0; j<=i; j++) (_A[0])(j,i)=(_A[0])(i,j)=bdata._grm(i,j);
-                }
-                _A[bdata._r_indx.size()-1]=MatrixXd::Identity(_n, _n);
-                bdata._var_name.clear();
-                bdata._hsq_name.clear();
-                for (int i = 0; i < 1; i++) {
-                    stringstream strstrm;
-                    strstrm << "";
-                    bdata._var_name.push_back("V(O" + strstrm.str() + ")");
-                    bdata._hsq_name.push_back("V(O" + strstrm.str() + ")/Vp");
-                }
-            
-                bdata._var_name.push_back("V(e)");
-                remlstatus=0;
-                reml( false, true, reml_priors, reml_priors_var,  no_constrain,  _X_c,_X, _y,_A, _Vi,  reml_mtd,  MaxIter,mlma_b,mlma_se, mlma_varcmp);
-                _A.clear();
-                bdata._r_indx.clear();
-            if( (remlstatus==0 || remlstatus==-3  || remlstatus==-5 ))
-            {
-                RSQVO=mlma_varcmp[0]/(mlma_varcmp[0] + mlma_varcmp[1]);
-                bdata._varcmp_Py = _Vi;
-            } else RSQVO=1;
-                swrsq *= RSQVO;
+            swrsq *= RSQVO;
             // stepwise for the components
             vector<int> slctids, rmsig;
             if(swfdr<0 && swthresh<0) swthresh = PFISHER/mapids[0].size();
@@ -597,7 +602,7 @@ namespace BFILE{
                 rawORMc++;
             }
         }
-        
+      
         long j =erm_prbs.size()-1;
         if(erm_prbs[j].size()>0)
         {
@@ -619,6 +624,7 @@ namespace BFILE{
                 }
             }
             rawORMc++;
+         
         }
         A0[rawORMc]=MatrixXd::Identity(_n, _n);
         

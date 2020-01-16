@@ -227,4 +227,6 @@ extern double cor(vector<double> &y, vector<double> &x);
 extern void standardise(vector<double> &data, bool divid_by_std);
 extern void coeff_mat(const vector<string> &vec, MatrixXd &coeff_mat, string errmsg1, string errmsg2);
 extern void progress(int &cur, double &disp, int ttl);
+extern void  cor(VectorXd &CORR , VectorXd &x, MatrixXd &X, bool centered, bool standardised);
+extern double  cor(VectorXd &Y, VectorXd &X, bool centered, bool standardised);
 #endif /* defined(__osc__l0_com__) */

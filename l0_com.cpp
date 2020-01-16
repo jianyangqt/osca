@@ -702,3 +702,57 @@ void progress(int &cur, double &disp, int ttl)
         else disp+=0.25;
     }
 }
+
+double  cor(VectorXd &Y, VectorXd &X, bool centered, bool standardised)
+{
+    if(Y.size()!= X.size())
+    {
+        printf("The lenght of vectors not match.\n");
+        exit(EXIT_FAILURE);
+    }
+    double ld=-9;
+    long n=Y.size();
+    if(standardised)
+    {
+        double xy=X.dot(Y);
+        ld=xy/(n-1);
+    }
+    else if(centered)
+    {
+        double xx=X.dot(X), yy=Y.dot(Y), xy=X.dot(Y);
+        ld=xy/(sqrt(xx*yy));
+    }
+    else
+    {
+        double ysum=Y.sum();
+        double xsum=X.sum();
+        double xx=X.dot(X), yy=Y.dot(Y), xy=X.dot(Y);
+        ld=(n*xy-xsum*ysum)/(sqrt(n*xx-xsum*xsum)*sqrt(n*yy-ysum*ysum));
+    }
+    return ld;
+}
+
+void  cor(VectorXd &CORR , VectorXd &x, MatrixXd &X, bool centered, bool standardised)
+{
+    if(x.size()!= X.rows())
+    {
+        printf("The lenght not match.\n");
+        exit(EXIT_FAILURE);
+    }
+    long n=x.size();
+    if(standardised)
+    {
+        CORR = x.transpose()*X/(n-1);
+    }
+    else if(centered)
+    {
+        printf("NOT IMPLEMENTED.\n");
+        exit(EXIT_FAILURE);
+    }
+    else
+    {
+        printf("NOT IMPLEMENTED.\n");
+        exit(EXIT_FAILURE);
+    }
+
+}

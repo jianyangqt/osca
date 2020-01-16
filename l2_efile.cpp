@@ -2802,7 +2802,7 @@ namespace EFILE {
     }
 
     
-    void make_erm(eInfo* einfo, int erm_mtd, bool output_bin, char* outFileName, bool output_profile)
+    void make_erm(eInfo* einfo, int erm_mtd, bool output_bin, char* outFileName, bool output_profile, bool have_stand)
     {
         uint64_t n = einfo->_eii_include.size(), m = einfo->_epi_include.size();
         if(!n || !m)
@@ -2821,9 +2821,32 @@ namespace EFILE {
         vector< vector<bool> > X_bool;
         
         if(erm_mtd < 2){
-            if(erm_mtd == 0) divid_by_std = true;
-            else if(erm_mtd == 1) divid_by_std = false;
-            std_probe(einfo, X_bool, divid_by_std, _probe_data, output_profile);
+            if(have_stand)
+            {
+                Map<MatrixXd> X(&einfo->_val[0],einfo->_eii_num,einfo->_epi_num);
+                _probe_data.resize(n,m);
+                X_bool.resize(n);
+                for(int i=0; i<n; i++) X_bool[i].resize(m);
+                #pragma omp parallel for
+                for(int i=0; i<n; i++){
+                    for(int j=0; j<m; j++){
+                        double tmp = X(einfo->_eii_include[i], einfo->_epi_include[j]);
+                        if ( tmp < 1e9) {
+                            _probe_data(i,j)= tmp;
+                            X_bool[i][j] = true;
+                        }
+                        else {
+                            _probe_data(i,j) = 0.0;
+                            X_bool[i][j] = false;
+                        }
+                    }
+                }
+                
+            } else {
+                if(erm_mtd == 0) divid_by_std = true;
+                else if(erm_mtd == 1) divid_by_std = false;
+                std_probe(einfo, X_bool, divid_by_std, _probe_data, output_profile);
+            }
         }
         //else if(erm_mtd ==2)  std_probe_ind(einfo, X_bool, false, _probe_data, output_profile);
         else std_iteration(einfo, X_bool, _probe_data, output_profile);
@@ -2947,7 +2970,7 @@ namespace EFILE {
         }
     }
     
-    void make_erm(eInfo* einfo, MatrixXd &VZ, int erm_mtd, bool output_bin, char* outFileName, bool output_profile)
+    void make_erm(eInfo* einfo, MatrixXd &VZ, int erm_mtd, bool output_bin, char* outFileName, bool output_profile, bool have_stand)
     {
         uint64_t n = einfo->_eii_include.size(), m = einfo->_epi_include.size();
         if(!n || !m)
@@ -2966,9 +2989,32 @@ namespace EFILE {
         vector< vector<bool> > X_bool;
         
         if(erm_mtd < 2){
+            if(have_stand)
+            {
+                Map<MatrixXd> X(&einfo->_val[0],einfo->_eii_num,einfo->_epi_num);
+                _probe_data.resize(n,m);
+                X_bool.resize(n);
+                for(int i=0; i<n; i++) X_bool[i].resize(m);
+                #pragma omp parallel for
+                for(int i=0; i<n; i++){
+                    for(int j=0; j<m; j++){
+                        double tmp = X(einfo->_eii_include[i], einfo->_epi_include[j]);
+                        if ( tmp < 1e9) {
+                            _probe_data(i,j)= tmp;
+                            X_bool[i][j] = true;
+                        }
+                        else {
+                            _probe_data(i,j) = 0.0;
+                            X_bool[i][j] = false;
+                        }
+                    }
+                }
+                
+            } else {
             if(erm_mtd == 0) divid_by_std = true;
             else if(erm_mtd == 1) divid_by_std = false;
             std_probe(einfo, X_bool, divid_by_std, _probe_data, output_profile);
+            }
         }
         //else if(erm_mtd ==2)  std_probe_ind(einfo, X_bool, false, _probe_data, output_profile);
         else std_iteration(einfo, X_bool, _probe_data, output_profile);

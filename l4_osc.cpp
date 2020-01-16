@@ -16,7 +16,7 @@ int main(int argc, char * argv[])
 {
     cout << "*******************************************************************" << endl;
     cout << "* OmicS-data-based Complex trait Analysis (OSCA)" << endl;
-    cout << "* version 0.452" << endl;
+    cout << "* version 0.453" << endl;
     cout << "* (C) 2016 Futao Zhang, Zhihong Zhu and Jian Yang" << endl;
     cout << "* The University of Queensland" << endl;
     cout << "* MIT License" << endl;
@@ -270,6 +270,7 @@ void option(int option_num, char* option_str[])
     bool swlogit = false;
     bool swforwardonly = false;
     double r2thresh = -9;
+    double pccr2thresh = 0.81;
     bool moment_flag = false;
     bool moment2_flag = false;
     int nrandcomp =2;
@@ -1444,6 +1445,15 @@ void option(int option_num, char* option_str[])
             }
             LOGPRINTF("--moment-r2 %0.2e\n", r2thresh);
         }
+        if(0==strcmp(option_str[i],"--moment-pcc-r2"))
+        {
+            pccr2thresh=atof(option_str[++i]);
+            if (pccr2thresh < 0 || pccr2thresh > 1) {
+                LOGPRINTF("\nError: --moment-pcc-r2 should be between 0 to 1.\n");
+                TERMINATE();
+            }
+            LOGPRINTF("--moment-pcc-r2 %0.2e\n", pccr2thresh);
+        }
         
         if(0==strcmp(option_str[i],"--moment")){ // EXclude the ProbEs Centred at the Target probe
             moment_flag=true;
@@ -1606,7 +1616,7 @@ void option(int option_num, char* option_str[])
     else if(moment_exact_flag) moment_exact(outfileName, befileName,problstName,problst2exclde, genelistName, chr, prbname,  fromprbname, toprbname, prbWind, fromprbkb,toprbkb, prbwindFlag,  genename, probe2rm, indilstName, indilst2remove,  phenofileName, mpheno,  covfileName, qcovfileName,  within_family, priors, priors_var,  no_constrain, reml_mtd, MaxIter, reml_fixed_var_flag, reml_force_inv_fac_flag,  reml_force_converge_flag,   reml_no_converge_flag, lambda_wind,  fastlinear, force_mlm, bcthresh, moment_wind,moment_pcs, nrandcomp, slctmtd,r2thresh,momentpercent,approximate_stepwise,erm_alg,swthresh,tsk_ttl, tsk_id,swthresh,swforwardonly,sw_rsq);
     else if(moment_flag)
     {
-        if(befileName) moment(outfileName, befileName,problstName,problst2exclde, genelistName, chr, prbname,  fromprbname, toprbname, prbWind, fromprbkb,toprbkb, prbwindFlag,  genename, probe2rm, indilstName, indilst2remove,  phenofileName, mpheno,  covfileName, qcovfileName,  within_family, priors, priors_var,  no_constrain, reml_mtd, MaxIter, reml_fixed_var_flag, reml_force_inv_fac_flag,  reml_force_converge_flag,   reml_no_converge_flag,  nopreadj_covar, lambda_wind,  fastlinear, force_mlm, bcthresh, moment_wind, moment_num,moment_pcs, nrandcomp, slctmtd,r2thresh,momentpercent,approximate_flag,approximate_stepwise,erm_alg,swthresh,swfdr, swlogit,swforwardonly, Baptiste, sw_rsq);
+        if(befileName) moment(outfileName, befileName,problstName,problst2exclde, genelistName, chr, prbname,  fromprbname, toprbname, prbWind, fromprbkb,toprbkb, prbwindFlag,  genename, probe2rm, indilstName, indilst2remove,  phenofileName, mpheno,  covfileName, qcovfileName,  within_family, priors, priors_var,  no_constrain, reml_mtd, MaxIter, reml_fixed_var_flag, reml_force_inv_fac_flag,  reml_force_converge_flag,   reml_no_converge_flag,  nopreadj_covar, lambda_wind,  fastlinear, force_mlm, bcthresh, moment_wind, moment_num,moment_pcs, nrandcomp, slctmtd,r2thresh,momentpercent,approximate_flag,approximate_stepwise,erm_alg,swthresh,swfdr, swlogit,swforwardonly, Baptiste, sw_rsq,pccr2thresh,erm_file,erm_bin_flag);
         else moment_gwas(outfileName, bFileName, maf,snplstName,snplst2exclde,chr,indilstName,indilst2remove, phenofileName,mpheno,covfileName, qcovfileName,  within_family, priors, priors_var,  no_constrain, reml_mtd, MaxIter, reml_fixed_var_flag, reml_force_inv_fac_flag,  reml_force_converge_flag,   reml_no_converge_flag,  nopreadj_covar, lambda_wind,  fastlinear, force_mlm, bcthresh, moment_gwas_wind, moment_num,moment_pcs, nrandcomp, slctmtd,r2thresh,momentpercent,approximate_flag,approximate_stepwise,erm_alg,swthresh,swfdr,swlogit,swforwardonly, sw_rsq, grm_file, grm_bin_flag);
     }
     else if(mlma_flag) mlma(outfileName, befileName, problstName, problst2exclde, genelistName,  chr,prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName, indilst2remove,phenofileName,mpheno, erm_bin_flag,  erm_alg,  covfileName, qcovfileName,  erm_file,  subtract_erm_file,  m_erm_flag,within_family,priors,priors_var,no_constrain,reml_mtd,MaxIter,reml_fixed_var_flag,reml_force_inv_fac_flag,reml_force_converge_flag, reml_no_converge_flag, nopreadj_covar,percentage_out, lambda_wind,fastlinear,force_mlm,stdprb);

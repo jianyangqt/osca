@@ -175,8 +175,8 @@ namespace EFILE {
     void write_tefile(char* outFileName, eInfo* einfo,bool impute_mean_flag);
     void read_phen(eInfo* einfo, string phen_file, char* mpheno, bool mvFlg=false);
     void read_cc(eInfo* einfo, string phen_file, char* mpheno, bool mvFlg=false);
-    void make_erm(eInfo* einfo, int erm_mtd=0, bool output_bin=true, char* outFileName=NULL, bool output_profile=false);
-    void make_erm(eInfo* einfo, MatrixXd &VZ, int erm_mtd=0, bool output_bin=true, char* outFileName=NULL, bool output_profile=false);
+    void make_erm(eInfo* einfo, int erm_mtd=0, bool output_bin=true, char* outFileName=NULL, bool output_profile=false, bool have_stand = false);
+    void make_erm(eInfo* einfo, MatrixXd &VZ, int erm_mtd=0, bool output_bin=true, char* outFileName=NULL, bool output_profile=false, bool have_stand = false);
     void output_grm(eInfo* einfo, string _out, bool output_grm_bin);
     void read_cov(eInfo* einfo, string cov_file, bool qcovFlg);
     void read_grm_gz(eInfo* einfo, string grm_file, vector<string> &grm_id, bool out_id_log, bool read_id_only);

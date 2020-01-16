@@ -316,8 +316,31 @@ namespace EFILE
             LOGPRINTF("%ld probes are selected from stepwise selection.\n", slctidx.size());
         }
     }
-    
-    void moment(char* outFileName, char* befileName,char* problstName,char* problst2exclde,char* genelistName, int chr,char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* probe2exclde,char* indilstName,char* indilst2remove, char* phenofileName,char* mpheno, char* covfileName,char* qcovfileName, bool within_family,char* priors,char* priors_var, bool no_constrain,int reml_mtd,int MaxIter,bool reml_fixed_var_flag,bool reml_force_inv_fac_flag, bool reml_force_converge_flag, bool  reml_no_converge_flag, bool nopreadj_covar,  double lambda_wind, bool fastlinear, bool force_mlm,double bcthresh,int expect_wind, int expect_num, int expect_pcs, int nrandcomp,int slctmtd, double r2thresh, double percent, bool approximate_flag, bool approximate_stepwise,int erm_alg, double swthresh, double swfdr, bool swlogit,bool stepforwardonly, bool Baptiste, double sw_rsq)
+    void cal_cor(eInfo* einfo, int target, VectorXd &pcc )
+    {
+        uint64_t n = einfo->_eii_include.size(), m = einfo->_epi_include.size();
+        VectorXd xt(n),yt(n);
+        pcc.resize(m);
+        for(int j=0; j<n; j++)
+        {
+            double val = einfo->_val[target*einfo->_eii_num+einfo->_eii_include[j]];
+            if(val>1e9)
+                val = 0;
+            xt(j) = val;
+        }
+        #pragma omp parallel for
+        for(int i=0; i<m; i++){
+            for(int j=0; j<n; j++)
+            {
+                double val = einfo->_val[i*einfo->_eii_num+einfo->_eii_include[j]];
+                if(val>1e9)
+                    val = 0;
+                yt(j) = val;
+            }
+            pcc[i] = cor(xt,yt,true,true);
+        }
+    }
+    void moment(char* outFileName, char* befileName,char* problstName,char* problst2exclde,char* genelistName, int chr,char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* probe2exclde,char* indilstName,char* indilst2remove, char* phenofileName,char* mpheno, char* covfileName,char* qcovfileName, bool within_family,char* priors,char* priors_var, bool no_constrain,int reml_mtd,int MaxIter,bool reml_fixed_var_flag,bool reml_force_inv_fac_flag, bool reml_force_converge_flag, bool  reml_no_converge_flag, bool nopreadj_covar,  double lambda_wind, bool fastlinear, bool force_mlm,double bcthresh,int expect_wind, int expect_num, int expect_pcs, int nrandcomp,int slctmtd, double r2thresh, double percent, bool approximate_flag, bool approximate_stepwise,int erm_alg, double swthresh, double swfdr, bool swlogit,bool stepforwardonly, bool Baptiste, double sw_rsq, double thresh_pcc, char* orm_file,bool orm_bin_flag)
     {
        
         //bcthresh: default as bonfferoni
@@ -327,6 +350,18 @@ namespace EFILE
         vector<double> reml_priors;
         vector<double> reml_priors_var;
         vector<string> vs_buf;
+        vector<string> orm_files;
+        vector<string> orm_id;
+        vector< vector<int> > mapids;
+        vector< vector<string> > erm_prbs;
+        vector<MatrixXd> AZERO, _A, A0;
+        vector<MatrixXf> AN;
+        MatrixXd _Vi;
+        mapids.resize(nrandcomp); // one for significant one for insignificant
+        erm_prbs.resize(nrandcomp);
+        AZERO.resize(nrandcomp);
+        AN.resize(nrandcomp);
+        
         expect_wind>>=1;
         
         if(priors!=NULL){
@@ -394,12 +429,17 @@ namespace EFILE
         if(phenofileName !=NULL) read_phen(&einfo, phenofileName, mpheno,false);
         if(covfileName != NULL) read_cov(&einfo, covfileName, false);
         if(qcovfileName != NULL) read_cov(&einfo, qcovfileName, true);
-        
+        if(orm_file!=NULL){
+            orm_files.push_back(orm_file);
+            read_grm(&einfo,orm_file, orm_id, true, false, false,orm_bin_flag);
+            AN[nrandcomp-1] = einfo._grm_N;
+            AZERO[nrandcomp-1] = einfo._grm.array()*einfo._grm_N.cast<double>().array();
+        }
         memcpy(suffix,".bod",5);
         read_beed(inputname,&einfo); // eii and epi are updated in it.
-        //stdprobe(&einfo);
+        stdprobe(&einfo);
         if(einfo._eType==0 && expect_wind==50) expect_wind=100;
-        map<string, int>::iterator iter;
+        map<string, int>::iterator iter, iter2;
     
         int _n=(int)einfo._eii_include.size();
         if(_n<1)
@@ -437,15 +477,6 @@ namespace EFILE
         //MatrixXd _X_PC(_X.rows(), _X.cols()+expect_pcs);
         //_X_PC << _X, _PCs;
         
-        vector< vector<int> > mapids;
-        vector< vector<string> > erm_prbs;
-        vector<MatrixXd> AZERO, _A, A0;
-        vector<MatrixXf> AN;
-        MatrixXd _Vi;
-        mapids.resize(nrandcomp); // one for significant one for insignificant
-        erm_prbs.resize(nrandcomp);
-        AZERO.resize(nrandcomp);
-        AN.resize(nrandcomp);
         
         map<double, long> levels;
         long cursize=0,flag=0;
@@ -570,12 +601,16 @@ namespace EFILE
                 LOGPRINTF("%ld probes included in the 2nd random component.\n",mapids[1].size());
                 LOGPRINTF("%ld probes included in the 3rd random component.\n",mapids[2].size());
             }
-        double RSQVO =-9;
+        double RSQVO =1;
+        for(int i=0; i < 2; i++) einfo._r_indx.push_back(i);
+        if(orm_file==NULL)
+        {
+            make_erm(&einfo,AZERO[nrandcomp-1], erm_alg, true, NULL, false, true);
+            AN[nrandcomp-1]=einfo._grm_N;
+        }
+        
         if( approximate_stepwise && mapids[0].size()>0)
         {
-     
-            for(int i=0; i < 2; i++) einfo._r_indx.push_back(i);
-            make_erm( &einfo,erm_alg);
             _A.resize(einfo._r_indx.size());
             (_A[0]).resize(_n, _n);
             #pragma omp parallel for
@@ -596,6 +631,7 @@ namespace EFILE
             reml(&einfo, false, true, reml_priors, reml_priors_var, -2.0, -2.0, no_constrain, true, true, _X_c, _X,_y,_A,_Vi,outFileName);
             _A.clear();
             einfo._r_indx.clear();
+            reml_priors_var.clear();
             if( (remlstatus==0 || remlstatus==-3  || remlstatus==-5 ))
             {
                 RSQVO=einfo._varcmp[0]/(einfo._varcmp[0] + einfo._varcmp[1]);
@@ -656,23 +692,24 @@ namespace EFILE
                 
                 for(int i=0; i<_n; i++){
                     einfo._eii_pheno[einfo._eii_include[i]]=_y[i];
-                    
                     //if(loud) {LOGPRINTF("Phenotype restored.\n");}
                 }
         }
         
         vector<int> include_o(einfo._epi_include);
         map<string, int> snp_name_map_o(einfo._epi_map);
+        map<string,int> componet1_map;
+        for(int i=0;i< erm_prbs[0].size();i++) componet1_map.insert(pair<string,int>(erm_prbs[0][i],mapids[0][i]));
         int rawORMc=0;
         for(int i=0;i<mapids.size();i++) if(mapids[i].size()) rawORMc++;
         A0.resize(rawORMc+1);
         rawORMc=0;
-        for(int j=0;j<erm_prbs.size();j++)
+        for(int j=0;j<erm_prbs.size()-1;j++)
         {
             if(erm_prbs[j].size()>0)
             {
                 update_map_kp(erm_prbs[j], einfo._epi_map, einfo._epi_include);
-                make_erm(&einfo,AZERO[j], erm_alg);
+                make_erm(&einfo,AZERO[j], erm_alg, true, NULL, false, true);
                 AN[j] = einfo._grm_N;
                 A0[rawORMc] = einfo._grm;
                 
@@ -693,7 +730,31 @@ namespace EFILE
                 rawORMc++;
             }
         }
+        long j =erm_prbs.size()-1;
+        if(erm_prbs[j].size()>0)
+        {
+            for(int ii=0;ii<erm_prbs.size()-1;ii++)
+            {
+                if(erm_prbs[ii].size()>0)
+                {
+                    AN[j] -= AN[ii];
+                    AZERO[j] -= AZERO[ii];
+                }
+            }
+            A0[rawORMc].resize(_n,_n);
+            #pragma omp parallel for
+            for (int ii = 0; ii < _n; ii++) {
+                for (int jj = 0; jj <= ii; jj++) {
+                    if(AN[j](ii,jj) > 0) A0[rawORMc](ii,jj) = AZERO[j](ii,jj) / AN[j](ii,jj);
+                    else A0[rawORMc](ii,jj) = 0.0;
+                    A0[rawORMc](jj,ii) = A0[rawORMc](ii,jj);
+                }
+            }
+            rawORMc++;
+            
+        }
         A0[rawORMc]=MatrixXd::Identity(_n, _n);
+        /*
         if(loud)
         {
             LOGPRINTF("Saving the A matrix ...\n");
@@ -740,9 +801,11 @@ namespace EFILE
                     reml(&einfo, false, true, reml_priors, reml_priors_var, -2.0, -2.0, no_constrain, true, true, _X_c, _X,_y,_A,_Vi,tmpn);
                     _A.clear();
                     einfo._r_indx.clear();
+                    reml_priors_var.clear();
                 }
             }
         }
+        */
         LOGPRINTF("\nPerforming the MOMENT analysis ...\n");
         LOGPRINTF("For each probe, the analysis will exclude probes in %d Kb region of centered at the probe to be tested.\n",expect_wind);
         int exwind=expect_wind*1000;
@@ -781,9 +844,20 @@ namespace EFILE
         MatrixXd XX(_X.rows(), _X.cols()+1);
         XX.block(0,0,_X.rows(),_X.cols())=_X;
         int x_idx=_X_c;
-       
         double cr=0;
         vector<int> freml;
+        FILE* batist = NULL;
+        if(loud)
+        {
+            string filenam=string(outfileName)+".excluded.txt";
+             batist=fopen(filenam.c_str(),"w");
+            if(!batist)
+            {
+                LOGPRINTF("error open file.\n");
+                TERMINATE();
+            }
+        }
+        
         for(int i=0;i<num2exp;i++)
         {
             double desti=1.0*wcount/(einfo._epi_include.size()-1);
@@ -821,28 +895,49 @@ namespace EFILE
                     LOGPRINTF("ERROR: bugs found in MOMENT(). please report.\n");
                     TERMINATE();
                 }
+            
             for(int jj=0;jj<nrandcomp;jj++) erm_prbs[jj].clear();
             int norms=0,excount=0;
-            for(int jj=0;jj<nrandcomp;jj++)
+            if(Baptiste)
             {
-                for(int j=0;j<mapids[jj].size();j++)
+                //calculate correlations
+                VectorXd pcc;
+                int curidx=iter->second;
+                cal_cor(&einfo,curidx,pcc);
+                for(int i=0;i<pcc.size();i++)
                 {
-                    int tid=mapids[jj][j];
-                    if(Baptiste)
+                    double pccr2 = pcc[i]*pcc[i];
+                    if(pccr2>thresh_pcc)
                     {
-                        if(tid == id) {
-                            erm_prbs[jj].push_back(assoc_rlts[tid].PROBE);
-                            excount++;
-                        }
+                        string prob=einfo._epi_prb[einfo._epi_include[i]];
+                        int probchr=einfo._epi_chr[einfo._epi_include[i]];
+                        int probbp=einfo._epi_bp[einfo._epi_include[i]];
+                        iter2=componet1_map.find(prob);
+                        if(iter2!=componet1_map.end()) erm_prbs[0].push_back(prob);
+                        else erm_prbs[1].push_back(prob);
+                        excount++;
                         
-                    } else {
-                        if(targetChr == assoc_rlts[tid].CHR && abs(targetBP-assoc_rlts[tid].BP)<=exwind) {
-                            erm_prbs[jj].push_back(assoc_rlts[tid].PROBE);
-                            excount++;
+                        if(loud)
+                        {
+                            string str = targetPrb + '\t' + atos(targetChr) + '\t'+ atos(targetBP) + '\t' + prob + '\t' + atos(probchr) + '\t'+ atos(probbp) + '\t' + atos(pcc[i]) + '\n';
+                            fputs(str.c_str(),batist);
                         }
                     }
                 }
+            } else {
+                for(int jj=0;jj<nrandcomp;jj++)
+                {
+                    for(int j=0;j<mapids[jj].size();j++)
+                    {
+                        int tid=mapids[jj][j];
+                            if(targetChr == assoc_rlts[tid].CHR && abs(targetBP-assoc_rlts[tid].BP)<=exwind) {
+                                erm_prbs[jj].push_back(assoc_rlts[tid].PROBE);
+                                excount++;
+                            }
+                    }
+                }
             }
+            
             
             //LOGPRINTF("%d probe(s) excluded from calculating the ORM(s) for the probe %s.\n", excount,assoc_rlts[id].PROBE);
             for(int jj=0;jj<nrandcomp;jj++) if(mapids[jj].size()-erm_prbs[jj].size()>0) norms++;
@@ -859,7 +954,7 @@ namespace EFILE
                         if(erm_prbs[j].size()>0)
                         {
                             update_map_kp(erm_prbs[j], einfo._epi_map, einfo._epi_include);
-                            make_erm(&einfo,_A[aid], erm_alg);
+                            make_erm(&einfo,_A[aid], erm_alg, true, NULL, false, true);
                             einfo._grm_N = AN[j] - einfo._grm_N;
                             _A[aid] = AZERO[j] - _A[aid];
                             #pragma omp parallel for
@@ -953,6 +1048,7 @@ namespace EFILE
                     freml.push_back(id);
                 }
         }
+        if(loud && batist!=NULL) fclose(batist);
         if(loud)
         {
             LOGPRINTF("%ld probes in the first componet failed in REML.\n", freml.size());
