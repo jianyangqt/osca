@@ -497,7 +497,7 @@ namespace BFILE{
         bdata._geno.resize(0,0);
         _A.resize(bdata._r_indx.size());
         (_A[0]).resize(_n, _n);
-#pragma omp parallel for
+        #pragma omp parallel for
         for(int i=0; i<_n; i++)
         {
             for(int j=0; j<=i; j++) (_A[0])(j,i)=(_A[0])(i,j)=bdata._grm(i,j);

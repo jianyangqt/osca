@@ -1715,7 +1715,7 @@ void mlm_stat(VectorXd &_y,MatrixXd &_Vi, VectorXd &_x, double &beta, double &se
 }
 
 void getQval(vector<double> &pval, vector<double> &qval)
-{
+{ //#qval<-p.adjust(pval,method="fdr",length(pval))
     long m = pval.size();
     if(m==0)
     {
@@ -1723,5 +1723,32 @@ void getQval(vector<double> &pval, vector<double> &qval)
         TERMINATE();
     }
     getRank2R(pval, qval);
-    for(int i=0;i<qval.size();i++) qval[i]=pval[i]*m/qval[i];
+    vector<int> rankp(m);
+    for(int i=0;i<m;i++) {
+        rankp[i]=(int)(qval[i]-1);
+        qval[i]=pval[i]*m/qval[i];
+    }
+    vector<double> sq(m);
+    for(int i=0;i<m;i++) sq[rankp[i]]=qval[i];
+    //for(int i=0;i<m;i++) sq[i]=*(min_element(&sq[0] + i, &sq[0] + m));  //a slow implement
+    double tmp=sq[m-1];
+    for(long i=(m-2);i>=0;i--) {
+        if(sq[i]>tmp) sq[i]=tmp;
+        else tmp = sq[i];
+    }
+    for(int i=0;i<m;i++) qval[i] = sq[rankp[i]];
 }
+
+void sample_norep(vector<int> &res, int m, int N )
+{
+    int cnt =0;
+    for(int j=0;j<N;j++)
+    {/*
+        if(runiform(1)<(m-cnt)/(N-j-1))
+        {
+            res.push_back(j);
+            cnt++;
+        }*/
+    }
+}
+

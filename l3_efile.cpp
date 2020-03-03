@@ -384,6 +384,499 @@ namespace EFILE {
         LOGPRINTF("\nThe infomation of %ld probes and %ld individuals has been in binary file %s.\n",probeinfo.size(),indiinfo.size(),bodName.c_str());
 
     }
+    /*
+    void lookup(char* outFileName, char* bldFileName, char* snplstName, char* snplst2exclde,int chr,char* snprs, char* snprs2exclde, char* fromsnprs, char* tosnprs,int snpWind, bool snpWindflg, int fromsnpkb, int tosnpkb, int ld_wind)
+    {
+        ldInfo ldinfo;
+        if(bldFileName == NULL)
+        {
+            printf("Error: please input the ld information by the option --bld.\n");
+            exit(EXIT_FAILURE);
+        }
+        char inputname[FNAMESIZE];
+        memcpy(inputname,bldFileName,strlen(bldFileName)+1);
+        char* suffix=inputname+strlen(bldFileName);
+        memcpy(suffix,".esi",5);
+        read_ld_esifile(&ldinfo, inputname);
+        
+        memcpy(suffix,".bld",5);
+        vector<int> headers;
+        headers.resize(RESERVEDUNITS);
+        FILE* bld=fopen(inputname,"rb");
+        if(bld == NULL)
+        {
+            printf("Error: can't open file %s.\n",inputname);
+            exit(EXIT_FAILURE);
+        }
+        if(fread(&headers[0], sizeof(int),RESERVEDUNITS, bld)<1)
+        {
+            printf("ERROR: File %s read failed!\n", inputname);
+            exit(EXIT_FAILURE);
+        }
+        int ldwind=headers[3];
+        if(ldwind>ld_wind) ldwind=ld_wind;
+        ld_esi_man(&ldinfo, snplstName, snplst2exclde,chr,  snprs,  fromsnprs,  tosnprs, snpWind, snpWindflg, fromsnpkb,  tosnpkb,snprs2exclde);
+        if(ldinfo._esi_include.size()==0)
+        {
+            printf("Error: no SNP included.\n");
+            exit(EXIT_FAILURE);
+        }
+        int indicator = headers[0];
+        if(indicator==0) printf("\nReading ld r from binary file %s...\n", inputname);
+        else printf("\nReading ld r-squared from binary file %s...\n", inputname);
+        uint64_t valnum=readuint64(bld), colNum=ldinfo._snpNum+1;
+        uint64_t cur_pos = ftell( bld );
+        fseek( bld, 0L, SEEK_END );
+        uint64_t size_file = ftell( bld );
+        fseek( bld, cur_pos, SEEK_SET );
+        if( size_file - (RESERVEDUNITS*sizeof(int) + sizeof(uint64_t) + colNum*sizeof(uint64_t) + valnum*sizeof(float)) != 0) {
+            printf("ERROR: File %s is broken!\n", inputname);
+            exit(EXIT_FAILURE);
+        }
+        
+        ldinfo._cols.resize(colNum);
+        if(fread(&ldinfo._cols[0], sizeof(uint64_t),colNum, bld)<1)
+        {
+            printf("ERROR: File %s read failed!\n", inputname);
+            exit(EXIT_FAILURE);
+        }
+        long maxnum=0;
+        for(int i=1;i<colNum;i++) {
+            long numtmp=ldinfo._cols[i]-ldinfo._cols[i-1];
+            if(numtmp>maxnum) maxnum=numtmp;
+        }
+        FILE* outfile=fopen(outFileName, "w");
+        if (!(outfile)) {
+            printf("Error: Failed to open file %s.\n",outFileName);
+            exit(EXIT_FAILURE);
+        }
+        string tmpstr="CHR_A\tBP_A\tSNP_A\tCHR_B\tBP_B\tSNP_B\tR\n";
+        if(indicator) tmpstr="CHR_A\tBP_A\tSNP_A\tCHR_B\tBP_B\tSNP_B\tR2\n";
+        fputs(tmpstr.c_str(),outfile);
+        uint64_t valSTART=RESERVEDUNITS*sizeof(int) + sizeof(uint64_t) + colNum*sizeof(uint64_t);
+        long wcount=0;
+        float* buffer = (float*) malloc (sizeof(float)*maxnum);
+        if (buffer == NULL) {
+            printf("ERROR: memory allocation failed to read %s.\n", inputname);
+            exit(EXIT_FAILURE);
+        }
+        if(ldinfo._esi_include.size()==1)
+        {
+            vector<int> snplist;
+            int sid=ldinfo._esi_include[0];
+            int chri=ldinfo._esi_chr[sid];
+            int bpi=ldinfo._esi_bp[sid];
+            string rsi=ldinfo._esi_rs[sid];
+            for(int i=sid-1;i>=0;i--)
+            {
+                int chrj=ldinfo._esi_chr[i];
+                int bpj=ldinfo._esi_bp[i];
+                if(chri==chrj && bpi-bpj<ldwind*1000) snplist.push_back(i);
+            }
+            for(int i=(int)snplist.size()-1;i>=0;i--)
+            {
+                int sidi=snplist[i];
+                int chrj=ldinfo._esi_chr[sidi];
+                int bpj=ldinfo._esi_bp[sidi];
+                string rsj=ldinfo._esi_rs[sidi];
+                uint64_t poss=ldinfo._cols[sidi];
+                fseek( bld, (poss+sid-sidi-1)*sizeof(float)+valSTART, SEEK_SET );
+                float ldv=readfloat(bld);
+                string tmpstr = atos(chrj)+'\t'+atos(bpj)+ '\t'+rsj+'\t'+ atos(chri)+'\t'+atos(bpi)+ '\t'+rsi+'\t'+atos(ldv)+'\n';
+                fputs(tmpstr.c_str(),outfile);
+                wcount++;
+            }
+        }
+        for(int i=0;i<ldinfo._esi_include.size();i++)
+        {
+            
+            int sid=ldinfo._esi_include[i];
+            int chri=ldinfo._esi_chr[sid];
+            int bpi=ldinfo._esi_bp[sid];
+            string rsi=ldinfo._esi_rs[sid];
+            uint64_t poss=ldinfo._cols[sid];
+            uint64_t post=ldinfo._cols[sid+1];
+            long num=post-poss;
+            fseek( bld, poss*sizeof(float)+valSTART, SEEK_SET );
+            if(fread(buffer, sizeof(float),num, bld)!=num)
+            {
+                printf("ERROR: File %s read failed!\n", inputname);
+                exit(EXIT_FAILURE);
+            }
+            for(int j=0;j<num;j++)
+            {
+                int sid2=sid+j+1;
+                int chrj=ldinfo._esi_chr[sid2];
+                int bpj=ldinfo._esi_bp[sid2];
+                string rsj=ldinfo._esi_rs[sid2];
+                float ldv=buffer[j];
+                string tmpstr = atos(chri)+'\t'+atos(bpi)+ '\t'+rsi+'\t'+atos(chrj)+'\t'+atos(bpj)+ '\t'+rsj+'\t'+atos(ldv)+'\n';
+                fputs(tmpstr.c_str(),outfile);
+                wcount++;
+            }
+        }
+        free(buffer);
+        fclose(bld);
+        fclose(outfile);
+        printf("%ld pairs of ld value are saved in the file %s.\n",wcount,outFileName);
+        
+    } */
+    void dispatch( vector<int> &rid, int rows, int task_num)
+    {
+        rid.clear();
+        long sub = ceil(0.5*rows*(rows-1)/task_num);
+        double a = 1.0, b = 1.0;
+        int n1 =0;
+        rid.push_back(n1);
+        for(int i=0;i<task_num;i++)
+        {
+            double c = -1.0*n1*n1-n1-2.0*sub;
+            n1 = ceil((sqrt(b*b-4*a*c)-b)/(2*a));
+            if(n1 >= (rows-1))
+            {
+                n1 = rows-1;
+                rid.push_back(n1);
+                break;
+            } else {
+                rid.push_back(n1);
+            }
+        }
+    }
+      void make_bld(char* outFileName, char* efileName, char* befileName, bool transposed, int efileType,char* problstName,char* problst2exclde,char* genelistName, int chr,char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* probe2exclde,char* indilstName,char* indilst2remove, bool no_fid_flag,int valueType,bool beta2m,bool m2beta, double std_thresh,double upperBeta,double lowerBeta,char* dpvalfName, double dp_thresh, double prb_thresh, double spl_thresh, int filter_mth, double mssratio_prob, double missing_ratio_indi, int ttl_task, int task_id, bool saveldr2, double ldr2thresh, int histbreaknum)
+    {
+        eInfo einfo;
+        init_einfo(&einfo);
+        if(befileName==NULL && efileName==NULL)
+        {
+            LOGPRINTF("Error: please input the Gene expression / Methylation data by the option --efile or --befile.\n");
+            TERMINATE();
+        }
+        char outputname[FNAMESIZE];
+        outputname[0]='\0';
+        if(ttl_task>1) {
+            if(outFileName!=NULL) {
+                string tmp=  string(outFileName)+"_"+atos(ttl_task)+"_"+atos(task_id);
+                strcpy(outputname,tmp.c_str());
+                outFileName=outputname;
+            }
+        }
+        if(efileName!=NULL)
+        {
+            if(transposed) read_efile_t(efileName,&einfo,efileType,no_fid_flag,valueType);
+            else read_efile(efileName,&einfo,efileType,no_fid_flag,valueType);
+            epi_man(&einfo,problstName,problst2exclde,genelistName, chr,prbname, fromprbname, toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag, genename,probe2exclde);
+            eii_man(&einfo,indilstName,indilst2remove);
+            if(dpvalfName!=NULL) filtering_with_detpval(&einfo, dpvalfName, dp_thresh, prb_thresh, spl_thresh,filter_mth, no_fid_flag);
+            if(std_thresh>0) std_probe_filtering( &einfo, std_thresh);
+            if(upperBeta<1 ||lowerBeta>0) filtering_constitutive_probes(&einfo, upperBeta, lowerBeta);
+            if(mssratio_prob<1) filtering_with_missingratio(&einfo, mssratio_prob);
+            if(missing_ratio_indi<1) filtering_indi_missingratio(&einfo, missing_ratio_indi);
+        }else{
+            char inputname[FNAMESIZE];
+            memcpy(inputname,befileName,strlen(befileName)+1);
+            char* suffix=inputname+strlen(befileName);
+            memcpy(suffix,".oii",5);
+            read_eii(inputname,&einfo);
+            eii_man(&einfo,indilstName,indilst2remove);
+            memcpy(suffix,".opi",5);
+            read_epi(inputname,&einfo);
+            epi_man(&einfo,problstName,problst2exclde,genelistName, chr,prbname, fromprbname, toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag, genename,probe2exclde);
+            memcpy(suffix,".bod",5);
+            read_beed(inputname,&einfo);
+            if(dpvalfName!=NULL) filtering_with_detpval(&einfo, dpvalfName, dp_thresh, prb_thresh, spl_thresh,filter_mth, no_fid_flag);
+            if(std_thresh>0) std_probe_filtering( &einfo, std_thresh);
+            if(upperBeta<1 ||lowerBeta>0) filtering_constitutive_probes(&einfo, upperBeta, lowerBeta);
+            if(mssratio_prob<1) filtering_with_missingratio(&einfo, mssratio_prob);
+            if(missing_ratio_indi<1) filtering_indi_missingratio(&einfo, missing_ratio_indi);
+        }
+        if(einfo._eType == METHYLATION)
+        {
+            if(beta2m && m2beta){
+                //no chance to enter here
+                LOGPRINTF("Error: --m2beta should not be with --beta2m.\n");
+                TERMINATE();
+            }
+            if(beta2m && einfo._valType==BETAVALUE) beta_2_m(&einfo);
+            if(m2beta && einfo._valType==MVALUE) m_2_beta(&einfo);
+        }
+        stdprobe(&einfo);
+        
+        string typestr=getFileType(einfo._eType);
+        
+        FILE* batist = NULL;
+        if(loud)
+        {
+            string filenam=string(outFileName)+".corr.txt";
+            batist=fopen(filenam.c_str(),"w");
+            if(!batist)
+            {
+                LOGPRINTF("error open file.\n");
+                TERMINATE();
+            }
+        }
+        
+        write_epi(outFileName, &einfo, true);
+        string bldname=string(outFileName)+".bld";
+        FILE* outfile=fopen(bldname.c_str(), "wb");
+        if (!(outfile)) {
+            printf("Error: Failed to open file %s.\n",bldname.c_str());
+            exit(EXIT_FAILURE);
+        }
+        
+        long ttl_pair = einfo._epi_include.size()*(einfo._epi_include.size()-1)/2;
+        long pair_per_tsk = ceill(ttl_pair/(1.0*ttl_task));
+        vector<int> reserved(RESERVEDUNITS);
+        if(ldr2thresh>0)
+        {
+            
+            reserved[0] = SPARSE_FULL;
+            reserved[1]=(int)einfo._eii_include.size(); // number of individuals
+            reserved[2]=(int)einfo._epi_include.size(); // number of probes
+            reserved[3]=-9; // ld wind
+            reserved[4]=4; // bytes to save correlation
+            reserved[5]=ttl_task;
+            reserved[6]=task_id;
+            if(saveldr2) reserved[7]=1; // r2
+            else reserved[7]=0; //r
+            float tmpf=(float) ldr2thresh;
+            reserved[8] = *(int *)&tmpf;
+            //int tmpi= reserved[8];
+            //cout<<*(float *)&tmpi<<endl;
+            for(int i=9;i<RESERVEDUNITS;i++) reserved[i]=-9;
+            fwrite(&reserved[0],sizeof(int), RESERVEDUNITS, outfile);
+            vector<int> rowid;
+            dispatch(rowid, (int)einfo._epi_include.size(), ttl_task);
+            if(rowid.size()<=task_id)
+            {
+                LOGPRINTF("The whole analysis can be accomplished by the tasks ahead. This task %d would be no more needed.\n", task_id);
+                TERMINATE();
+            }
+            long fromrid = rowid[task_id-1]+1;
+            long torid = rowid[task_id];
+            long numrow = torid-fromrid+1;
+            LOGPRINTF("The %ldth row to the %ldth row (%ld rows) of total %ld rows are extracted from this sub-task.\n", fromrid,torid,numrow, einfo._epi_include.size());
+            long numpair2test = torid*(torid+1)/2 - fromrid*(fromrid-1)/2 ;
+            LOGPRINTF("Total %ld pairs would be test in this sub-task.\n", numpair2test);
+            
+            vector< vector<float> > vals;
+            vector< vector<uint32_t> > colids;
+            vals.resize(numrow);
+            colids.resize(numrow);
+            #pragma omp parallel for
+            for( long id = 0; id < numrow ; id++ )
+            {
+                long rid = id + fromrid;
+                for(int cid=0;cid<rid; cid++)
+                {
+                    double tmp=0.0;
+                    for(int j=0; j<einfo._eii_include.size(); j++)
+                    {
+                        double val1=einfo._val[einfo._epi_include[rid]*einfo._eii_num+einfo._eii_include[j]];
+                        double val2=einfo._val[einfo._epi_include[cid]*einfo._eii_num+einfo._eii_include[j]];
+                        if(val1<1e9 && val2<1e9) tmp += val1*val2;
+                    }
+                    tmp /= (einfo._eii_include.size()-1);
+                    double tmpr2 = tmp*tmp;
+                    if(tmpr2 > ldr2thresh) {
+                        colids[id].push_back(cid);
+                        if(saveldr2) vals[id].push_back(tmpr2);
+                        else vals[id].push_back(tmp);
+                    }
+                }
+            }
+            vector<uint64_t> rowids(numrow+1);
+            rowids[0]=0;
+            for(int i=0;i<numrow;i++)
+                rowids[i+1] = rowids[i] + vals[i].size();
+            uint64_t num_pair = rowids[numrow];
+            if(fwrite_checked(&num_pair,sizeof(uint64_t), outfile)) {
+                LOGPRINTF("ERROR: in writing binary file %s .\n", bldname.c_str());
+                TERMINATE();
+            }
+            if(fwrite_checked(&rowids[0],sizeof(uint64_t)*rowids.size(), outfile)){
+                LOGPRINTF("ERROR: in writing binary file %s .\n", bldname.c_str());
+                TERMINATE();
+            }
+            for(int i=0;i<numrow;i++){
+                if(colids[i].size()>0)
+                {
+                    if(fwrite_checked(&colids[i][0],sizeof(uint32_t)*colids[i].size(), outfile)){
+                        LOGPRINTF("ERROR: in writing binary file %s .\n", bldname.c_str());
+                        TERMINATE();
+                    }
+                }
+            }
+            for(int i=0;i<numrow;i++)
+            {
+                if(vals[i].size()>0)
+                {
+                    if(fwrite_checked(&vals[i][0],sizeof(float)*vals[i].size(), outfile)){
+                        LOGPRINTF("ERROR: in writing binary file %s .\n", bldname.c_str());
+                        TERMINATE();
+                    }
+                }
+            }
+            LOGPRINTF("Total %llu pairs ( r2 > %2.2f) have been saved in binary file %s.\n", num_pair, ldr2thresh, bldname.c_str());
+            
+        } else {
+            vector<long> hist(histbreaknum);
+            for(int i=0;i<histbreaknum;i++) hist[i]=0;
+            double r2_break = 1.0/histbreaknum;
+            long fromidx=(task_id-1)*pair_per_tsk;
+            if(fromidx>=ttl_pair) {
+                LOGPRINTF("The whole analysis can be accomplished by the tasks ahead. This task %d would be no more needed.\n", task_id);
+                TERMINATE();
+            }
+            long toidx=task_id*pair_per_tsk-1;
+            if(toidx >= ttl_pair) toidx=ttl_pair-1;
+            LOGPRINTF("The %ldth pair to the %ldth pair of total %ld pairs are extracted from this sub-task.\n", fromidx+1,toidx+1,ttl_pair);
+            long num_pair = toidx - fromidx +1;
+            
+            reserved[0] = DENSE_FULL;
+            reserved[1]=(int)einfo._eii_include.size(); // number of individuals
+            reserved[2]=(int)einfo._epi_include.size(); // number of probes
+            reserved[3]=-9; // ld wind
+            reserved[4]=4; // bytes to save correlation
+            reserved[5]=ttl_task;
+            reserved[6]=task_id;
+            if(saveldr2) reserved[7]=1; // r2
+            else reserved[7]=0; //r
+            for(int i=8;i<RESERVEDUNITS;i++) reserved[i]=-9;
+            if(fwrite_checked(&reserved[0],sizeof(int)*RESERVEDUNITS, outfile)){
+                LOGPRINTF("ERROR: in writing binary file %s .\n", bldname.c_str());
+                TERMINATE();
+            }
+            if(fwrite_checked(&num_pair,sizeof(uint64_t), outfile)){
+                LOGPRINTF("ERROR: in writing binary file %s .\n", bldname.c_str());
+                TERMINATE();
+            }
+            
+            vector<float> pccs;
+            if(FLOAT_2GB >= num_pair) pccs.resize(num_pair);
+            else pccs.resize(FLOAT_2GB);
+            long loops = num_pair / FLOAT_2GB;
+            double cr=0;
+            for(long ii=0;ii<=loops;ii++)
+            {
+                double desti=1.0*ii/(loops+1);
+                if(desti>=cr)
+                {
+                    printf("%3.0f%%\r", 100.0*desti);
+                    fflush(stdout);
+                    if(cr==0) cr+=0.05;
+                    else if(cr==0.05) cr+=0.2;
+                    else if(cr==0.25) cr+=0.5;
+                    else cr+=0.25;
+                }
+                
+                if(ii==loops)
+                {
+                    #pragma omp parallel for
+                    for(long jj=0; jj< num_pair - loops*FLOAT_2GB ; jj++)
+                    {
+                        long i = jj + ii*FLOAT_2GB + fromidx;
+                        long rowid = (long)floor((sqrt(1+8*i)-1)/2)+1;
+                        long colid = i - rowid*(rowid-1)/2 ;
+                        double tmp=0.0;
+                        for(int j=0; j<einfo._eii_include.size(); j++)
+                        {
+                            double val1=einfo._val[einfo._epi_include[rowid]*einfo._eii_num+einfo._eii_include[j]];
+                            double val2=einfo._val[einfo._epi_include[colid]*einfo._eii_num+einfo._eii_include[j]];
+                            if(val1<1e9 && val2<1e9) tmp += val1*val2;
+                        }
+                        tmp /= (einfo._eii_include.size()-1);
+                        double tmp2 = tmp*tmp;
+                        tmp2 /= r2_break;
+                        int histidx=floor(tmp2);
+                        if(histidx == histbreaknum) histidx = histbreaknum -1;
+                        #pragma omp critical
+                        hist[histidx]++;
+                        if(saveldr2) tmp *= tmp;
+                        pccs[jj] = (float)tmp;
+                        if(loud)
+                        {
+                            string targetPrb = einfo._epi_prb[einfo._epi_include[rowid]];
+                            int targetChr = einfo._epi_chr[einfo._epi_include[rowid]];
+                            int targetBP = einfo._epi_bp[einfo._epi_include[rowid]];
+                            string prob = einfo._epi_prb[einfo._epi_include[colid]];
+                            int probchr = einfo._epi_chr[einfo._epi_include[colid]];
+                            int probbp = einfo._epi_bp[einfo._epi_include[colid]];
+                            
+                            string str = targetPrb + '\t' + atosm(targetChr) + '\t'+ atosm(targetBP) + '\t' + prob + '\t' + atosm(probchr) + '\t'+ atosm(probbp) + '\t' + atos(tmp) + '\n';
+                            #pragma omp critical
+                            fputs(str.c_str(),batist);
+                        }
+                    }
+                    if(fwrite_checked(&pccs[0],sizeof(float)*(num_pair - loops*FLOAT_2GB), outfile)){
+                        LOGPRINTF("ERROR: in writing binary file %s .\n", bldname.c_str());
+                        TERMINATE();
+                    }
+                }
+                else
+                {
+                    #pragma omp parallel for
+                    for(long jj=0; jj<FLOAT_2GB; jj++)
+                    {
+                        long i = jj + ii*FLOAT_2GB + fromidx;
+                        
+                        long rowid = (long)floor((sqrt(1+8*i)-1)/2)+1;
+                        long colid = i - rowid*(rowid-1)/2 ;
+                        double tmp=0.0;
+                        for(int j=0; j<einfo._eii_include.size(); j++)
+                        {
+                            double val1=einfo._val[einfo._epi_include[rowid]*einfo._eii_num+einfo._eii_include[j]];
+                            double val2=einfo._val[einfo._epi_include[colid]*einfo._eii_num+einfo._eii_include[j]];
+                            if(val1<1e9 && val2<1e9) tmp += val1*val2;
+                        }
+                        tmp /= (einfo._eii_include.size()-1);
+                        double tmp2 = tmp*tmp;
+                        tmp2 /= r2_break;
+                        int histidx=floor(tmp2);
+                        if(histidx == histbreaknum) histidx = histbreaknum -1;
+                        #pragma omp critical
+                        hist[histidx]++;
+                        if(saveldr2) tmp *= tmp;
+                        pccs[jj] = (float)tmp;
+                        if(loud)
+                        {
+                            string targetPrb = einfo._epi_prb[einfo._epi_include[rowid]];
+                            int targetChr = einfo._epi_chr[einfo._epi_include[rowid]];
+                            int targetBP = einfo._epi_bp[einfo._epi_include[rowid]];
+                            string prob = einfo._epi_prb[einfo._epi_include[colid]];
+                            int probchr = einfo._epi_chr[einfo._epi_include[colid]];
+                            int probbp = einfo._epi_bp[einfo._epi_include[colid]];
+                            
+                            string str = targetPrb + '\t' + atosm(targetChr) + '\t'+ atosm(targetBP) + '\t' + prob + '\t' + atosm(probchr) + '\t'+ atosm(probbp) + '\t' + atos(tmp) + '\n';
+                            #pragma omp critical
+                            fputs(str.c_str(),batist);
+                        }
+                    }
+                    if(fwrite_checked(&pccs[0],sizeof(float)*pccs.size(), outfile)){
+                        LOGPRINTF("ERROR: in writing binary file %s .\n", bldname.c_str());
+                        TERMINATE();
+                    }
+                }
+            }
+            LOGPRINTF("Total %ld correlation coefficients have been saved in the binary file %s.\n",num_pair, bldname.c_str());
+            string filenam=string(outFileName)+".summary.txt";
+            FILE* sumfpr=fopen(filenam.c_str(),"w");
+            if(!sumfpr)
+            {
+                LOGPRINTF("error open file.\n");
+                TERMINATE();
+            }
+            for(int i=0;i<histbreaknum;i++)
+            {
+                string str = atosm(i*r2_break) + '\t' +atosm((i+1)*r2_break) + '\t'+ atos(hist[i]) + '\n';
+                fputs(str.c_str(),sumfpr);
+            }
+            fclose(sumfpr);
+        }
+        
+        if(loud && batist!=NULL) fclose(batist);
+        fclose(outfile);
+        
+    }
     void make_beed(char* outFileName, char* efileName, char* befileName, bool transposed, int efileType,char* problstName,char* problst2exclde,char* genelistName, int chr,char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* probe2exclde,char* indilstName,char* indilst2remove, bool no_fid_flag,int valueType,bool beta2m,bool m2beta, double std_thresh,double upperBeta,double lowerBeta,char* dpvalfName, double dp_thresh, double prb_thresh, double spl_thresh, int filter_mth, double mssratio_prob, double missing_ratio_indi, bool adjprb, char* covfileName,char* qcovfileName, bool enveff, char* effprblstfname,char* efffname, bool stdprb, bool rint)
     {
         eInfo einfo;

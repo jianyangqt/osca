@@ -51,3 +51,4 @@ void mlm_stat(VectorXd &_y,MatrixXd &_Vi, VectorXd &_x, double &beta, double &se
 MatrixXd svd_inverse(MatrixXd & u , bool & flag );
 vector< vector<double> > svd_inverse(vector< vector<double> > & u , bool & flag );
 void getQval(vector<double> &pval, vector<double> &qval);
+void sample_norep(vector<int> &res, int m, int N = INT_MAX);

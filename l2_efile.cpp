@@ -515,10 +515,11 @@ namespace EFILE {
         LOGPRINTF("%ld individuals have been saved in the file %s .\n", einfo->_eii_include.size(), eiiName.c_str());
 
     }
-    void write_epi(char* outFileName, eInfo* einfo)
+    void write_epi(char* outFileName, eInfo* einfo, bool bldflag)
     {
         FILE* efile=NULL;
         string epiName=string(outFileName)+".opi";
+        if(bldflag) epiName = string(outFileName)+".ovi";
         if(fopen_checked(&efile, epiName.c_str(),"w")) TERMINATE();
         for(int i=0;i<einfo->_epi_include.size();i++)
         {

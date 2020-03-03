@@ -42,7 +42,11 @@
 
 using namespace std;
 using namespace Eigen;
-
+#define RESERVEDUNITS 16
+#define DENSE_FULL 0
+#define DENSE_BELT 1
+#define SPARSE_FULL 2
+#define SPARSE_BELT 3
 #define WKSPACE_MIN_MB 64
 #define WKSPACE_DEFAULT_MB 2048
 
@@ -52,6 +56,7 @@ using namespace Eigen;
 //4 dynamic
 #define MAXLINEBUFLEN 0x40000000
 #define MAXPROBENUM 0x100000 // >850k
+#define FLOAT_2GB 0x1FAE147B //1.98GB
 
 #define MISSING_PHENO -1e10
 #define MISSING_PROFILE 1e10

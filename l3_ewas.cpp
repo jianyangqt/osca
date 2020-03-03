@@ -340,7 +340,7 @@ namespace EFILE
             pcc[i] = cor(xt,yt,true,true);
         }
     }
-    void moment(char* outFileName, char* befileName,char* problstName,char* problst2exclde,char* genelistName, int chr,char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* probe2exclde,char* indilstName,char* indilst2remove, char* phenofileName,char* mpheno, char* covfileName,char* qcovfileName, bool within_family,char* priors,char* priors_var, bool no_constrain,int reml_mtd,int MaxIter,bool reml_fixed_var_flag,bool reml_force_inv_fac_flag, bool reml_force_converge_flag, bool  reml_no_converge_flag, bool nopreadj_covar,  double lambda_wind, bool fastlinear, bool force_mlm,double bcthresh,int expect_wind, int expect_num, int expect_pcs, int nrandcomp,int slctmtd, double r2thresh, double percent, bool approximate_flag, bool approximate_stepwise,int erm_alg, double swthresh, double swfdr, bool swlogit,bool stepforwardonly, bool Baptiste, double sw_rsq, double thresh_pcc, char* orm_file,bool orm_bin_flag)
+    void moment(char* outFileName, char* befileName,char* problstName,char* problst2exclde,char* genelistName, int chr,char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* probe2exclde,char* indilstName,char* indilst2remove, char* phenofileName,char* mpheno, char* covfileName,char* qcovfileName, bool within_family,char* priors,char* priors_var, bool no_constrain,int reml_mtd,int MaxIter,bool reml_fixed_var_flag,bool reml_force_inv_fac_flag, bool reml_force_converge_flag, bool  reml_no_converge_flag, bool nopreadj_covar,  double lambda_wind, bool fastlinear, bool force_mlm,double bcthresh,int expect_wind, int expect_num, int expect_pcs, int nrandcomp,int slctmtd, double r2thresh, double percent, bool approximate_flag, bool approximate_stepwise,int erm_alg, double swthresh, double swfdr, bool swlogit,bool stepforwardonly, bool Baptiste, double sw_rsq, double thresh_pcc, char* orm_file,bool orm_bin_flag, bool force_moment)
     {
        
         //bcthresh: default as bonfferoni
@@ -847,7 +847,7 @@ namespace EFILE
         double cr=0;
         vector<int> freml;
         FILE* batist = NULL;
-        if(loud)
+        if(Baptiste && loud)
         {
             string filenam=string(outfileName)+".excluded.txt";
              batist=fopen(filenam.c_str(),"w");
@@ -1010,8 +1010,7 @@ namespace EFILE
                     for( int ii=0;ii<einfo._varcmp.size()-1;ii++)
                         rox +=einfo._varcmp[ii];
                     rox = rox / (rox + einfo._varcmp[einfo._varcmp.size()-1]); // if rox is too small, it means REML mihgt fail in two componets.
-                    //if(loud) printf("%f:%f\n",rox,RSQVO);
-                    if(rox/RSQVO >= 0.1)
+                    if(!approximate_stepwise || force_moment || rox/RSQVO >= 0.05)
                     {
                         einfo._P.resize(0,0);
                         _A.clear();
@@ -1107,7 +1106,7 @@ namespace EFILE
                 rox +=einfo._varcmp[ii];
             rox = rox / (rox + einfo._varcmp[einfo._varcmp.size()-1]);
             //if(loud) printf("%f:%f\n",rox,RSQVO);
-            if(rox/RSQVO >= 0.1) rsqck=true;
+            if(!approximate_stepwise || force_moment || rox/RSQVO >= 0.05 || mapids[0].size()==0) rsqck=true;
         }
         if( (remlstatus==0 || remlstatus==-3  || remlstatus==-5 ) && rsqck)
         {
@@ -1211,8 +1210,43 @@ namespace EFILE
         else
         {
             
-            if(loud) printf("Degrade to MOA\n");
-           
+           LOGPRINTF("Degrade to MOA\n");
+           if(!approximate_stepwise && mapids[0].size()>0)
+           {
+               einfo._r_indx.clear();
+               for(int i=0; i < 2; i++) einfo._r_indx.push_back(i);
+              
+               _A.resize(einfo._r_indx.size());
+               (_A[0]).resize(_n, _n);
+               for(int ii=1;ii<AN.size();ii++)
+               {
+                   AZERO[0] += AZERO[ii];
+                   AN[0] += AN[ii];
+               }
+                #pragma omp parallel for
+               for (int ii = 0; ii < _n; ii++) {
+                   for (int jj = 0; jj <= ii; jj++) {
+                       if(AN[0](ii,jj) > 0) _A[0](ii,jj) = AZERO[0](ii,jj) / AN[0](ii,jj);
+                       else _A[0](ii,jj) = 0.0;
+                       _A[0](jj,ii) = _A[0](ii,jj);
+                   }
+               }
+               _A[einfo._r_indx.size()-1]=MatrixXd::Identity(_n, _n);
+               einfo._var_name.clear();
+               einfo._hsq_name.clear();
+               for (int i = 0; i < 1; i++) {
+                   stringstream strstrm;
+                   strstrm << "";
+                   einfo._var_name.push_back("V(O" + strstrm.str() + ")");
+                   einfo._hsq_name.push_back("V(O" + strstrm.str() + ")/Vp");
+               }
+               einfo._var_name.push_back("V(e)");
+               reml_priors_var.clear();
+               remlstatus=0;
+               reml(&einfo, false, true, reml_priors, reml_priors_var, -2.0, -2.0, no_constrain, true, true, _X_c, _X,_y,_A,_Vi,outFileName);
+               _A.clear();
+               if( (remlstatus==0 || remlstatus==-3  || remlstatus==-5 )) einfo._varcmp_Py = _Vi;
+           }
             if(einfo._varcmp_Py.size()>0)
             {
                 

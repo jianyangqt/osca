@@ -151,7 +151,7 @@ namespace EFILE {
     void update_epifile(char* befileName,char* s_epiFileName);
     void read_beed(char* beedFileName,eInfo* einfo);
     void write_eii(char* outFileName, eInfo* einfo);
-    void write_epi(char* outFileName, eInfo* einfo);
+    void write_epi(char* outFileName, eInfo* einfo, bool bldflag=false);
     void write_beed(char* outFileName, eInfo* einfo);
     void init_einfo(eInfo* einfo);
     void update_eii(eInfo* einfo);

@@ -22,9 +22,18 @@ int main(int argc, char * argv[])
     cout << "* MIT License" << endl;
     cout << "*******************************************************************" << endl;
     
-    char tmpname[5]="osca";
-    char* outname=tmpname;
-    string logfname=string(outname)+".log";
+    string logfname="";
+    for(int i=0;i<argc;i++)
+    {
+        if(0==strcmp(argv[i],"--out"))
+            logfname = string(argv[++i]);
+        if(0==strcmp(argv[i],"--task-num")) logfname += "_"+string(argv[++i]);
+        if(0==strcmp(argv[i],"--task-id")) logfname += "_"+string(argv[++i]);
+    }
+   
+    if(logfname=="") logfname="osca.log";
+    else logfname += ".log";
+  
     logfile=fopen(logfname.c_str(),"w");
     if (!logfile) {
         printf("Error: Failed to open log file %s.\n", logfname.c_str());
@@ -99,6 +108,9 @@ void option(int option_num, char* option_str[])
     double std_thresh = 0.0;
 
     bool no_fid_flag=false;
+    bool make_bld_flag = false;
+    bool save_pccr2_flag = false;
+    double pccr2_thresh = -9;
     bool make_beed_flag=false;
     bool make_efile_flag=false;
     bool prbwindFlag=false;
@@ -270,7 +282,7 @@ void option(int option_num, char* option_str[])
     bool swlogit = false;
     bool swforwardonly = false;
     double r2thresh = -9;
-    double pccr2thresh = 0.81;
+    double pccr2thresh = 0.8;
     bool moment_flag = false;
     bool moment2_flag = false;
     int nrandcomp =2;
@@ -295,8 +307,10 @@ void option(int option_num, char* option_str[])
     
     int slctmtd =0; //0 for linear, 1 for MOA
     double momentpercent = -9;
+    int histbreaknum = 100;
     //int bc_mth=0; // 0 for bonferroni, 1 for variance bin, 2 for seperating ORM
     bool approximate_flag = false; // stepwise only for excluding the targets
+    bool force_moment = false; 
     bool approximate_stepwise = false; // stepwise for both components and excluding the targets
     bool Baptiste = false;
     bool reverseAssoc = false;
@@ -343,6 +357,18 @@ void option(int option_num, char* option_str[])
         if(0==strcmp(option_str[i],"--make-bod")){
             make_beed_flag=true;
             LOGPRINTF("--make-bod\n");
+        }
+        if(0==strcmp(option_str[i],"--make-bld")){
+            make_bld_flag=true;
+            LOGPRINTF("--make-bld\n");
+        }
+        if(0==strcmp(option_str[i],"--save-r2")){
+            save_pccr2_flag=true;
+            LOGPRINTF("--save-r2\n");
+        }
+        if(0==strcmp(option_str[i],"--r2-thresh")){
+            pccr2_thresh=atof(option_str[++i]);;
+            LOGPRINTF("--r2-thresh %2.2f\n", pccr2_thresh);
         }
         if(0==strcmp(option_str[i],"--make-efile")){
             make_efile_flag=true;
@@ -1541,9 +1567,17 @@ void option(int option_num, char* option_str[])
             approximate_flag=true;
             LOGPRINTF("--moment-prior \n");
         }
+        if(0==strcmp(option_str[i],"--moment-force")){
+            force_moment=true;
+            LOGPRINTF("--moment-force \n");
+        }
         if(0==strcmp(option_str[i],"--approximate-num")){
             MOMENT_APPROX=atoi(option_str[++i]);
             LOGPRINTF("--approximate-num %d \n", MOMENT_APPROX);
+        }
+        if(0==strcmp(option_str[i],"--hist-break-num")){
+            histbreaknum=atoi(option_str[++i]);
+            LOGPRINTF("--hist-break-num %d \n", histbreaknum);
         }
         if(0==strcmp(option_str[i],"--no-prior-var")){
             remloasi=false;
@@ -1610,13 +1644,14 @@ void option(int option_num, char* option_str[])
     
     if(merge_beed_flag) merge_beed( outfileName, befileFlstName, problstName, problst2exclde,genelistName,  chr, prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName,indilst2remove, beta2m, m2beta);
     else if(make_beed_flag) make_beed( outfileName, efileName,  befileName, transposedin,  efileType, problstName, problst2exclde,genelistName,  chr, prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName,indilst2remove, no_fid_flag,valueType, beta2m, m2beta, std_thresh,upperBeta,lowerBeta, dpvalfName,  thresh_det_pval,  thresh_prpt_prb,  thresh_prpt_spl,  filter_det_pval_mth,missing_ratio_prob, missing_ratio_indi, adjprb,  covfileName, qcovfileName,enveff, effproblstName, efffname,stdprb, rint);
+    else if(make_bld_flag) make_bld( outfileName, efileName,  befileName, transposedin,  efileType, problstName, problst2exclde,genelistName,  chr, prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName,indilst2remove, no_fid_flag,valueType, beta2m, m2beta, std_thresh,upperBeta,lowerBeta, dpvalfName,  thresh_det_pval,  thresh_prpt_prb,  thresh_prpt_spl,  filter_det_pval_mth,missing_ratio_prob, missing_ratio_indi, tsk_ttl, tsk_id, save_pccr2_flag, pccr2_thresh, histbreaknum);
     else if(make_efile_flag) make_efile(outfileName, efileName,  befileName, transposedin,  efileType, problstName, problst2exclde,genelistName,  chr, prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName,indilst2remove, no_fid_flag,valueType, beta2m, m2beta,std_thresh,upperBeta,lowerBeta,transposedout,impute_mean_flag);
     else if(make_erm_flag) make_erm(outfileName, efileName,befileName, erm_file, problstName, problst2exclde, genelistName,  chr,prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName, indilst2remove,phenofileName,mpheno,erm_bin_flag, erm_alg, beta2m, m2beta,std_thresh,upperBeta,lowerBeta, transposedin, efileType, no_fid_flag, valueType,erm_cutoff,erm_cutoff_2sides, m_erm_flag);
      else if(mlma_exact_flag) moa(outfileName, befileName, problstName, problst2exclde, genelistName,  chr,prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName, indilst2remove,phenofileName,mpheno, erm_bin_flag,  erm_alg,  covfileName, qcovfileName,  erm_file,  subtract_erm_file,  m_erm_flag,priors,priors_var,no_constrain,reml_mtd,MaxIter,reml_fixed_var_flag,reml_force_inv_fac_flag,reml_force_converge_flag, reml_no_converge_flag,force_mlm, tsk_ttl, tsk_id);
     else if(moment_exact_flag) moment_exact(outfileName, befileName,problstName,problst2exclde, genelistName, chr, prbname,  fromprbname, toprbname, prbWind, fromprbkb,toprbkb, prbwindFlag,  genename, probe2rm, indilstName, indilst2remove,  phenofileName, mpheno,  covfileName, qcovfileName,  within_family, priors, priors_var,  no_constrain, reml_mtd, MaxIter, reml_fixed_var_flag, reml_force_inv_fac_flag,  reml_force_converge_flag,   reml_no_converge_flag, lambda_wind,  fastlinear, force_mlm, bcthresh, moment_wind,moment_pcs, nrandcomp, slctmtd,r2thresh,momentpercent,approximate_stepwise,erm_alg,swthresh,tsk_ttl, tsk_id,swthresh,swforwardonly,sw_rsq);
     else if(moment_flag)
     {
-        if(befileName) moment(outfileName, befileName,problstName,problst2exclde, genelistName, chr, prbname,  fromprbname, toprbname, prbWind, fromprbkb,toprbkb, prbwindFlag,  genename, probe2rm, indilstName, indilst2remove,  phenofileName, mpheno,  covfileName, qcovfileName,  within_family, priors, priors_var,  no_constrain, reml_mtd, MaxIter, reml_fixed_var_flag, reml_force_inv_fac_flag,  reml_force_converge_flag,   reml_no_converge_flag,  nopreadj_covar, lambda_wind,  fastlinear, force_mlm, bcthresh, moment_wind, moment_num,moment_pcs, nrandcomp, slctmtd,r2thresh,momentpercent,approximate_flag,approximate_stepwise,erm_alg,swthresh,swfdr, swlogit,swforwardonly, Baptiste, sw_rsq,pccr2thresh,erm_file,erm_bin_flag);
+        if(befileName) moment(outfileName, befileName,problstName,problst2exclde, genelistName, chr, prbname,  fromprbname, toprbname, prbWind, fromprbkb,toprbkb, prbwindFlag,  genename, probe2rm, indilstName, indilst2remove,  phenofileName, mpheno,  covfileName, qcovfileName,  within_family, priors, priors_var,  no_constrain, reml_mtd, MaxIter, reml_fixed_var_flag, reml_force_inv_fac_flag,  reml_force_converge_flag,   reml_no_converge_flag,  nopreadj_covar, lambda_wind,  fastlinear, force_mlm, bcthresh, moment_wind, moment_num,moment_pcs, nrandcomp, slctmtd,r2thresh,momentpercent,approximate_flag,approximate_stepwise,erm_alg,swthresh,swfdr, swlogit,swforwardonly, Baptiste, sw_rsq,pccr2thresh,erm_file,erm_bin_flag,force_moment);
         else moment_gwas(outfileName, bFileName, maf,snplstName,snplst2exclde,chr,indilstName,indilst2remove, phenofileName,mpheno,covfileName, qcovfileName,  within_family, priors, priors_var,  no_constrain, reml_mtd, MaxIter, reml_fixed_var_flag, reml_force_inv_fac_flag,  reml_force_converge_flag,   reml_no_converge_flag,  nopreadj_covar, lambda_wind,  fastlinear, force_mlm, bcthresh, moment_gwas_wind, moment_num,moment_pcs, nrandcomp, slctmtd,r2thresh,momentpercent,approximate_flag,approximate_stepwise,erm_alg,swthresh,swfdr,swlogit,swforwardonly, sw_rsq, grm_file, grm_bin_flag);
     }
     else if(mlma_flag) mlma(outfileName, befileName, problstName, problst2exclde, genelistName,  chr,prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName, indilst2remove,phenofileName,mpheno, erm_bin_flag,  erm_alg,  covfileName, qcovfileName,  erm_file,  subtract_erm_file,  m_erm_flag,within_family,priors,priors_var,no_constrain,reml_mtd,MaxIter,reml_fixed_var_flag,reml_force_inv_fac_flag,reml_force_converge_flag, reml_no_converge_flag, nopreadj_covar,percentage_out, lambda_wind,fastlinear,force_mlm,stdprb);
