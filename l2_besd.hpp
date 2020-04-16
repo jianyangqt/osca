@@ -99,6 +99,8 @@ namespace SMR {
     void write_d2d_besd(char* outFileName, eqtlInfo* eqtlinfo, char* inputname, bool stdprb);
     void extract_prb_sparse(FILE* fptr, uint64_t pid, uint64_t probnum,vector<uint32_t> &row_ids, vector<float> &betases);
     void read_probevarfile(eqtlInfo* eqtlinfo, char* vpFileName);
+    void extract_sqtl_probe(eqtlInfo* eqtlinfo,int tsk_ttl,int tsk_id);
+    bool pcc(MatrixXd &PCC, float* buffer_beta,float* buffer_se,long snpnum, long cohortnum, double pmecs, int nmecs);
 }
 
 #endif /* l2_besd_hpp */

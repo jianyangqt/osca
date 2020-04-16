@@ -949,8 +949,6 @@ namespace VQTL {
                         }
                     }
                     
-                    
-                    
                 }
                 for(int kk=0;kk<se.size();kk++)
                 {
@@ -1025,6 +1023,109 @@ namespace VQTL {
             if(r>maxr) maxr=r;
         }
         return maxr;
+    }
+    int cis_eQTL_num_2(eInfo* einfo, eqtlInfo* eqtlinfo, int cis_itvl, vector< vector<int>> &tranids, vector< vector<int> > &snpids, vector<int> &cis_num)
+    {
+        //bp as start and gd as end
+        int maxr=0;
+        cis_num.resize(einfo->_epi_include.size());
+        snpids.resize(einfo->_epi_include.size());
+        vector<int>::iterator it;
+        for(int i=0;i<einfo->_epi_include.size();i++)
+        {
+            int prbchr=einfo->_epi_chr[einfo->_epi_include[i]];
+            int prbstart=einfo->_epi_bp[einfo->_epi_include[i]];
+            int prbend=einfo->_epi_gd[einfo->_epi_include[i]];
+            int cisstart=(prbstart-cis_itvl*1000>0)?(prbstart-cis_itvl*1000):0;
+            int cisend=prbend+cis_itvl*1000;
+            vector< vector<int>> tmpsnpid(tranids[i].size());
+            for(int kk=0;kk<tranids[i].size();kk++)
+            {
+                int prbid=tranids[i][kk];
+                long end=eqtlinfo->_cols[prbid+1];
+                long start=eqtlinfo->_cols[prbid];
+                uint64_t num=(end-start)>>1;
+                uint64_t rowpos=start>>1;
+                for(int j=0;j<num;j++)
+                {
+                    int esi_id = eqtlinfo->_rowid[rowpos+j];
+                    int snpbp = eqtlinfo->_esi_bp[esi_id];
+                    int snpchr = eqtlinfo->_esi_chr[esi_id];
+                    if(snpchr==prbchr && snpbp>=cisstart && snpbp<=cisend)
+                        tmpsnpid[kk].push_back(esi_id);
+                }
+                stable_sort(tmpsnpid[kk].begin(),tmpsnpid[kk].end());
+            }
+            vector<int> intersection(tmpsnpid[0].size());
+            for(int kk=1;kk<tranids[i].size();kk++)
+            {
+                it=set_intersection(tmpsnpid[kk].begin(),tmpsnpid[kk].end(), tmpsnpid[0].begin(), tmpsnpid[0].end(), intersection.begin());
+                intersection.resize(it-intersection.begin());
+                intersection.swap(tmpsnpid[0]);
+            }
+            snpids[i].swap(tmpsnpid[0]);
+            cis_num[i]=(int)snpids[i].size();
+            if(cis_num[i]>maxr) maxr=cis_num[i];
+        }
+        return maxr;
+    }
+    void make_bs(eqtlInfo* eqtlinfo, vector<int> &prids, vector<int> &snpids, MatrixXd &eqtlb, MatrixXd &eqtls, vector<float> &freqs)
+    {
+        freqs.resize(snpids.size());
+        map<int ,int > snp_map;
+        for(int i=0;i<snpids.size();i++) snp_map.insert(pair<int,int>(snpids[i],i));
+        map<int ,int >::iterator it;
+        
+        string filename=string(outfileName)+"."+atos(eqtlinfo->_epi_gene[prids[0]])+".txt";
+        FILE* tmpfile= NULL;
+        if(loud)
+        {
+            tmpfile=fopen(filename.c_str(),"w");
+            if(!tmpfile)
+            {
+                printf("ERROR: open file %s.\n",filename.c_str());
+                exit(EXIT_FAILURE);
+            }
+        }
+       
+            for(int kk=0;kk<prids.size();kk++)
+            {
+                int prbid=prids[kk];
+                int prbchr= eqtlinfo->_epi_chr[prbid];
+                string prbID = eqtlinfo->_epi_prbID[prbid];
+                string gene = eqtlinfo->_epi_gene[prbid];
+                int bp = eqtlinfo->_epi_bp[prbid];
+                
+                long end=eqtlinfo->_cols[prbid+1];
+                long start=eqtlinfo->_cols[prbid];
+                uint64_t num=(end-start)>>1;
+                uint64_t rowpos=start>>1;
+                for(int j=0;j<num;j++)
+                {
+                    int esi_id = eqtlinfo->_rowid[rowpos+j];
+                    string snprs = eqtlinfo->_esi_rs[esi_id];
+                    float snpfrq = eqtlinfo->_esi_freq[esi_id];
+                    if(snpfrq==-9)
+                    {
+                        LOGPRINTF("ERROR: one or more frequencies are missing, please update the .esi file.\n");
+                        exit(EXIT_FAILURE);
+                    }
+                    it = snp_map.find(esi_id);
+                    if(it==snp_map.end()) continue;
+                    int idx=it->second;
+                    double beta=eqtlinfo->_val[start+j];
+                    double se=eqtlinfo->_val[start+j+num];
+                    eqtlb(idx,kk)=beta;
+                    eqtls(idx,kk)=se;
+                    if(kk==0) freqs[idx]=snpfrq;
+                    if(loud)
+                    {
+                        string str=prbID + '\t'+ snprs +'\t'+atos(snpfrq)+'\t'+atos(beta)+'\t'+atos(se)+'\n';
+                        fputs(str.c_str(),tmpfile);
+                    }
+                }
+            }
+        if(loud) fclose(tmpfile);
     }
     int cis_eQTL_num_2(eInfo* einfo, bInfo* bdata, int cis_itvl, vector< vector<uint32_t> > &snpids, vector<int> &cis_num)
     {
@@ -1760,6 +1861,14 @@ namespace VQTL {
                 cis_num[ii]=0;
             }
             bool warned = false;
+            string filena=string(outFileName)+".failed.probe.list";
+            FILE* tmpfi=fopen(filena.c_str(),"w");
+            if(!tmpfi)
+            {
+                LOGPRINTF("error open file.\n");
+                TERMINATE();
+            }
+           
             //if(omp_num_threads>2)
             //{
                 #pragma omp parallel for
@@ -1827,8 +1936,13 @@ namespace VQTL {
                         rowids[jj].clear();
                         betas[jj].clear();
                         ses[jj].clear();
+                        string str = prbid +'\n';
+                        #pragma omp critical
+                        fputs(str.c_str(),tmpfi);
+
                     }
                 }
+            fclose(tmpfi);
             /* }
             else
             {
@@ -2102,6 +2216,75 @@ namespace VQTL {
         LOGPRINTF("%llu probes to be included from  %s .\n", eqtlinfo->_probNum, bedFileName);
     }
     
+    void gene_check(eInfo* sqtlinfo,vector< vector<int>> &tranids, char* annofileName,eqtlInfo* eqtlinfo)
+    {
+        eqtlInfo tmpinfo;
+        if(annofileName != NULL) read_annofile(&tmpinfo, annofileName);
+        
+        int ids = 0;
+        map<int, int> echr_map;
+        map<int, int>::iterator iter1;
+        for(int i=0;i<eqtlinfo->_include.size();i++)
+            echr_map.insert(pair<int,int>(eqtlinfo->_epi_chr[eqtlinfo->_include[i]],ids++));
+        
+        map<string, int> gene_count_map;
+        map<string, int>::iterator iter;
+        vector<string> gene;
+        vector< vector< int> > idx;
+        ids = 0;
+        for(int i=0; i<eqtlinfo->_include.size();i++)
+        {
+            string gn = eqtlinfo->_epi_gene[eqtlinfo->_include[i]];
+            to_upper(gn);
+            iter = gene_count_map.find(gn);
+            if(iter == gene_count_map.end())
+            {
+                gene_count_map.insert(pair<string, int>(gn, ids++));
+                gene.push_back(gn);
+                vector<int> tmpidx;
+                tmpidx.push_back(eqtlinfo->_include[i]);
+                idx.push_back(tmpidx);
+            }
+            else
+            {
+                int curid = iter->second;
+                idx[curid].push_back(eqtlinfo->_include[i]);
+            }
+        }
+        vector<int> inids;
+        int tmpc=0;
+        for(int i=0;i<idx.size();i++)
+            if(idx[i].size()>1)
+            {
+                iter = tmpinfo._probe_name_map.find(gene[i]);
+                if(iter!=tmpinfo._probe_name_map.end())
+                {
+                    int tid=iter->second;
+                    int tchr = tmpinfo._epi_chr[tid];
+                    iter1 = echr_map.find(tchr);
+                    if(iter1 != echr_map.end())
+                    {
+                        sqtlinfo->_epi_prb.push_back(tmpinfo._epi_prbID[tid]);
+                        sqtlinfo->_epi_chr.push_back(tchr);
+                        sqtlinfo->_epi_gd.push_back(tmpinfo._epi_gd[tid]);
+                        sqtlinfo->_epi_gene.push_back(tmpinfo._epi_gene[tid]);
+                        sqtlinfo->_epi_orien.push_back(tmpinfo._epi_orien[tid]);
+                        sqtlinfo->_epi_bp.push_back(tmpinfo._epi_bp[tid]);
+                        sqtlinfo->_epi_include.push_back(tmpc++);
+                        inids.push_back(i);
+                    }
+                }
+            }
+        
+        for(int i=0;i<inids.size();i++)
+        {
+            vector<int> tmp;
+            tmp.swap(idx[inids[i]]);
+            tranids.push_back(tmp);
+        }
+        LOGPRINTF("%ld genes are retained after gene check with annaotation information and eQTL summary statistics.\n",tranids.size());
+    }
+    
     void gene_check(eInfo* sqtlinfo,vector< vector<int>> &tranids, char* annofileName, bInfo* bdata,eInfo* einfo)
     {
         eqtlInfo tmpinfo;
@@ -2111,7 +2294,7 @@ namespace VQTL {
         map<int, int> bchr_map;
         map<int, int>::iterator iter1;
         for(int i=0;i<bdata->_include.size();i++)
-            bchr_map.insert(pair<int,int>(bdata->_chr[bdata->_include[i]],ids));
+            bchr_map.insert(pair<int,int>(bdata->_chr[bdata->_include[i]],ids++));
         
         map<string, int> gene_count_map;
         map<string, int>::iterator iter;
@@ -2190,10 +2373,11 @@ namespace VQTL {
             b[i] =1 + count + w;
         }
     }
-    void sQTL(char* outFileName,  char* efileName, char* befileName,  char* bFileName, bool transposed,  int efileType, char* problstName,char* problst2exclde,char* genelistName, int chr,char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* probe2exclde,char* indilstName,char* indilst2remove, bool no_fid_flag,int valueType,bool beta2m,bool m2beta, double std_thresh,double upperBeta,double lowerBeta,char* dpvalfName, double dp_thresh, double prb_thresh, double spl_thresh, int filter_mth, double mssratio_prob,int autosome_num, double maf,char* snplstName,char* snplst2exclde,int tsk_ttl,int tsk_id,char* covfileName, char* qcovfileName, bool tosmrflag, bool nofastlinear,bool cis_flag,int cis_itvl, double zeroratio, double call, char* annofileName, char* covbodfileName, char* covefileName, bool transopse_ecov)
+    void sQTL(char* outFileName, char* efileName, char* befileName,  char* bFileName, bool transposed,  int efileType, char* problstName,char* problst2exclde,char* genelistName, int chr,char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* probe2exclde,char* indilstName,char* indilst2remove, bool no_fid_flag,int valueType,bool beta2m,bool m2beta, double std_thresh,double upperBeta,double lowerBeta,char* dpvalfName, double dp_thresh, double prb_thresh, double spl_thresh, int filter_mth, double mssratio_prob,int autosome_num, double maf,char* snplstName,char* snplst2exclde,int tsk_ttl,int tsk_id,char* covfileName, char* qcovfileName, bool tosmrflag, bool nofastlinear,bool cis_flag,int cis_itvl, double zeroratio, double call, char* annofileName, char* covbodfileName, char* covefileName, bool transopse_ecov)
     {
         
         setNbThreads(thread_num);
+        LOGPRINTF("Using %d thread(s) to conduct analysis ...\n", thread_num);
         eInfo einfo;
         bInfo bdata;
         eInfo eCov;
@@ -2239,14 +2423,8 @@ namespace VQTL {
             LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
             TERMINATE();
         }
+        if(covfileName!=NULL || qcovfileName!=NULL) adjprobe(&einfo);
         
-        // construct X matrix
-        vector<MatrixXd> E_float;
-        MatrixXd qE_float;
-        MatrixXd _Cov;
-        int _X_c;
-        _X_c=construct_X(&einfo, E_float, qE_float,_Cov);
-
         vector< vector<uint32_t> > rowids(sqtlinfo._epi_include.size());
         vector< vector<float> > betas(sqtlinfo._epi_include.size());
         vector< vector<float> > ses(sqtlinfo._epi_include.size());
@@ -2290,75 +2468,37 @@ namespace VQTL {
             map<int,int> missidx_map;
             map<int, int>::iterator iter;
             map<string, int>::iterator citer;
+            vector< vector<double>> trpv;
+            trpv.resize(numTrans);
+            for(int kk=0;kk<numTrans;kk++) trpv[kk].resize(einfo._eii_include.size());
             for( int kk=0;kk<numTrans;kk++)
             {
-                for(int ll=0; ll<einfo._eii_include.size(); ll++)
-                {
-                    double val=einfo._val[tranids[jj][kk]*einfo._eii_num+einfo._eii_include[ll]];
-                    int vid=kk*nindi+ll;
-                    tpm[vid]=val;
-                    if(val>1e9)
-                    {
-                        missidx_map.insert(pair<int,int>(vid,missidx_map.size()));
-                        if(missidx_map.size()!=missidx.size()) missidx.push_back(vid);
-                    }
-                }
+                for(int ll=0; ll<einfo._eii_include.size(); ll++) trpv[kk][ll]=einfo._val[tranids[jj][kk]*einfo._eii_num+einfo._eii_include[ll]];
+                
             }
-            if(eCov._epi_include.size()>0)
+            vector< vector<double>> cor_null;
+            cor_null.resize(numTrans);
+            for(int kk=0;kk<numTrans;kk++) cor_null[kk].resize(numTrans);
+            for(int kk=0;kk<numTrans;kk++)
             {
-                if(nindi != eCov._eii_include.size())
+                for(int ll=kk+1;ll<numTrans;ll++)
                 {
-                    LOGPRINTF("ERROR: bugs in aligning the individuals.\n");
-                    TERMINATE();
-                }
-                citer = eCov._epi_map.find(prbid);
-                if(citer!=eCov._epi_map.end())
-                {
-                    int kk = citer->second;
-                    overall.resize(nindi);
-                    for(int ll=0;ll<eCov._eii_include.size();ll++)
+                    vector<double> y,x;
+                    for(int mm=0; mm<einfo._eii_include.size(); mm++)
                     {
-                        double val=eCov._val[kk*eCov._eii_num+eCov._eii_include[ll]];
-                        overall[ll]=val;
-                        if(val>1e9)
+                        if(trpv[kk][mm] < 1e9 && trpv[ll][mm] < 1e9)
                         {
-                            for(int qq=0;qq<numTrans;qq++)
-                            {
-                                int vid=qq*nindi+ll;
-                                missidx_map.insert(pair<int,int>(vid,missidx_map.size()));
-                                if(missidx_map.size()!=missidx.size()) missidx.push_back(vid);
-                            }
+                            y.push_back(trpv[kk][mm]);
+                            x.push_back(trpv[ll][mm]);
                         }
                     }
+                    cor_null[kk][ll] = cor_null[ll][kk] = cor(y,x);
                 }
             }
-            /***test***/
-            if(loud)
-            {
-            string tmm=string(outputname)+".ge";
-            FILE* tmpfile=fopen(tmm.c_str(),"w");
-            if(!tmpfile)
-            {
-                LOGPRINTF("error open file.\n");
-                TERMINATE();
-            }
-            for(int t=0;t<overall.size();t++)
-            {
-                string
-                    str =eCov._eii_fid[eCov._eii_include[t]] + '\t' + eCov._eii_iid[eCov._eii_include[t]] + '\t' +atos(overall(t)) + '\n';
-                
-                fputs(str.c_str(),tmpfile);
-            }
-            fclose(tmpfile);
-            }
-            /**endoftest**/
+            for(int kk=0;kk<numTrans;kk++) cor_null[kk][kk] = 1.0;
             for(int kk=0;kk<_X.cols();kk++) //_X.cols() ==snpids[jj].size()
             {
-                if(loud)
-                {
-                    printf("%3.0f%%\r", 100.0*kk/_X.cols());
-                    fflush(stdout);
-                }
+                
                 uint32_t snpid=snpids[jj][kk];
                 string snprs=bdata._snp_name[bdata._include[snpid]];
                 
@@ -2370,151 +2510,76 @@ namespace VQTL {
                     ses[jj][kk]=1;
                     continue;
                 }
-                vector<int> midx = missidx;
-                map<int,int> midx_map = missidx_map;
-                vector<string> xstring(einfo._eii_include.size());
-                vector<int> tmpid;
-                string tmpstr;
-                for(int ll=0; ll<einfo._eii_include.size(); ll++)
+                vector<double> beta(numTrans), se(numTrans);
+                
+                for(int ll=0;ll<numTrans;ll++)
                 {
-                    if(einfo._eii_fid[einfo._eii_include[ll]]!=bdata._fid[bdata._keep[ll]]){LOGPRINTF("ERROR: Alignment failed. Please report to Futao < futao.zhang@imb.uq.edu.au >.\n");}
-                    double bval=_X(ll,kk);
-                    if(bval>1e5)
+                    vector<double> y,x,rst;
+                    for(int mm=0;mm<einfo._eii_include.size(); mm++)
                     {
-                        tmpid.push_back(ll);
-                        for(int qq=0;qq<numTrans;qq++)
+                        double bval=_X(mm,kk), tval=trpv[ll][mm];
+                        if(bval < 1e5 && tval < 1e9)
                         {
-                            int vid=qq*nindi+ll;
-                            midx_map.insert(pair<int,int>(vid,midx_map.size()));
-                            if(midx_map.size()!=midx.size()) midx.push_back(vid);
+                            y.push_back(tval);
+                            x.push_back(bval);
                         }
                     }
-                    else
+                    reg(y,x,rst);
+                    beta[ll]=rst[0];
+                    se[ll]=rst[1];
+                }
+                int varnum=numTrans*(numTrans-1)/2, k=0;
+                VectorXd d(varnum),vardev(varnum),chisq_dev(varnum);
+                for(int m1=0;m1<numTrans-1;m1++)
+                {
+                    for(int m2=m1+1;m2<numTrans;m2++)
                     {
-                        tmpstr = to_string((int)bval);
-                        xstring[ll] = tmpstr;
+                        d[k]=beta[m1]-beta[m2];
+                        vardev[k] = se[m1]*se[m1]+se[m2]*se[m2]-2*cor_null[m1][m2]*se[m1]*se[m2];
+                        k++;
                     }
                 }
-                for(int ll=0;ll<tmpid.size();ll++) xstring[tmpid[ll]] = tmpstr;
+                for(int m1=0;m1<varnum;m1++)
+                    chisq_dev[m1] = d[m1]*d[m1]/vardev[m1];
                 
-                MatrixXd xfac0,xfac;
-                string errmsg1 = "Error: too many classes";
-                string errmsg2 = "Error: too few classes";
-                coeff_mat(xstring, xfac0, errmsg1, errmsg1);
-                xfac = xfac0.block(0, 1, xfac0.rows(), xfac0.cols() - 1);//bug of eigenlibrary xfac =xfac.block(0, 1, xfac.rows(), xfac.cols() - 1)
-                MatrixXd coex(nindi*numTrans,xfac.cols());
-                for(int ll=0;ll<numTrans;ll++) coex.block(ll*nindi,0,nindi,xfac.cols())=xfac;
-                MatrixXd coeTran= MatrixXd::Zero(nindi*numTrans,numTrans-1);
-                for(int ll=1;ll<numTrans;ll++) coeTran.block(ll*nindi,ll-1,nindi,1).setOnes();
-                MatrixXd coeInter = MatrixXd::Zero(nindi*numTrans,xfac.cols()*(numTrans-1));
-                for(int ll=1;ll<numTrans;ll++) coeInter.block(ll*nindi,(ll-1)*xfac.cols(),nindi,xfac.cols())=xfac;
-                MatrixXd coeOa = MatrixXd::Zero(nindi*numTrans,1);
-                if(overall.size()>0) for(int ll=0;ll<numTrans;ll++) coeOa.block(ll*nindi,0,nindi,1) = overall;
-                
-                MatrixXd X;
-                if(overall.size()>0) X.resize(nindi*numTrans,_Cov.cols()+coex.cols()+coeTran.cols()+1);
-                else X.resize(nindi*numTrans,_Cov.cols()+coex.cols()+coeTran.cols());
-                for(int ll=0;ll<numTrans;ll++) X.block(ll*nindi,0,_Cov.rows(),_Cov.cols()) = _Cov;
-                X.block(0,_Cov.cols(),coex.rows(),coex.cols())=coex;
-                X.block(0,_Cov.cols()+coex.cols(),coeTran.rows(),coeTran.cols())=coeTran;
-                if(overall.size()>0)  X.block(0,_Cov.cols()+coex.cols()+coeTran.cols(),nindi*numTrans,1)= coeOa;
+                MatrixXd vdev(varnum,varnum);
+                int mi = 0, mj =0;
+                for( int m1=0;m1< numTrans-1;m1++) {
+                    for( int m2=m1+1;m2<numTrans;m2++) {
+                        mj=0;
+                        for(int m3=0; m3< numTrans-1; m3++){
+                            for(int m4=m3+1;m4<numTrans;m4++) {
+                                vdev(mi,mj) = se[m1]*se[m3]*cor_null[m1][m3] - se[m1]*se[m4]*cor_null[m1][m4] - se[m2]*se[m3]*cor_null[m2][m3] + se[m2]*se[m4]*cor_null[m2][m4];
+                                mj++;
+                            }
+                        }
+                        mi++;
+                    }
+                }
                
-                int nomiss=(int)midx.size();
-                VectorXd y(numTrans*nindi-nomiss);
-                if(nomiss>0)
-                {
-                    int miss=0;
-                    stable_sort(midx.begin(), midx.end());
-                    for(int ll=0;ll<midx.size();ll++)
-                    {
-                        removeRow(X, midx[ll]-miss);
-                        removeRow(coeInter, midx[ll]-miss);
-                        miss++;
-                    }
-                    int ptr=0; miss=0;
-                    for(int ll=0;ll<tpm.size();ll++)
-                    {
-                        int maxmisid = midx[midx.size()-1];
-                        if(ll<=maxmisid && ll==midx[ptr])
-                        {
-                            ptr++;
-                            miss++;
-                        }
-                        else
-                        {
-                            y[ll-miss] = tpm[ll];
-                        }
+                MatrixXd corr_dev = vdev;
+                for( int m1=0;m1<varnum;m1++) {
+                    for( int m2=m1;m2<varnum;m2++){
+                        corr_dev(m1,m2) = corr_dev(m2,m1) = vdev(m1,m2)/sqrt(vdev(m1,m1)*vdev(m2,m2));
                     }
                 }
-                else
-                {
-                    for(int ll=0;ll<tpm.size();ll++) y[ll] = tpm[ll];
-                }
-                VectorXd yrint;
-                rankr(y, yrint);
-                for(int j=0;j<yrint.size();j++)
-                    y[j]=qnorm((yrint[j]-0.5)/(yrint.size()));
-                MatrixXd XtX_i;
-                XtX_i=X.transpose()*X;
-                bool determinant_zero=false;
-                inverse_V(XtX_i, determinant_zero);
-                if(determinant_zero)
-                {
-                    LOGPRINTF("The matrix is not invertible.\n");
-                    TERMINATE();
-                }
-                VectorXd b_hat=XtX_i*X.transpose()*y;
-                double ssr0 = b_hat.transpose()*X.transpose()*y;
-                
-                MatrixXd D = coeInter.transpose()*coeInter;
-                MatrixXd B = X.transpose()*coeInter;
-                MatrixXd D_BTAiB = D - B.transpose()*XtX_i*B;
-                determinant_zero=false;
-                inverse_V(D_BTAiB, determinant_zero);
-                if(determinant_zero)
-                {
-                    LOGPRINTF("The matrix is not invertible.\n");
-                    TERMINATE();
-                }
-                MatrixXd AiBD_BTAiB = XtX_i*B*D_BTAiB;
-                MatrixXd AA = XtX_i + AiBD_BTAiB*B.transpose()*XtX_i;
-                AiBD_BTAiB = -1 * AiBD_BTAiB;
-                
-                XtX_i.resize(X.cols()+coeInter.cols(), X.cols()+coeInter.cols());
-                XtX_i.block(0,0,X.cols(),X.cols()) = AA;
-                XtX_i.block(0,X.cols(),X.cols(),coeInter.cols()) = AiBD_BTAiB;
-                XtX_i.block(X.cols(),0,coeInter.cols(),X.cols()) = AiBD_BTAiB.transpose();
-                XtX_i.block(X.cols(),X.cols(),coeInter.cols(),coeInter.cols()) = D_BTAiB;
-                
-                
-                MatrixXd XW(X.rows(),X.cols()+coeInter.cols());
-                XW.block(0,0,X.rows(),X.cols()) = X;
-                XW.block(0,X.cols(),coeInter.rows(),coeInter.cols()) = coeInter;
-                /*
-                 XtX_i=XW.transpose()*XW;
-                 determinant_zero=false;
-                 inverse_V(XtX_i, determinant_zero);
-                 */
-                
-                b_hat=XtX_i*XW.transpose()*y;
-                double ssr = b_hat.transpose()*XW.transpose()*y;
-                
-                double mseI = (ssr - ssr0)/coeInter.cols();
-                double sst = y.transpose()*y;
-                double dfr = y.size() - XW.cols();
-                double sse = sst - ssr;
-                sse /= dfr;
-                double Fval = mseI / sse;
-                double pval = F_prob(coeInter.cols(), dfr, Fval);
-                double z2 = 0;
+                VectorXd lambda;
                 #pragma omp critical
                 {
-                    z2 = qchisq(pval, 1);
+                    SelfAdjointEigenSolver<MatrixXd> es(corr_dev);
+                    lambda=es.eigenvalues();
                 }
-                double z = sqrt(z2);
-                double se_hat=1/sqrt(2*snpfreq*(1-snpfreq)*(y.size()+z*z));
-                double beta_hat=z*se_hat;
+                double sumChisq_dev=chisq_dev.sum();
+                double pdev= 0.0;
+                #pragma omp critical
+                pdev=pchisqsum(sumChisq_dev,lambda);
+                double z=0.0;
+                #pragma omp critical
+                z=sqrt(qchisq(pdev,1));
                 
+                double beta_hat=z/sqrt(2*snpfreq*(1-snpfreq)*(nindi+z*z));
+                double se_hat=1/sqrt(2*snpfreq*(1-snpfreq)*(nindi+z*z));
+
                 rowids[jj][kk]=snpid;
                 betas[jj][kk]=beta_hat;
                 ses[jj][kk]=se_hat;
@@ -2633,5 +2698,411 @@ namespace VQTL {
         fclose(besd);
         LOGPRINTF("sQTL summary statistics for %ld probes and %ld SNPs are saved in file %s.\n", einfo._epi_include.size(),bdata._include.size(), besdName.c_str());
     }
-    
+    bool pcc(MatrixXd &PCC, MatrixXd &buffer_beta,MatrixXd &buffer_se, double pmecs, int nmecs)
+    {
+        long snpnum = buffer_beta.rows();
+        long cohortnum = buffer_beta.cols();
+        //pearson correlation with pairwise.complete.obs
+        double zmecs=qchisq(pmecs,1);
+        vector<double> beta1,beta2;
+        vector<int> pairsNoCor1,pairsNoCor2;
+        double sumcor=0.0;
+        int pairHasCorNUm=0;
+        for( int i=0;i<cohortnum;i++)
+            for(int j=i+1;j<cohortnum;j++)
+            {
+                
+                beta1.clear();
+                beta2.clear();
+                for(int k=0;k<snpnum;k++)
+                {
+                    double sei=buffer_se(k,i);
+                    double betai=buffer_beta(k,i);
+                    double sej=buffer_se(k,j);
+                    double betaj=buffer_beta(k,j);
+                    if(abs(sei+9)>1e-6 && abs(sej+9)>1e-6) {
+                        double zi=betai/sei;
+                        double zj=betaj/sej;
+                        zi*=zi;
+                        zj*=zj;
+                        if(zi < zmecs && zj < zmecs)
+                        {
+                            
+                            beta1.push_back(betai);
+                            beta2.push_back(betaj);
+                        }
+                    }
+                }
+                if(beta1.size()<nmecs) {
+                    //LOGPRINTF("WARNING: %ld SNP in common between cohort %i and cohort %d (cohort number stats form 0).\n",beta1.size(),i,j);
+                    //LOGPRINTF("The correlation value of cohort %d and cohort %d would be imputed with the mean of all the correlation values excluding the diagnoal.\n",i,j);
+                    pairsNoCor1.push_back(i);
+                    pairsNoCor2.push_back(j);
+                    PCC(i,j)=PCC(j,i)=0;
+                } else {
+                    double corrtmp=cor(beta1,beta2);
+                    sumcor +=corrtmp;
+                    PCC(i,j)=PCC(j,i)=corrtmp;
+                    pairHasCorNUm++;
+                }
+            }
+        if(pairsNoCor1.size()>0) {
+            //LOGPRINTF("WARNING: %ld cohort pairs didn't get enough common SNPs to calcualte the correlation.\n",pairsNoCor1.size());
+            if(pairHasCorNUm==0) {
+                //LOGPRINTF("ERROR: Every pair of cohort has not enough common SNPs to calcualte the correlation.\n");
+                //TERMINATE();
+                return false;
+            }
+            double corMean=sumcor/pairHasCorNUm;
+            //LOGPRINTF("WARNING: These missing correlation values are imputed with the mean %f.\n",corMean);
+            for(int i=0;i<pairsNoCor1.size();i++)
+            {
+                int p1=pairsNoCor1[i];
+                int p2=pairsNoCor2[i];
+                PCC(p1,p2)=PCC(p2,p1)=corMean;
+            }
+        }
+        for( int i=0;i<cohortnum;i++) PCC(i,i)=1;
+        return true;
+    }
+
+    void ssQTL(char* outFileName, char* beqtlFileName, char* problstName,char* problst2exclde,char* genelistName, int chr,int prbchr, char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* probe2exclde,int autosome_num, double maf,char* snplstName,char* snplst2exclde,int snpchr, char* snprs, char* fromsnprs, char* tosnprs, int snpWind, int fromsnpkb, int tosnpkb, bool snpwindFlag, char* snprs2exclde, int tsk_ttl,int tsk_id, bool tosmrflag, bool nofastlinear,bool cis_flag,int cis_itvl,  char* annofileName, double pmecs, int nmecs)
+    {
+        
+        setNbThreads(thread_num);
+        LOGPRINTF("Using %d thread(s) to conduct analysis ...\n", thread_num);
+        eqtlInfo eqtlinfo;
+        LOGPRINTF("\nReading eQTL summary data...\n");
+        char inputname[FNAMESIZE];
+        memcpy(inputname,beqtlFileName,strlen(beqtlFileName)+1);
+        char* suffix=inputname+strlen(beqtlFileName);
+        memcpy(suffix,".epi",5);
+        read_smr_epifile(&eqtlinfo, inputname);
+        smr_epi_man(&eqtlinfo, problstName, problst2exclde, genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2exclde);
+        extract_sqtl_probe(&eqtlinfo,tsk_ttl,  tsk_id);
+        memcpy(suffix,".esi",5);
+        read_smr_esifile(&eqtlinfo, inputname);
+        smr_esi_man(&eqtlinfo, snplstName, snplst2exclde,chr, snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag,  cis_itvl, prbname,snprs2exclde);
+        if(eqtlinfo._include.size()==0)
+        {
+            LOGPRINTF("Error: no probe included.\n");
+            TERMINATE();
+        }
+        if(eqtlinfo._esi_include.size()==0)
+        {
+            LOGPRINTF("Error: no SNP included.\n");
+            TERMINATE();
+        }
+        memcpy(suffix,".besd",6);
+        vector<int> headers;
+        get_BesdHeaders(inputname, headers);
+        int indicator = headers[0];
+        if(indicator==SMR_DENSE_1 || indicator==SMR_DENSE_3 || indicator==OSCA_DENSE_1)
+        {
+            LOGPRINTF("Error: Summary data based sQTL analysis does not support dense BESD format.\n");
+            TERMINATE();
+        }
+        eqtlinfo._sampleNum=headers[1];
+        if(eqtlinfo._sampleNum==-9)
+        {
+            LOGPRINTF("Error: no sample size found. Please upadte the BESD file using --add-n.\n");
+            TERMINATE();
+        }
+        char outputname[FNAMESIZE];
+        outputname[0]='\0';
+        if(tsk_ttl>1) {
+            if(outFileName!=NULL) {
+                string tmp=  string(outFileName)+"_"+atos(tsk_ttl)+"_"+atos(tsk_id);
+                strcpy(outputname,tmp.c_str());
+                outFileName=outputname;
+            }
+        }
+        
+        LOGPRINTF("Loading the file %s into memory...\n",beqtlFileName);
+        read_smr_besdfile(&eqtlinfo, inputname);
+        if(eqtlinfo._rowid.empty() && eqtlinfo._bxz.empty())
+        {
+            LOGPRINTF("No data included from %s under current condition.\n",beqtlFileName);
+            TERMINATE();
+        }
+        eInfo sqtlinfo;
+        vector< vector<int>> tranids;  //smaller einfo._epi_include
+        gene_check( &sqtlinfo,tranids, annofileName, &eqtlinfo);
+
+        LOGPRINTF("\nPerforming sQTL analysis ...\n");
+        if(outFileName!=NULL){
+            write_smr_esi(outFileName, &eqtlinfo);
+            write_smr_epi(outFileName, &sqtlinfo,true);
+        }
+        FILE* besd=NULL;
+        string besdName=string(outFileName)+".besd";
+        if(fopen_checked(&besd, besdName.c_str(),"wb")) TERMINATE();
+        uint32_t filetype=OSCA_SPARSE_1;
+        if(tosmrflag) filetype=SMR_SPARSE_3;
+        vector<int> ten_ints(RESERVEDUNITS);
+        ten_ints[0]=filetype;
+        ten_ints[1]=eqtlinfo._sampleNum;
+        ten_ints[2]=(int)eqtlinfo._esi_include.size();
+        ten_ints[3]=(int)sqtlinfo._epi_include.size();
+        for(int i=4;i<RESERVEDUNITS;i++) ten_ints[i]=-9;
+        if (fwrite_checked(&ten_ints[0],RESERVEDUNITS*sizeof(int), besd))
+        {
+            LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
+            TERMINATE();
+        }
+        
+        vector< vector<uint32_t> > rowids(sqtlinfo._epi_include.size());
+        vector< vector<float> > betas(sqtlinfo._epi_include.size());
+        vector< vector<float> > ses(sqtlinfo._epi_include.size());
+        vector<int> cis_num;
+        vector< vector<int> > snpids;
+        cis_eQTL_num_2(&sqtlinfo,&eqtlinfo,cis_itvl,tranids, snpids,cis_num);
+        for(int ii=0;ii<sqtlinfo._epi_include.size();ii++)
+        {
+            rowids[ii].resize(cis_num[ii]);
+            betas[ii].resize(cis_num[ii]);
+            ses[ii].resize(cis_num[ii]);
+        }
+        
+        bool warned = false;
+        int nindi = eqtlinfo._sampleNum;
+        double cr=0.0;
+        
+         #pragma omp parallel for private(cr)
+        for(int jj=0;jj<sqtlinfo._epi_include.size();jj++)
+        {
+            double desti=1.0*jj/(sqtlinfo._epi_include.size()-1);
+            if(desti>=cr)
+            {
+                printf("%3.0f%%\r", 100.0*desti);
+                fflush(stdout);
+                if(cr==0) cr+=0.05;
+                else if(cr==0.05) cr+=0.2;
+                else if(cr==0.25) cr+=0.5;
+                else cr+=0.25;
+            }
+            string prbid=sqtlinfo._epi_prb[sqtlinfo._epi_include[jj]];
+            if(snpids[jj].size()==0)  continue;
+            
+            int numTrans = (int)tranids[jj].size();
+            int numSNP = cis_num[jj];
+            MatrixXd eqtlb(numSNP,numTrans), eqtls(numSNP,numTrans);
+            vector<float> eqtlfreq(numSNP);
+            make_bs(&eqtlinfo,tranids[jj],snpids[jj],eqtlb,eqtls,eqtlfreq);
+            
+            // estimate probe correlaton
+            MatrixXd cor_null(numTrans,numTrans);
+            pcc(cor_null,  eqtlb, eqtls, pmecs, nmecs);
+            if(loud)
+            {
+                string filename=string(outfileName)+"."+atos(prbid)+".corr.txt";
+                FILE* tmpfile =fopen(filename.c_str(),"w");
+                if(!tmpfile)
+                {
+                    printf("ERROR: open file %s.\n",filename.c_str());
+                    exit(EXIT_FAILURE);
+                }
+                for(int kk=0;kk<cor_null.rows();kk++)
+                {
+                    string str="";
+                    for(int jj=0;jj<cor_null.cols();jj++)
+                    {
+                        str+= atos(cor_null(kk,jj))+'\t';
+                    }
+                    str+='\n';
+                    fputs(str.c_str(),tmpfile);
+                }
+                fclose(tmpfile);
+            }
+            for(int kk=0;kk<numSNP;kk++)
+            {
+                uint32_t snpid=snpids[jj][kk];
+                string snprs=eqtlinfo._esi_rs[snpid];
+                double snpfreq=eqtlinfo._esi_freq[snpid];
+                if(snpfreq==0 || snpfreq==1) {
+                    if(!warned) {LOGPRINTF("WARNING: MAF found 0 or 1 with SNP(s).\n"); warned=1;}
+                    rowids[jj][kk]=snpid;
+                    betas[jj][kk]=0;
+                    ses[jj][kk]=1;
+                    continue;
+                }
+                vector<double> beta(numTrans), se(numTrans);
+                for(int ll=0;ll<numTrans;ll++)
+                {
+                    beta[ll]=eqtlb(kk,ll);
+                    se[ll]=eqtls(kk,ll);
+                }
+                int varnum=numTrans*(numTrans-1)/2, k=0;
+                VectorXd d(varnum),vardev(varnum),chisq_dev(varnum);
+                for(int m1=0;m1<numTrans-1;m1++)
+                {
+                    for(int m2=m1+1;m2<numTrans;m2++)
+                    {
+                        d[k]=beta[m1]-beta[m2];
+                        vardev[k] = se[m1]*se[m1]+se[m2]*se[m2]-2*cor_null(m1,m2)*se[m1]*se[m2];
+                        k++;
+                    }
+                }
+                for(int m1=0;m1<varnum;m1++)
+                    chisq_dev[m1] = d[m1]*d[m1]/vardev[m1];
+                
+                MatrixXd vdev(varnum,varnum);
+                int mi = 0, mj =0;
+                for( int m1=0;m1< numTrans-1;m1++) {
+                    for( int m2=m1+1;m2<numTrans;m2++) {
+                        mj=0;
+                        for(int m3=0; m3< numTrans-1; m3++){
+                            for(int m4=m3+1;m4<numTrans;m4++) {
+                                vdev(mi,mj) = se[m1]*se[m3]*cor_null(m1,m3) - se[m1]*se[m4]*cor_null(m1,m4) - se[m2]*se[m3]*cor_null(m2,m3) + se[m2]*se[m4]*cor_null(m2,m4);
+                                mj++;
+                            }
+                        }
+                        mi++;
+                    }
+                }
+                
+                MatrixXd corr_dev = vdev;
+                for( int m1=0;m1<varnum;m1++) {
+                    for( int m2=m1;m2<varnum;m2++){
+                        corr_dev(m1,m2) = corr_dev(m2,m1) = vdev(m1,m2)/sqrt(vdev(m1,m1)*vdev(m2,m2));
+                    }
+                }
+                VectorXd lambda;
+#pragma omp critical
+                {
+                    SelfAdjointEigenSolver<MatrixXd> es(corr_dev);
+                    lambda=es.eigenvalues();
+                }
+                double sumChisq_dev=chisq_dev.sum();
+                double pdev= 0.0;
+#pragma omp critical
+                pdev=pchisqsum(sumChisq_dev,lambda);
+                double z=0.0;
+#pragma omp critical
+                z=sqrt(qchisq(pdev,1));
+                
+                double beta_hat=z/sqrt(2*snpfreq*(1-snpfreq)*(nindi+z*z));
+                double se_hat=1/sqrt(2*snpfreq*(1-snpfreq)*(nindi+z*z));
+                
+                rowids[jj][kk]=snpid;
+                betas[jj][kk]=beta_hat;
+                ses[jj][kk]=se_hat;
+            }
+            
+        }
+        if(tosmrflag)
+        {
+            uint64_t valNum=0;
+            vector<uint64_t> cols;
+            cols.resize(2*sqtlinfo._epi_include.size()+1);
+            cols[0]=0;
+            for(int jj=0;jj<betas.size();jj++)
+            {
+                long co=betas[jj].size();
+                valNum+=co;
+                cols[2*jj+1]=cols[2*jj]+co;
+                valNum+=co;
+                cols[2*(jj+1)]=cols[2*jj+1]+co;
+            }
+            if (fwrite_checked(&valNum,sizeof(uint64_t), besd))
+            {
+                LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
+                TERMINATE();
+            }
+            
+            if (fwrite_checked(&cols[0],cols.size()*sizeof(uint64_t), besd))
+            {
+                LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
+                TERMINATE();
+            }
+            for(int jj=0;jj<rowids.size();jj++)
+            {
+                if(rowids[jj].size())
+                {
+                    if (fwrite_checked(&rowids[jj][0],rowids[jj].size()*sizeof(uint32_t), besd))
+                    {
+                        LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
+                        TERMINATE();
+                    }
+                    if (fwrite_checked(&rowids[jj][0],rowids[jj].size()*sizeof(uint32_t), besd))
+                    {
+                        LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
+                        TERMINATE();
+                    }
+                }
+            }
+            for(int jj=0;jj<betas.size();jj++)
+            {
+                if(betas[jj].size())
+                {
+                    if (fwrite_checked(&betas[jj][0],betas[jj].size()*sizeof(float), besd))
+                    {
+                        LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
+                        TERMINATE();
+                    }
+                    if (fwrite_checked(&ses[jj][0],ses[jj].size()*sizeof(float), besd))
+                    {
+                        LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
+                        TERMINATE();
+                    }
+                }
+            }
+            
+        }
+        else
+        {
+            uint64_t valNum=0;
+            vector<uint64_t> cols;
+            cols.resize(sqtlinfo._epi_include.size()+1);
+            cols[0]=0;
+            for(int jj=0;jj<betas.size();jj++)
+            {
+                long co=2*betas[jj].size();
+                valNum+=co;
+                cols[jj+1]=cols[jj]+co;
+            }
+            if (fwrite_checked(&valNum,sizeof(uint64_t), besd))
+            {
+                LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
+                TERMINATE();
+            }
+            
+            if (fwrite_checked(&cols[0],cols.size()*sizeof(uint64_t), besd))
+            {
+                LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
+                TERMINATE();
+            }
+            for(int jj=0;jj<rowids.size();jj++)
+            {
+                if(rowids[jj].size())
+                    if (fwrite_checked(&rowids[jj][0],rowids[jj].size()*sizeof(uint32_t), besd))
+                    {
+                        LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
+                        TERMINATE();
+                    }
+            }
+            for(int jj=0;jj<betas.size();jj++)
+            {
+                if(betas[jj].size())
+                {
+                    if (fwrite_checked(&betas[jj][0],betas[jj].size()*sizeof(float), besd))
+                    {
+                        LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
+                        TERMINATE();
+                    }
+                    if (fwrite_checked(&ses[jj][0],ses[jj].size()*sizeof(float), besd))
+                    {
+                        LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
+                        TERMINATE();
+                    }
+                }
+            }
+        }
+        
+        
+        fclose(besd);
+        //LOGPRINTF("sQTL summary statistics for %ld probes and %ld SNPs are saved in file %s.\n", einfo._epi_include.size(),bdata._include.size(), besdName.c_str());
+        
+    }
+        
 }

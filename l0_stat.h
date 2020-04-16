@@ -23,4 +23,5 @@ double chi_prob(double df, double chi_sqr_val);
 double qchisq(double q, double df);
 double gasdev(int &idum);
 double pT(double T, double df);
+double pchisqsum(double x, VectorXd lambda);
 #endif /* defined(__osc__l0_stat__) */

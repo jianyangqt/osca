@@ -3874,7 +3874,7 @@ namespace EFILE {
     }
     
     
-    void fit_reml(char* outFileName, char* befileName, char* problstName,char* problst2exclde,char* genelistName, int chr,char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* probe2exclde, char* phenofileName,char* mpheno,bool erm_bin_flag, bool grm_bin_flag,int erm_alg, char* covfileName,char* qcovfileName, char* erm_file, char* grm_file, bool m_erm_flag, bool within_family,char* priors,char* priors_var, bool no_constrain,int reml_mtd,int MaxIter,bool reml_fixed_var_flag,bool reml_force_inv_fac_flag, bool reml_force_converge_flag, bool  reml_no_converge_flag, bool pred_rand_eff, bool est_fix_eff,bool no_lrt,double prevalence, bool mlmassoc,vector<int> drop, char* indilstName, char* indilst2remove, char* sex_file, double grm_cutoff, bool erm_cutoff_2sides, double adj_grm_fac, int dosage_compen,bool prt_residiual)
+    void fit_reml(char* outFileName, char* befileName, char* problstName,char* problst2exclde,char* genelistName, int chr,char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* probe2exclde, char* phenofileName,char* mpheno,bool erm_bin_flag, bool grm_bin_flag,int erm_alg, char* covfileName,char* qcovfileName, char* erm_file, char* grm_file, bool m_erm_flag, bool within_family,char* priors,char* priors_var, bool no_constrain,int reml_mtd,int MaxIter,bool reml_fixed_var_flag,bool reml_force_inv_fac_flag, bool reml_force_converge_flag, bool  reml_no_converge_flag, bool pred_rand_eff, bool est_fix_eff,bool no_lrt,double prevalence, bool mlmassoc,vector<int> drop, char* indilstName, char* indilst2remove, char* sex_file, double grm_cutoff, bool erm_cutoff_2sides, double adj_grm_fac, int dosage_compen,bool prt_residiual,char* efileName, bool transposed, int efileType,bool no_fid_flag,int valueType)
     {
         loud = true;
         vector<double> reml_priors;
@@ -3922,7 +3922,15 @@ namespace EFILE {
         vector<string> erm_files;
         char inputname[FNAMESIZE];
         char* suffix = NULL;
-        if(befileName != NULL)
+        if(efileName!=NULL)
+        {
+            if(transposed) read_efile_t(efileName,&einfo,efileType,no_fid_flag,valueType);
+            else read_efile(efileName,&einfo,efileType,no_fid_flag,valueType);
+            epi_man(&einfo,problstName,problst2exclde,genelistName, chr,prbname, fromprbname, toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag, genename,probe2exclde);
+            eii_man(&einfo,indilstName,indilst2remove);
+            erm_files.push_back(efileName);
+        }
+        else if(befileName != NULL)
         {
             memcpy(inputname,befileName,strlen(befileName)+1);
             suffix=inputname+strlen(befileName);
@@ -3959,10 +3967,13 @@ namespace EFILE {
         
         if (indilstName!=NULL) keep_indi(&einfo, indilstName);
         if (indilst2remove!=NULL) remove_indi(&einfo, indilst2remove);
-        if(befileName != NULL)
+        if(befileName != NULL || efileName != NULL )
         {
-            memcpy(suffix,".bod",5);
-            read_beed(inputname,&einfo);
+            if(befileName != NULL)
+            {
+                memcpy(suffix,".bod",5);
+                read_beed(inputname,&einfo);
+            }
             make_erm(&einfo, erm_alg);
             for(int i=0; i<einfo._eii_include.size(); i++)
                 grm_id.push_back(einfo._eii_fid[einfo._eii_include[i]]+":"+einfo._eii_iid[einfo._eii_include[i]]);
@@ -4012,7 +4023,8 @@ namespace EFILE {
                         }
                     }
                 }
-            } else if(erm_file!=NULL || befileName != NULL){
+            }
+             else if(erm_file!=NULL || befileName != NULL || efileName != NULL ){
                 for(int i=0; i < 1 + 1; i++) einfo._r_indx.push_back(i);
                 if (!no_lrt) drop_comp(&einfo,drop);
                 _A.resize(einfo._r_indx.size());

@@ -2548,5 +2548,151 @@ namespace SMR {
         }
         LOGPRINTF("%d probes variance information to be included from %s.\n",hit,vpFileName);
     }
-
+    void extract_sqtl_probe(eqtlInfo* eqtlinfo,int tsk_ttl,int tsk_id)
+    {
+        map<string, int> gene_count_map;
+        map<string, int>::iterator iter;
+        vector<string> gene;
+        vector< vector< string> > idx;
+        int ids = 0;
+        for(int i=0; i<eqtlinfo->_include.size();i++)
+        {
+            string gn = eqtlinfo->_epi_gene[eqtlinfo->_include[i]];
+            to_upper(gn);
+            if( gn != "NA" )
+            {
+                iter = gene_count_map.find(gn);
+                if(iter == gene_count_map.end())
+                {
+                    gene_count_map.insert(pair<string, int>(gn, ids++));
+                    gene.push_back(gn);
+                    vector<string> tmpidx;
+                    tmpidx.push_back(eqtlinfo->_epi_prbID[eqtlinfo->_include[i]]);
+                    idx.push_back(tmpidx);
+                }
+                else
+                {
+                    int curid = iter->second;
+                    idx[curid].push_back(eqtlinfo->_epi_prbID[eqtlinfo->_include[i]]);
+                }
+            }
+            else
+            {
+                if(loud) {
+                    LOGPRINTF("NA gene name found with the probe %s. \n", eqtlinfo->_epi_prbID[eqtlinfo->_include[i]].c_str());
+                }
+            }
+        }
+        vector<int> inids;
+        for(int i=0;i<idx.size();i++)
+            if(idx[i].size()>1) inids.push_back(i);
+        
+        LOGPRINTF("%ld genes with more than 1 transcript are extracted.\n", inids.size());
+        int unicount=(int)inids.size();
+        if(tsk_ttl>1)
+        {
+            if(tsk_ttl>unicount) {
+                LOGPRINTF("WARNING: Total task number %d is larger than the gene number %d.\nThe task number shrinks to %d.\n", tsk_ttl, unicount,unicount);
+                tsk_ttl=unicount;
+                if(tsk_id>tsk_ttl) {
+                    LOGPRINTF("Task id %d is larger than shrinked total task number %d. Task terminated.\n", tsk_id,tsk_ttl);
+                    TERMINATE();
+                }
+            }
+            long num_per_tsk=ceill(unicount/(1.0*tsk_ttl));
+            
+            long fromidx=(tsk_id-1)*num_per_tsk;
+            if(fromidx>=unicount) {
+                LOGPRINTF("The whole analysis can be accomplished by the tasks ahead. This task %d would be no more needed.\n", tsk_id);
+                TERMINATE();
+            }
+            long toidx=tsk_id*num_per_tsk-1;
+            if(toidx >= unicount) toidx=unicount-1;
+            LOGPRINTF("The %ldth gene to the %ldth gene of total %d genes are extracted from this sub-task.\n", fromidx+1,toidx+1,unicount);
+            vector<int> subinids;
+            for(long i=fromidx;i<=toidx;i++)
+                subinids.push_back(inids[i]);
+            inids.swap(subinids);
+        }
+        vector<string> prblst;
+        for(int i=0;i<inids.size();i++)
+        {
+            if(idx[inids[i]].size()<=1)
+            {
+                LOGPRINTF("Error: here is a bug. please report to futao.zhang@imb.uq.edu.au\n");
+            }
+            for(int j=0;j<idx[inids[i]].size();j++)
+            {
+                prblst.push_back(idx[inids[i]][j]);
+            }
+        }
+        update_map_kp(prblst, eqtlinfo->_probe_name_map, eqtlinfo->_include);
+        LOGPRINTF("%ld genes are extracted from task id %d of total task number %d (total %ld probes).\n",  inids.size(), tsk_id, tsk_ttl, eqtlinfo->_include.size());
+    }
+    
+    bool pcc(MatrixXd &PCC, float* buffer_beta,float* buffer_se,long snpnum, long cohortnum, double pmecs, int nmecs)
+    {
+        //pearson correlation with pairwise.complete.obs
+        double zmecs=qchisq(pmecs,1);
+        vector<double> beta1,beta2;
+        vector<int> pairsNoCor1,pairsNoCor2;
+        double sumcor=0.0;
+        int pairHasCorNUm=0;
+        for( int i=0;i<cohortnum;i++)
+            for(int j=i+1;j<cohortnum;j++)
+            {
+                
+                beta1.clear();
+                beta2.clear();
+                for(int k=0;k<snpnum;k++)
+                {
+                    double sei=buffer_se[i*snpnum+k];
+                    double betai=buffer_beta[i*snpnum+k];
+                    double sej=buffer_se[j*snpnum+k];
+                    double betaj=buffer_beta[j*snpnum+k];
+                    if(abs(sei+9)>1e-6 && abs(sej+9)>1e-6) {
+                        double zi=betai/sei;
+                        double zj=betaj/sej;
+                        zi*=zi;
+                        zj*=zj;
+                        if(zi < zmecs && zj < zmecs)
+                        {
+                            
+                            beta1.push_back(betai);
+                            beta2.push_back(betaj);
+                        }
+                    }
+                }
+                if(beta1.size()<nmecs) {
+                    //LOGPRINTF("WARNING: %ld SNP in common between cohort %i and cohort %d (cohort number stats form 0).\n",beta1.size(),i,j);
+                    //LOGPRINTF("The correlation value of cohort %d and cohort %d would be imputed with the mean of all the correlation values excluding the diagnoal.\n",i,j);
+                    pairsNoCor1.push_back(i);
+                    pairsNoCor2.push_back(j);
+                    PCC(i,j)=PCC(j,i)=0;
+                } else {
+                    double corrtmp=cor(beta1,beta2);
+                    sumcor +=corrtmp;
+                    PCC(i,j)=PCC(j,i)=corrtmp;
+                    pairHasCorNUm++;
+                }
+            }
+        if(pairsNoCor1.size()>0) {
+            //LOGPRINTF("WARNING: %ld cohort pairs didn't get enough common SNPs to calcualte the correlation.\n",pairsNoCor1.size());
+            if(pairHasCorNUm==0) {
+                //LOGPRINTF("ERROR: Every pair of cohort has not enough common SNPs to calcualte the correlation.\n");
+                //TERMINATE();
+                return false;
+            }
+            double corMean=sumcor/pairHasCorNUm;
+            //LOGPRINTF("WARNING: These missing correlation values are imputed with the mean %f.\n",corMean);
+            for(int i=0;i<pairsNoCor1.size();i++)
+            {
+                int p1=pairsNoCor1[i];
+                int p2=pairsNoCor2[i];
+                PCC(p1,p2)=PCC(p2,p1)=corMean;
+            }
+        }
+        for( int i=0;i<cohortnum;i++) PCC(i,i)=1;
+        return true;
+    }
 }

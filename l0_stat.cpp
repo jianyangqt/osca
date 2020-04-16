@@ -326,3 +326,151 @@ double pT(double T, double df)
     return 2*q;
     
 }
+
+
+double K(double zeta, VectorXd &lambda) {
+    return -0.5*(1.0 - 2.0 * zeta * lambda.array()).log().sum();
+}
+
+double Kp(double zeta, VectorXd &lambda) {
+    return (lambda.array() / (1.0 - 2.0 * zeta * lambda.array())).sum();
+}
+
+double Kpp(double zeta, VectorXd &lambda) {
+    return 2.0 * (lambda.array().square() / (1.0 - 2.0 * zeta * lambda.array()).array().square()).sum();
+}
+
+double Kp_min_x(double zeta, VectorXd &lambda, double x) {
+    return Kp(zeta, lambda) - x;
+}
+
+double Brents_Kp_min_x(VectorXd &lambda, double x, double lowerLimit, double upperLimit, double errorTol) {
+    double a = lowerLimit;
+    double b = upperLimit;
+    double c = 0;
+    double d = 1.7976931348623157E+308;
+    
+    double fa = Kp_min_x(a, lambda, x);
+    double fb = Kp_min_x(b, lambda, x);
+    
+    double fc = 0;
+    double s = 0;
+    double fs = 0;
+    
+    // if f(a) f(b) >= 0 then error-exit
+    if (fa * fb >= 0) {
+        if (fa < fb)
+            return a;
+        else
+            return b;
+    }
+    
+    // if |f(a)| < |f(b)| then swap (a,b) end if
+    if (fabs(fa) < fabs(fb)) {
+        double tmp = a;
+        a = b;
+        b = tmp;
+        tmp = fa;
+        fa = fb;
+        fb = tmp;
+    }
+    
+    c = a;
+    fc = fa;
+    bool mflag = true;
+    int i = 0;
+    
+    while (!(fb == 0) && (fabs(a - b) > errorTol)) {
+        if ((fa != fc) && (fb != fc))
+            // Inverse quadratic interpolation
+            s = a * fb * fc / (fa - fb) / (fa - fc) + b * fa * fc / (fb - fa) / (fb - fc) + c * fa * fb / (fc - fa) / (fc - fb);
+        else
+            // Secant Rule
+            s = b - fb * (b - a) / (fb - fa);
+        
+        double tmp2 = (3 * a + b) / 4;
+        if ((!(((s > tmp2) && (s < b)) || ((s < tmp2) && (s > b)))) || (mflag && (fabs(s - b) >= (fabs(b - c) / 2))) || (!mflag && (fabs(s - b) >= (fabs(c - d) / 2)))) {
+            s = (a + b) / 2;
+            mflag = true;
+        } else {
+            if ((mflag && (fabs(b - c) < errorTol)) || (!mflag && (fabs(c - d) < errorTol))) {
+                s = (a + b) / 2;
+                mflag = true;
+            } else
+                mflag = false;
+        }
+        fs = Kp_min_x(s, lambda, x);
+        d = c;
+        c = b;
+        fc = fb;
+        if (fa * fs < 0) {
+            b = s;
+            fb = fs;
+        } else {
+            a = s;
+            fa = fs;
+        }
+        
+        // if |f(a)| < |f(b)| then swap (a,b) end if
+        if (fabs(fa) < fabs(fb)) {
+            double tmp = a;
+            a = b;
+            b = tmp;
+            tmp = fa;
+            fa = fb;
+            fb = tmp;
+        }
+        i++;
+        if (i > 1000) return upperLimit+10;
+    }
+    return b;
+}
+
+
+
+
+double psatt(double x, VectorXd lambda) {
+    double sum=lambda.sum();
+    if(FloatEqual(sum,0.0)) return 2.0;
+    
+    double sq_sum=lambda.dot(lambda);
+    double sum_sq=sum*sum;
+    double a=sq_sum/sum;
+    double b=sum_sq/sq_sum;
+    
+    return pchisq(x/a, b);
+}
+
+double psadd(double x, VectorXd lambda) {
+    double d = lambda.maxCoeff();
+    if (d <= 0.0) return 2.0;
+    lambda = lambda.array() / d;
+    x = x / d;
+    
+    double lmin = 0.0;
+    double m = lambda.minCoeff();
+    if (m < 0.0) lmin = 0.499995 / m;
+    else if (x > lambda.sum()) lmin = -0.01;
+    else lmin = -0.5 * (double) lambda.size() / x;
+    double lmax = 0.499995 / lambda.maxCoeff();
+    
+    double hatzeta = Brents_Kp_min_x(lambda, x, lmin, lmax, 1e-08);
+    if(hatzeta > lmax + 9) return 2.0;
+    double sign = (hatzeta < 0.0) ? -1.0 : 1.0;
+    double w = sign * sqrt(2 * (hatzeta * x - K(hatzeta, lambda)));
+    double v = hatzeta * sqrt(Kpp(hatzeta, lambda));
+    
+    // debug
+    //cout<<"hatzeta = "<<hatzeta<<endl;
+    //cout<<"w = "<<w<<endl;
+    //cout<<"v = "<<v<<endl;
+    
+    
+    if (fabs(hatzeta) < 1e-04) return 2.0;
+    else return pnorm(w + log(v / w) / w);
+}
+double pchisqsum(double x, VectorXd lambda) {
+    double pval = psadd(x, lambda);
+    if (pval > 1.0) pval = psatt(x, lambda);
+    return pval;
+}

@@ -422,8 +422,8 @@ namespace EFILE
         read_epi(inputname,&einfo);
         if(!Baptiste && !moment_eligibility_ck(&einfo))
         {
-            LOGPRINTF("ERROR: the .opi file contains NA chromosome or NA probe position. Plsease annotate it using flag --update-opi.\n");
-            TERMINATE();
+            LOGPRINTF("NOTE: the .opi file contains NA chromosome or NA probe position. Window-based exclusion switches to correlation-based exclusion.\n");
+            Baptiste = true;
         }
         epi_man(&einfo,problstName,problst2exclde,genelistName, chr,prbname, fromprbname, toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag, genename,probe2exclde);
         if(phenofileName !=NULL) read_phen(&einfo, phenofileName, mpheno,false);

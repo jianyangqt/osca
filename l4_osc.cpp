@@ -16,7 +16,7 @@ int main(int argc, char * argv[])
 {
     cout << "*******************************************************************" << endl;
     cout << "* OmicS-data-based Complex trait Analysis (OSCA)" << endl;
-    cout << "* version 0.453" << endl;
+    cout << "* version 0.46" << endl;
     cout << "* (C) 2016 Futao Zhang, Zhihong Zhu and Jian Yang" << endl;
     cout << "* The University of Queensland" << endl;
     cout << "* MIT License" << endl;
@@ -278,11 +278,11 @@ void option(int option_num, char* option_str[])
     double bcthresh=-9; // the upper p value threshold for  bc_mth 0, clusteringmth 2
     double swthresh=-9; // p-value threshold for stepwise in moment
     double swfdr = -9;
-    double sw_rsq = 0.8;
+    double sw_rsq = 0.5;
     bool swlogit = false;
     bool swforwardonly = false;
     double r2thresh = -9;
-    double pccr2thresh = 0.8;
+    double pccr2thresh = 0.6;
     bool moment_flag = false;
     bool moment2_flag = false;
     int nrandcomp =2;
@@ -1471,14 +1471,14 @@ void option(int option_num, char* option_str[])
             }
             LOGPRINTF("--moment-r2 %0.2e\n", r2thresh);
         }
-        if(0==strcmp(option_str[i],"--moment-pcc-r2"))
+        if(0==strcmp(option_str[i],"--cor-r2"))
         {
             pccr2thresh=atof(option_str[++i]);
             if (pccr2thresh < 0 || pccr2thresh > 1) {
-                LOGPRINTF("\nError: --moment-pcc-r2 should be between 0 to 1.\n");
+                LOGPRINTF("\nError: --cor-r2 should be between 0 to 1.\n");
                 TERMINATE();
             }
-            LOGPRINTF("--moment-pcc-r2 %0.2e\n", pccr2thresh);
+            LOGPRINTF("--cor-r2 %0.2e\n", pccr2thresh);
         }
         
         if(0==strcmp(option_str[i],"--moment")){ // EXclude the ProbEs Centred at the Target probe
@@ -1613,9 +1613,9 @@ void option(int option_num, char* option_str[])
             FileExist(bedfileName);
             LOGPRINTF("--bed %s\n",bedfileName);
         }
-        if(0==strcmp(option_str[i],"--Baptiste")){
+        if(0==strcmp(option_str[i],"--moment-cor")){
             Baptiste=true;
-            LOGPRINTF("--Baptiste \n");
+            LOGPRINTF("--moment-cor \n");
         }
         if(0==strcmp(option_str[i],"--reverse-assoc")){
             reverseAssoc=true;
@@ -1665,7 +1665,7 @@ void option(int option_num, char* option_str[])
     else if((simu_qt_flag || simu_cc) && simu_causal2!=NULL) EWAS_simu2(outfileName, befileName, simu_rep, simu_causal,simu_causal2,  simu_case_num,  simu_control_num,  simu_h2,simu_h22,  simu_K,  simu_seed, simu_eff_mod,simu_residual_only);
     else if(simu_qt_flag || simu_cc) EWAS_simu(outfileName, befileName, simu_rep, simu_causal,  simu_case_num,  simu_control_num,  simu_h2,  simu_K,  simu_seed, simu_eff_mod,simu_residual_only);
     else if(rev_simu) reverse_causal_simu(outfileName, befileName, phenofileName, mpheno, simu_causal,  simu_h2,  simu_eff_mod);
-    else if(reml_flag) fit_reml(outfileName, befileName, problstName, problst2exclde, genelistName,  chr,prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, phenofileName, mpheno, erm_bin_flag, grm_bin_flag, erm_alg, covfileName, qcovfileName, erm_file, grm_file, m_erm_flag, within_family, priors, priors_var, no_constrain, reml_mtd, MaxIter, reml_fixed_var_flag, reml_force_inv_fac_flag, reml_force_converge_flag, reml_no_converge_flag, pred_rand_eff, est_fix_eff, no_lrt, prevalence, mlma_flag,reml_drop,indilstName,indilst2remove,  NULL, erm_cutoff,erm_cutoff_2sides, -2.0,-2,prt_residiual);
+    else if(reml_flag) fit_reml(outfileName, befileName, problstName, problst2exclde, genelistName,  chr,prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, phenofileName, mpheno, erm_bin_flag, grm_bin_flag, erm_alg, covfileName, qcovfileName, erm_file, grm_file, m_erm_flag, within_family, priors, priors_var, no_constrain, reml_mtd, MaxIter, reml_fixed_var_flag, reml_force_inv_fac_flag, reml_force_converge_flag, reml_no_converge_flag, pred_rand_eff, est_fix_eff, no_lrt, prevalence, mlma_flag,reml_drop,indilstName,indilst2remove,  NULL, erm_cutoff,erm_cutoff_2sides, -2.0,-2,prt_residiual,efileName,transposedin, efileType, no_fid_flag, valueType);
     else if (ext_inde_flag)  extract_inden_probes(outfileName, befileName, inde_num, ldrsq,   simu_seed, problstName, problst2exclde, genelistName,  chr,prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName, indilst2remove);
     else if(getvariance_flag || getmean_flag) getPrbVarianceMean(outfileName, efileName,  befileName, transposedin,  efileType, problstName, problst2exclde,genelistName,  chr, prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName,indilst2remove, no_fid_flag,valueType,getvariance_flag,getmean_flag);
     else if(blup_probe_flag) blup_probe(outfileName, efileName,  befileName, transposedin,  efileType, problstName, problst2exclde,genelistName,  chr, prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2rm, indilstName,indilst2remove, no_fid_flag,valueType, std_thresh,upperBeta,lowerBeta,blup_indi_file);
@@ -1673,7 +1673,11 @@ void option(int option_num, char* option_str[])
     else if (vqtl) V_QTL(outfileName,  efileName, befileName,phenofileName, bFileName,  transposedin, efileType, problstName, problst2exclde, genelistName,  chr, prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag, genename,problst2exclde, indilstName, indilst2remove,  no_fid_flag, valueType, beta2m, m2beta,  std_thresh, upperBeta, lowerBeta, dpvalfName,  thresh_det_pval,  thresh_prpt_prb,  thresh_prpt_spl,  filter_det_pval_mth,  missing_ratio_prob, autosome_num,  maf, snplstName, snplst2exclde, tsk_ttl, tsk_id,vqtl_mtd,covfileName, qcovfileName,to_smr_flag, cis_flag,  cis_itvl);
     else if(eqtl && !mlmeqtl) eQTL(outfileName,  efileName, befileName,  bFileName,  transposedin, efileType, problstName, problst2exclde, genelistName,  chr, prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag, genename,problst2exclde, indilstName, indilst2remove,  no_fid_flag, valueType, beta2m, m2beta,  std_thresh, upperBeta, lowerBeta, dpvalfName,  thresh_det_pval,  thresh_prpt_prb,  thresh_prpt_spl,  filter_det_pval_mth,  missing_ratio_prob, autosome_num,  maf, snplstName, snplst2exclde, tsk_ttl, tsk_id,covfileName, qcovfileName, to_smr_flag, nofastlinear, cis_flag, cis_itvl);
     else if(mlmeqtl)eQTL_MLM(outfileName,  efileName, befileName,  bFileName,  transposedin, efileType, problstName, problst2exclde, genelistName,  chr, prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag, genename,problst2exclde, indilstName, indilst2remove,  no_fid_flag, valueType, beta2m, m2beta,  std_thresh, upperBeta, lowerBeta, dpvalfName,  thresh_det_pval,  thresh_prpt_prb,  thresh_prpt_spl,  filter_det_pval_mth,  missing_ratio_prob, autosome_num,  maf, snplstName, snplst2exclde, tsk_ttl, tsk_id,covfileName, qcovfileName, to_smr_flag, cis_flag, cis_itvl, grm_file,grm_bin_flag, no_constrain, reml_mtd, MaxIter, nopreadj_covar);
-    else if(sqtl) sQTL(outfileName,  efileName, befileName,  bFileName,  transposedin, efileType, problstName, problst2exclde, genelistName,  chr, prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag, genename,problst2exclde, indilstName, indilst2remove,  no_fid_flag, valueType, beta2m, m2beta,  std_thresh, upperBeta, lowerBeta, dpvalfName,  thresh_det_pval,  thresh_prpt_prb,  thresh_prpt_spl,  filter_det_pval_mth,  missing_ratio_prob, autosome_num,  maf, snplstName, snplst2exclde, tsk_ttl, tsk_id,covfileName, qcovfileName, to_smr_flag, nofastlinear, cis_flag, cis_itvl,zero_ratio_prob,call,bedfileName,bcovfileName,ecovfileName,transopse_ecov);
+    else if(sqtl) {
+        if(beqtlFileName) ssQTL(outfileName, beqtlFileName, problstName, problst2exclde,genelistName, chr,prbchr,  prbname, fromprbname, toprbname,prbWind,fromprbkb,  toprbkb, prbwindFlag, genename, problst2exclde, autosome_num,  maf,snplstName, snplst2exclde, snpchr,  snprs, fromsnprs, tosnprs,  snpWind,  fromsnpkb,  tosnpkb,  snpwindFlag, snp2rm,  tsk_ttl, tsk_id,  to_smr_flag,  nofastlinear, cis_flag, cis_itvl,  bedfileName, pmecs,nmecs);
+        else sQTL(outfileName,  efileName, befileName,  bFileName,  transposedin, efileType, problstName, problst2exclde, genelistName,  chr, prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag, genename,problst2exclde, indilstName, indilst2remove,  no_fid_flag, valueType, beta2m, m2beta,  std_thresh, upperBeta, lowerBeta, dpvalfName,  thresh_det_pval,  thresh_prpt_prb,  thresh_prpt_spl,  filter_det_pval_mth,  missing_ratio_prob, autosome_num,  maf, snplstName, snplst2exclde, tsk_ttl, tsk_id,covfileName, qcovfileName, to_smr_flag, nofastlinear, cis_flag, cis_itvl,zero_ratio_prob,call,bedfileName,bcovfileName,ecovfileName,transopse_ecov);
+        
+    }
     else if(queryBesd) query_besd(outfileName, beqtlFileName,  snplstName,  snplst2exclde,  problstName,problst2exclde,  genelistName,  pQueryBesd,  chr,   prbchr, snpchr,  snprs,  fromsnprs, tosnprs,  prbname,  fromprbname,  toprbname,snpWind,  prbWind, genename, fromsnpkb,  tosnpkb,  fromprbkb,  toprbkb,  snpwindFlag,  prbwindFlag, cis_flag,  cis_itvl,  probe2rm, snp2rm);
     else if (metaflg) {
         if(besdflstName != NULL) meta( besdflstName ,outfileName,meta_mtd,pmecs, cis_flag,  cis_itvl, nmecs, problstName,  problst2exclde, genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag, genename, snplstName,  snplst2exclde, snpchr,  snprs,  fromsnprs, tosnprs, snpWind, fromsnpkb,  tosnpkb,  snpwindFlag,  probe2rm,  snp2rm);

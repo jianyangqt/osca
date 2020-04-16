@@ -1420,6 +1420,7 @@ namespace EFILE {
         update_map_kp(prblst, einfo->_epi_map, einfo->_epi_include);
         LOGPRINTF("%ld genes are extracted from task id %d of total task number %d (total %ld probes).\n",  inids.size(), tsk_id, tsk_ttl, einfo->_epi_include.size());
     }
+    
     void extract_probe_by_single_gene(eInfo* einfo, string genename)
     {
         vector<string> prblst;
@@ -3789,13 +3790,13 @@ namespace EFILE {
         MatrixXd _X;
         int _X_c;
         _X_c=construct_X(einfo, E_float, qE_float,_X);
-        //if(loud) {LOGPRINTF("\nAdjusting probes...\n");}
+        if(loud) {LOGPRINTF("\nAdjusting probes...\n");}
         for(int i=0;i<einfo->_epi_include.size();i++)
         {
             if(loud)
             {
-            printf("%3.0f%%\r", 100.0*i/einfo->_epi_include.size());
-            fflush(stdout);
+            //printf("%3.0f%%\r", 100.0*i/einfo->_epi_include.size());
+            //fflush(stdout);
             }
             vector<double> cvec;
             vector<double> xvec;
@@ -3838,7 +3839,7 @@ namespace EFILE {
             VectorXd residual=(x-X*b_hat);
             for(int j=0;j<residual.size();j++) einfo->_val[einfo->_epi_include[i]*einfo->_eii_num+NMISS[j]]=residual(j);
         }
-        //if(loud) {LOGPRINTF("%ld probes have been adjusted.\n",einfo->_epi_include.size());}
+        if(loud) {LOGPRINTF("%ld probes have been adjusted.\n",einfo->_epi_include.size());}
     }
     bool check_case_control(double &ncase,  VectorXd &y) {
         long n = y.size();
