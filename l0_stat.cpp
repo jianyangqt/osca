@@ -127,7 +127,26 @@ double qchisq(double q, double df) {
     
     // Check status
     if (st != 0) return -9;
-    
+    if(q<1e-161){
+        double tmp= pchisq(x, 1);
+        while(q/tmp > 10)
+        {
+            x-=10;
+            tmp= pchisq(x, 1);
+        }
+        if(q/tmp>1)
+        {
+            while(q/tmp>1.01){
+                x-=0.1;
+                tmp= pchisq(x, 1);
+            }
+        } else if(q/tmp<1) {
+            while(q/tmp<1.01){
+                x+=0.1;
+                tmp= pchisq(x, 1);
+            }
+        }
+    }
     // Return p-value
     return x;
 }

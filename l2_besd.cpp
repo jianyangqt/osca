@@ -331,7 +331,11 @@ namespace SMR {
                 }
 
                 uint64_t* ptr=(uint64_t *)buffer;
-                
+                if(ptr[colNum-1] != valNum)
+                {
+                    LOGPRINTF("ERROR: File %s is broken!\n", besdFileName);
+                    TERMINATE();
+                }
                 eqtlinfo->_cols.resize(eqtlinfo->_include.size()+1);
                 eqtlinfo->_cols[0]=*ptr;
                 
@@ -349,6 +353,7 @@ namespace SMR {
                 
                 uint64_t rowSTART=descriptive*sizeof(int) + sizeof(uint64_t) + colNum*sizeof(uint64_t);
                 uint64_t valSTART=descriptive*sizeof(int) + sizeof(uint64_t) + colNum*sizeof(uint64_t)+valNum*sizeof(uint32_t);
+                
                 for(int i=0;i<eqtlinfo->_include.size();i++)
                 {
                     uint32_t pid=eqtlinfo->_include[i];
@@ -358,7 +363,7 @@ namespace SMR {
                     uint64_t real_num=0;
                     if(num==0) {
                         eqtlinfo->_cols[i+1]=eqtlinfo->_cols[i];
-                        LOGPRINTF("WARNING: Probe %s with no eQTL found.\n",eqtlinfo->_epi_prbID[pid].c_str());
+                        //LOGPRINTF("WARNING: Probe %s with no eQTL found.\n",eqtlinfo->_epi_prbID[pid].c_str());
                         continue;
                         
                     }
@@ -380,7 +385,6 @@ namespace SMR {
                         LOGPRINTF("ERROR: File %s read failed!\n", besdFileName);
                         TERMINATE();
                     }
-
                     uint32_t* row_ptr=(uint32_t *)row_char_ptr;
                     fseek( besd, valSTART+pos*sizeof(float), SEEK_SET );
                     if(fread(val_char_ptr, sizeof(float),2*num, besd)!=2*num)
