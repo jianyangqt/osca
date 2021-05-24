@@ -1,6 +1,7 @@
-# OSCA
+# OSCA  
 
-# Requirement Eigen and MKL(distribute within intel oneAPI)
+# Requirement  
+    Eigen and MKL(distribute within intel oneAPI)
 
-#compile 
+#compile  
     make
