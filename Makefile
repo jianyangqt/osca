@@ -4,76 +4,28 @@
 #   
 #   Supported platforms: Unix / Linux
 # ---------------------------------------------------------------------
+EIGEN_PATH = /usr/local/include
+MKL_INCLUDE = /home/fanghl/.local/opt/mkl_v2021.2.0_d20210524/include
+MKL_LIB = /home/fanghl/.local/opt/mkl_v2021.2.0_d20210524/lib/intel64
 
-# Directory of the target
-OUTPUT = osca
 
-# Compiler
 CXX = g++
+CXXFLAGS= -Wall -O3 -fopenmp
+CPPFLAGS= -I$(EIGEN_PATH) -I$(MKL_INCLUDE)
+LDFLAGS= -L$(MKL_LIB)
+LIBS= -lz -lgomp -lmkl_core -lpthread -lmkl_gnu_thread -lmkl_gf_lp64
 
-# EIGEN library
-EIGEN_PATH = $(EIGEN3_INCLUDE_DIR)
 
-# Intel MKL library
-#MKL_PATH = /opt/intel/mkl
+all: osca
 
-# Compiler flags
-#CXXFLAGS = -w -O3 -m64 -fopenmp -I $(EIGEN_PATH) -DDEBUG -g -std=c++11 
-CXXFLAGS = -w -O3 -m64 -fopenmp -I $(EIGEN_PATH) -DEIGEN_NO_DEBUG -std=c++11
-LIB += -static -lz -Wl,-lm -ldl
-#LIB += -lz -Wl, -lm -ldl
+osca: dcdflib.o l0_com.o l0_io.o l0_mem.o l0_stat.o \
+	l1_op_geno.o l1_stat.o \
+	l2_besd.o l2_bfile.o l2_efile.o l2_enet.o l2_reml.o \
+	l3_efile.o l3_ewas.o l3_glmnet.o l3_gwas.o l3_smr.o l3_vqtl.o \
+	l4_osc.o
 
-HDR += l4_osc.h \
-	   l3_efile.h \
-	   l2_efile.h \
-            l2_reml.h \
-            l2_bfile.h \
-            l1_op_geno.h \
-            l0_io.h \
-            l0_mem.h \
-            l0_stat.h \
-            l0_com.h \
-	   cdflib.h \
-	   dcdflib.h \
-           ipmpar.h \
-           l1_stat.hpp \
-	   l3_vqtl.hpp	\
-	   l2_besd.hpp \
-           l3_smr.hpp \
-	   l3_ewas.hpp
-SRC = l4_osc.cpp \
-	   l3_efile.cpp \
-	   l2_efile.cpp \
-            l2_reml.cpp \
-            l2_bfile.cpp \
-            l1_op_geno.cpp \
-            l0_io.cpp \
-            l0_mem.cpp \
-            l0_stat.cpp \
-            l0_com.cpp \
-	   dcdflib.cpp \
-           l1_stat.cpp \
-	   l3_vqtl.cpp	\
-	   l2_besd.cpp \
-           l3_smr.cpp \
-	   l3_ewas.cpp
+	$(CXX) $(LDFLAGS) $(LIBS) *.o -o $@
 
-OBJ = $(SRC:.cpp=.o)
 
-all : $(OUTPUT) 
-
-$(OUTPUT) :
-	$(CXX) $(CXXFLAGS) -o $(OUTPUT) $(OBJ) $(LIB) 
-
-$(OBJ) : $(HDR)
-
-.cpp.o : 
-	$(CXX) $(CXXFLAGS) -c $*.cpp
-.SUFFIXES : .cpp .c .o $(SUFFIXES)
-
-$(OUTPUT) : $(OBJ)
-
-FORCE:
-
-clean: 
-	rm -f *.o osca
+clean:
+	rm *.o osca
