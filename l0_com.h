@@ -66,7 +66,7 @@ using namespace Eigen;
 typedef unsigned long		uintptr_t;
 
 #define ONELU 1LLU
-#define CACHELINE 64 
+#define CACHELINE 64
 #define LOGPRINTF(...) sprintf(logbuf, __VA_ARGS__); logprintb();
 #define CACHEALIGN(val) ((val + (CACHELINE - 1)) & (~(CACHELINE - ONELU)))
 
