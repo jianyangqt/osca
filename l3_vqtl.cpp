@@ -15,7 +15,7 @@ namespace VQTL {
         vector<string> indi_list;
         vector<int> bkeep,ekeep;
         map<string,int> bmap,emap;
-        
+
         for(int i=0;i<bdata->_keep.size();i++)
         {
             int idx=bdata->_keep[i];
@@ -29,7 +29,7 @@ namespace VQTL {
                 emap.insert(pair<string,int>(iid,iter->second));
             }
         }
-        
+
         if(indi_list.size()==0){
             LOGPRINTF("No individual in common.\n");
             TERMINATE();
@@ -38,7 +38,7 @@ namespace VQTL {
         einfo->_eii_include.swap(ekeep);
         bdata->_id_map.swap(bmap);
         einfo->_eii_map.swap(emap);
-        
+
         LOGPRINTF("%ld individuals in common are kept.\n",  einfo->_eii_include.size());
     }
     void indi_check(bInfo* bdata,eInfo* einfo, eInfo* eCov)
@@ -47,7 +47,7 @@ namespace VQTL {
         vector<string> indi_list;
         vector<int> bkeep,ekeep,ckeep;
         map<string,int> bmap,emap,cmap;
-        
+
         for(int i=0;i<bdata->_keep.size();i++)
         {
             int idx=bdata->_keep[i];
@@ -64,7 +64,7 @@ namespace VQTL {
                 cmap.insert(pair<string,int>(iid,iter1->second));
             }
         }
-        
+
         if(indi_list.size()==0){
             LOGPRINTF("No individual in common.\n");
             TERMINATE();
@@ -75,7 +75,7 @@ namespace VQTL {
         bdata->_id_map.swap(bmap);
         einfo->_eii_map.swap(emap);
         eCov->_eii_map.swap(cmap);
-        
+
         LOGPRINTF("%ld individuals in common are kept.\n",  einfo->_eii_include.size());
     }
     void indi_check(eInfo* edata,eInfo* einfo)
@@ -84,7 +84,7 @@ namespace VQTL {
         vector<string> indi_list;
         vector<int> bkeep,ekeep;
         map<string,int> bmap,emap;
-        
+
         for(int i=0;i<edata->_eii_include.size();i++)
         {
             int idx=edata->_eii_include[i];
@@ -98,7 +98,7 @@ namespace VQTL {
                 emap.insert(pair<string,int>(iid,iter->second));
             }
         }
-        
+
         if(indi_list.size()==0){
             LOGPRINTF("No individual in common.\n");
             TERMINATE();
@@ -107,7 +107,7 @@ namespace VQTL {
         einfo->_eii_include.swap(ekeep);
         edata->_eii_map.swap(bmap);
         einfo->_eii_map.swap(emap);
-        
+
         LOGPRINTF("%ld individuals in common are kept.\n",  einfo->_eii_include.size());
     }
     void indi_check(eInfo* edata,eInfo* einfo, eInfo* eCov)
@@ -116,7 +116,7 @@ namespace VQTL {
         vector<string> indi_list;
         vector<int> bkeep,ekeep,ckeep;
         map<string,int> bmap,emap,cmap;
-        
+
         for(int i=0;i<edata->_eii_include.size();i++)
         {
             int idx=edata->_eii_include[i];
@@ -133,7 +133,7 @@ namespace VQTL {
                 cmap.insert(pair<string,int>(iid,iter1->second));
             }
         }
-        
+
         if(indi_list.size()==0){
             LOGPRINTF("No individual in common.\n");
             TERMINATE();
@@ -144,7 +144,7 @@ namespace VQTL {
         edata->_eii_map.swap(bmap);
         einfo->_eii_map.swap(emap);
         eCov->_eii_map.swap(cmap);
-        
+
         LOGPRINTF("%ld individuals in common are kept.\n",  einfo->_eii_include.size());
     }
     void indi_check2(bInfo* bdata,eInfo* einfo)
@@ -153,7 +153,7 @@ namespace VQTL {
         vector<string> indi_list;
         vector<int> bkeep,ekeep;
         map<string,int> bmap,emap;
-        
+
         for(int i=0;i<einfo->_eii_include.size();i++)
         {
             int idx=einfo->_eii_include[i];
@@ -176,13 +176,25 @@ namespace VQTL {
         einfo->_eii_include.swap(ekeep);
         bdata->_id_map.swap(bmap);
         einfo->_eii_map.swap(emap);
-        
+
         LOGPRINTF("%ld individuals in common are kept.\n",  einfo->_eii_include.size());
     }
- 
-    void load_vqtl_workspace(eInfo* einfo,bInfo* bdata, char* efileName, char* befileName, char* phenofileName, char* bFileName, bool transposed, int efileType,char* problstName,char* problst2exclde,char* genelistName, int chr,char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* probe2exclde,char* indilstName,char* indilst2remove, bool no_fid_flag,int valueType,bool beta2m,bool m2beta, double std_thresh,double upperBeta,double lowerBeta,char* dpvalfName, double dp_thresh, double prb_thresh, double spl_thresh, int filter_mth, double mssratio_prob, int autosome_num,char* snplstName,char* snplst2exclde,int tsk_ttl,int tsk_id, char* covfileName, char* qcovfileName,char* grm_file, int xqtlNO, double zeroratio, eInfo* eCov, char* covbodfileName, char* covefileName, bool transopse_ecov)
+
+    void load_vqtl_workspace(eInfo* einfo, bInfo* bdata, char* efileName, \
+        char* befileName, char* phenofileName, char* bFileName, bool transposed, \
+        int efileType, char* problstName, char* problst2exclde, char* genelistName, \
+        int chr, char* prbname, char* fromprbname, char* toprbname, int prbWind, \
+        int fromprbkb, int toprbkb, bool prbwindFlag, char* genename, \
+        char* probe2exclde, char* indilstName, char* indilst2remove, \
+        bool no_fid_flag, int valueType, bool beta2m, bool m2beta, double std_thresh, \
+        double upperBeta, double lowerBeta, char* dpvalfName, double dp_thresh, \
+        double prb_thresh, double spl_thresh, int filter_mth, double mssratio_prob, \
+        int autosome_num, char* snplstName, char* snplst2exclde, int tsk_ttl, \
+        int tsk_id, char* covfileName, char* qcovfileName, char* grm_file, \
+        int xqtlNO, double zeroratio, eInfo* eCov, char* covbodfileName, \
+        char* covefileName, bool transopse_ecov)
     {
-        
+
         if(befileName==NULL && efileName==NULL && phenofileName==NULL)
         {
             LOGPRINTF("Error: please input the phenotype / Gene expression / Methylation data by the option --pheno, --efile or --befile.\n");
@@ -198,7 +210,7 @@ namespace VQTL {
             LOGPRINTF("Error: please input the Plink file by the option --bfile.\n");
             TERMINATE();
         }
-        char bcname[FNAMESIZE];
+        char bcname[FNAMESIZE]; //FNAMESIZE 4096
         if(efileName!=NULL || phenofileName!=NULL)
         {
             vector<string> grm_id;
@@ -252,21 +264,25 @@ namespace VQTL {
             if(snplstName != NULL) extract_snp(bdata, snplstName);
             if(snplst2exclde != NULL) exclude_snp(bdata, snplst2exclde);
             read_bedfile(bdata, string(bFileName)+".bed");
-            
+
         }else if(befileName!=NULL){
             vector<string> grm_id;
             char inputname[FNAMESIZE];
             memcpy(inputname,befileName,strlen(befileName)+1);
-            char* suffix=inputname+strlen(befileName);
+            char* suffix = inputname + strlen(befileName);
             memcpy(suffix,".oii",5);
-            read_eii(inputname,einfo);
-            eii_man(einfo,indilstName,indilst2remove);
+            read_eii(inputname, einfo);
+            eii_man(einfo, indilstName, indilst2remove);
             if(covfileName != NULL) read_cov(einfo, covfileName, false);
-            if(qcovfileName != NULL) read_cov(einfo, qcovfileName, true);
+            if(qcovfileName != NULL)
+                read_cov(einfo, qcovfileName, true);
+
+
             read_famfile(bdata, string(bFileName)+".fam");
             if(grm_file!=NULL) read_grm_id(bdata,grm_file, grm_id);
             if(covbodfileName!=NULL || covefileName!=NULL)
             {
+
                 if(covbodfileName!=NULL)
                 {
                     memcpy(bcname,covbodfileName,strlen(covbodfileName)+1);
@@ -292,11 +308,18 @@ namespace VQTL {
             memcpy(suffix,".opi",5);
             read_epi(inputname,einfo);
             epi_man(einfo,problstName,problst2exclde,genelistName, chr,prbname, fromprbname, toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag, genename,probe2exclde);
-            if(xqtlNO == 3) extract_sqtl_probe(einfo,tsk_ttl,  tsk_id);
-            else if(tsk_ttl>1) extract_probe(einfo,  tsk_ttl,  tsk_id);
+            if(xqtlNO == 3)
+            //->
+                extract_sqtl_probe(einfo,tsk_ttl,  tsk_id);
+            else if(tsk_ttl>1){
+                extract_probe(einfo,  tsk_ttl,  tsk_id);
+
+            }
             memcpy(suffix,".bod",5);
             clock_t begin_time = clock();
             read_beed(inputname,einfo);
+
+
             //LOGPRINTF("read_bod: %f ms.\n",float( clock () - begin_time ) /  1000);
             if(dpvalfName!=NULL) filtering_with_detpval(einfo, dpvalfName, dp_thresh, prb_thresh, spl_thresh,filter_mth, no_fid_flag);
             if(std_thresh>0) std_probe_filtering( einfo, std_thresh);
@@ -335,17 +358,17 @@ namespace VQTL {
         if(bdata->_mu.empty()) calcu_mu(bdata);
     }
 
-    
+
      void V_QTL(char* outFileName,  char* efileName, char* befileName, char* phenofileName, char* bFileName, bool transposed,  int efileType, char* problstName,char* problst2exclde,char* genelistName, int chr,char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* probe2exclde,char* indilstName,char* indilst2remove, bool no_fid_flag,int valueType,bool beta2m,bool m2beta, double std_thresh,double upperBeta,double lowerBeta,char* dpvalfName, double dp_thresh, double prb_thresh, double spl_thresh, int filter_mth, double mssratio_prob,int autosome_num, double maf,char* snplstName,char* snplst2exclde,int tsk_ttl,int tsk_id,int vqtl_mtd,char* covfileName, char* qcovfileName, bool tosmrflag,bool cis_flag, int cis_itvl)
     {
-        
+
         setNbThreads(thread_num);
         eInfo einfo;
         bInfo bdata;
         init_einfo(&einfo);
         load_vqtl_workspace(&einfo, &bdata, efileName, befileName, phenofileName,bFileName,transposed, efileType, problstName, problst2exclde, genelistName, chr, prbname, fromprbname, toprbname, prbWind, fromprbkb, toprbkb, prbwindFlag, genename, probe2exclde, indilstName, indilst2remove, no_fid_flag, valueType, beta2m, m2beta, std_thresh, upperBeta, lowerBeta, dpvalfName, dp_thresh, prb_thresh, spl_thresh, filter_mth, mssratio_prob,autosome_num,snplstName,snplst2exclde,tsk_ttl,tsk_id,covfileName,qcovfileName); // using _keep and _eii_include, the individuals are aligned.
         if (maf > 0) filter_snp_maf(&bdata, maf);
-        
+
         char outputname[FNAMESIZE];
         outputname[0]='\0';
         if(tsk_ttl>1) {
@@ -355,17 +378,17 @@ namespace VQTL {
                 outFileName=outputname;
             }
         }
-        
+
         if(vqtl_mtd==0) { LOGPRINTF("\nPerforming vQTL analysis with Bartlett’s test...\n");}
         else if (vqtl_mtd==1) {LOGPRINTF("\nPerforming vQTL analysis with Levene’s test (mean)...\n");}
         else if (vqtl_mtd==2) {LOGPRINTF("\nPerforming vQTL analysis with Levene’s test (median)...\n");}
         else  {LOGPRINTF("\nPerforming vQTL analysis with Fligner-Killeen test...\n");}
-        
+
         uint32_t filetype=OSCA_DENSE_1;
         if(tosmrflag && !cis_flag) filetype=SMR_DENSE_3;
         else if(!tosmrflag && cis_flag) filetype=OSCA_SPARSE_1;
         else if(tosmrflag && cis_flag) filetype=SMR_SPARSE_3;
-        
+
         vector<int> ten_ints(RESERVEDUNITS);
         ten_ints[0]=filetype;
         ten_ints[1]=(int)bdata._keep.size();
@@ -378,7 +401,7 @@ namespace VQTL {
         FILE* singleton=NULL;
         string singletonFName=string(outFileName)+".singleton.list"; // like only one individula is AA
         if(fopen_checked(&singleton, singletonFName.c_str(),"w")) TERMINATE();
-        
+
         FILE* besd=NULL;
         FILE* ma=NULL;
         string besdName=string(outFileName)+".besd";
@@ -403,14 +426,14 @@ namespace VQTL {
                 LOGPRINTF("ERROR: in writing file %s .\n", maName.c_str());
                 TERMINATE();
             }
-            
+
         } else {
             LOGPRINTF("\nThe results would be saved in BESD format ...\n");
             if(outFileName!=NULL){
                 write_smr_esi(outFileName, &bdata);
                 write_smr_epi(outFileName, &einfo);
             }
-            
+
             if(fopen_checked(&besd, besdName.c_str(),"wb")) TERMINATE();
             if (fwrite_checked(&ten_ints[0],RESERVEDUNITS*sizeof(int), besd))
             {
@@ -418,7 +441,7 @@ namespace VQTL {
                 TERMINATE();
             }
         }
-        
+
         int slide_wind=10000;
         int loops=ceil(1.0*bdata._include.size()/slide_wind);
        //clock_t begin_time = clock();
@@ -438,7 +461,7 @@ namespace VQTL {
                     MatrixXd _X;
                     int snpstart=ii*slide_wind;
                     make_XMat(&bdata,snpstart,slide_wind, _X);
-                    
+
                     for(int kk=0;kk<_X.cols();kk++)
                     {
                         string snprs=bdata._snp_name[bdata._include[snpstart+kk]];
@@ -481,7 +504,7 @@ namespace VQTL {
                                     LOGPRINTF("ERROR: in writing file %s .\n", novarFName.c_str());
                                     TERMINATE();
                                 }
-                                
+
                             } else if(flag==-2) {
                                 beta.push_back(-9);
                                 se.push_back(-9);
@@ -495,7 +518,7 @@ namespace VQTL {
                                 beta.push_back(-9);
                                 se.push_back(-9);
                                 printf("WARNING: The number of allele categories equals the sample size of SNP %s. vQTL of probe %s and SNP %s is skipped.\n", snprs.c_str(),prbid.c_str(),snprs.c_str()); // would hardly happen
-                                
+
                             } else {
                                 beta.push_back(rst[0]);
                                 se.push_back(rst[1]);
@@ -513,7 +536,7 @@ namespace VQTL {
                                     LOGPRINTF("ERROR: in writing file %s .\n", novarFName.c_str());
                                     TERMINATE();
                                 }
-                                
+
                             } else {
                                 beta.push_back(rst[0]);
                                 se.push_back(rst[1]);
@@ -531,12 +554,12 @@ namespace VQTL {
                                     LOGPRINTF("ERROR: in writing file %s .\n", novarFName.c_str());
                                     TERMINATE();
                                 }
-                                
+
                             } else {
                                 beta.push_back(rst[0]);
                                 se.push_back(rst[1]);
                             }
-                            
+
                         } else if(vqtl_mtd==3)
                         {
                             int flag=flignerTest(yvec,bvec, rst,snpfreq);
@@ -550,14 +573,14 @@ namespace VQTL {
                                     LOGPRINTF("ERROR: in writing file %s .\n", novarFName.c_str());
                                     TERMINATE();
                                 }
-                                
+
                             } else {
                                 beta.push_back(rst[0]);
                                 se.push_back(rst[1]);
                             }
-                            
+
                         }
-                        
+
                     }
                 }
              if (fwrite_checked(&beta[0],beta.size()*sizeof(float), besd))
@@ -581,7 +604,7 @@ namespace VQTL {
                 MatrixXd _X;
                 int snpstart=ii*slide_wind;
                 make_XMat(&bdata,snpstart,slide_wind, _X);
-                
+
                 for(int kk=0;kk<_X.cols();kk++)
                 {
                     printf("%3.0f%%\r", 100.0*(ii*slide_wind+kk)/bdata._include.size());
@@ -616,7 +639,7 @@ namespace VQTL {
                     {
                         string prbid=einfo._epi_prb[einfo._epi_include[jj]];
                         string gene=einfo._epi_gene[einfo._epi_include[jj]];
-                        
+
                         double nonmiss=0.0;
                         vector<double> yvec,bvec;
                         for(int ll=0; ll<einfo._eii_include.size(); ll++)
@@ -646,7 +669,7 @@ namespace VQTL {
                                     LOGPRINTF("ERROR: in writing file %s .\n", novarFName.c_str());
                                     TERMINATE();
                                 }
-                                
+
                             } else if(flag==-2) {
                                 betases[2*jj]=-9;
                                 betases[2*jj+1]=-9;
@@ -656,12 +679,12 @@ namespace VQTL {
                                     LOGPRINTF("ERROR: in writing file %s .\n", singletonFName.c_str());
                                     TERMINATE();
                                 }
-                                
+
                             } else if(flag==-3) {
                                 betases[2*jj]=-9;
                                 betases[2*jj+1]=-9;
                                printf("WARNING: The number of allele categories equals the sample size of SNP %s. vQTL of %s and SNP %s is skipped.\n", snprs.c_str(),prbid.c_str(),snprs.c_str());
-                                    
+
                             } else {
                                 betases[2*jj]=rst[0];
                                 betases[2*jj+1]=rst[1];
@@ -696,7 +719,7 @@ namespace VQTL {
                                     LOGPRINTF("ERROR: in writing file %s .\n", novarFName.c_str());
                                     TERMINATE();
                                 }
-                                
+
                             } else {
                                 betases[2*jj]=rst[0];
                                 betases[2*jj+1]=rst[1];
@@ -732,7 +755,7 @@ namespace VQTL {
                                     LOGPRINTF("ERROR: in writing file %s .\n", novarFName.c_str());
                                     TERMINATE();
                                 }
-                                
+
                             } else {
                                 betases[2*jj]=rst[0];
                                 betases[2*jj+1]=rst[1];
@@ -754,7 +777,7 @@ namespace VQTL {
                                     }
                                 }
                             }
-                            
+
                         } else if(vqtl_mtd==3)
                         {
                             int flag=flignerTest(yvec,bvec, rst,snpfreq);
@@ -768,7 +791,7 @@ namespace VQTL {
                                     LOGPRINTF("ERROR: in writing file %s .\n", novarFName.c_str());
                                     TERMINATE();
                                 }
-                                
+
                             } else {
                                 betases[2*jj]=rst[0];
                                 betases[2*jj+1]=rst[1];
@@ -801,7 +824,7 @@ namespace VQTL {
                         }
                     }
                 }
-                
+
             }
         }
         else if (filetype == OSCA_SPARSE_1)
@@ -815,7 +838,7 @@ namespace VQTL {
             {
                 printf("%3.0f%%\r", 100.0*jj/einfo._epi_include.size());
                 fflush(stdout);
-                
+
                 MatrixXd _X;
                 vector<float> se;
                 string prbid=einfo._epi_prb[einfo._epi_include[jj]];
@@ -838,7 +861,7 @@ namespace VQTL {
                     cols[jj+1]=cols[jj];
                     continue;
                 }
-                
+
                 make_XMat(&bdata,snpids, _X);
                 for(int kk=0;kk<_X.cols();kk++) //_X.cols() ==snpids.size()
                 {
@@ -878,7 +901,7 @@ namespace VQTL {
                                 LOGPRINTF("ERROR: in writing file %s .\n", novarFName.c_str());
                                 TERMINATE();
                             }
-                            
+
                         } else if(flag==-2) {
                             string tmpstr=snprs+'\n';
                             if(fputs_checked(tmpstr.c_str(),singleton))
@@ -886,10 +909,10 @@ namespace VQTL {
                                 LOGPRINTF("ERROR: in writing file %s .\n", singletonFName.c_str());
                                 TERMINATE();
                             }
-                            
+
                         } else if(flag==-3) {
                                 printf("WARNING: The number of allele categories equals the sample size of SNP %s. vQTL of probe %s and SNP %s is skipped.\n", snprs.c_str(),prbid.c_str(),snprs.c_str());
-                            
+
                         } else {
                             rowid.push_back(snpid);
                             vals.push_back(rst[0]);
@@ -906,7 +929,7 @@ namespace VQTL {
                                 LOGPRINTF("ERROR: in writing file %s .\n", novarFName.c_str());
                                 TERMINATE();
                             }
-                            
+
                         } else {
                             rowid.push_back(snpid);
                             vals.push_back(rst[0]);
@@ -923,13 +946,13 @@ namespace VQTL {
                                 LOGPRINTF("ERROR: in writing file %s .\n", novarFName.c_str());
                                 TERMINATE();
                             }
-                            
+
                         } else {
                             rowid.push_back(snpid);
                             vals.push_back(rst[0]);
                             se.push_back(rst[1]);
                         }
-                        
+
                     } else if(vqtl_mtd==3)
                     {
                         int flag=flignerTest(yvec,bvec, rst,snpfreq);
@@ -941,14 +964,14 @@ namespace VQTL {
                                 LOGPRINTF("ERROR: in writing file %s .\n", novarFName.c_str());
                                 TERMINATE();
                             }
-                            
+
                         } else {
                             rowid.push_back(snpid);
                             vals.push_back(rst[0]);
                             se.push_back(rst[1]);
                         }
                     }
-                    
+
                 }
                 for(int kk=0;kk<se.size();kk++)
                 {
@@ -978,7 +1001,7 @@ namespace VQTL {
                 LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
                 TERMINATE();
             }
-           
+
         }
         else if(filetype==SMR_SPARSE_3)
         {
@@ -997,9 +1020,9 @@ namespace VQTL {
             } else {
                 LOGPRINTF("vQTL results of %ld probes and %ld SNPs have been saved in file %s.\n",einfo._epi_include.size(),bdata._include.size(), besdName.c_str());
             }
-            
+
         }
-       
+
     }
     int cis_eQTL_num(eInfo* einfo, bInfo* bdata, int cis_itvl, vector<int> &cis_num)
     {
@@ -1075,7 +1098,7 @@ namespace VQTL {
         map<int ,int > snp_map;
         for(int i=0;i<snpids.size();i++) snp_map.insert(pair<int,int>(snpids[i],i));
         map<int ,int >::iterator it;
-        
+
         string filename=string(outfileName)+"."+atos(eqtlinfo->_epi_gene[prids[0]])+".txt";
         FILE* tmpfile= NULL;
         if(loud)
@@ -1087,7 +1110,7 @@ namespace VQTL {
                 exit(EXIT_FAILURE);
             }
         }
-       
+
             for(int kk=0;kk<prids.size();kk++)
             {
                 int prbid=prids[kk];
@@ -1095,7 +1118,7 @@ namespace VQTL {
                 string prbID = eqtlinfo->_epi_prbID[prbid];
                 string gene = eqtlinfo->_epi_gene[prbid];
                 int bp = eqtlinfo->_epi_bp[prbid];
-                
+
                 long end=eqtlinfo->_cols[prbid+1];
                 long start=eqtlinfo->_cols[prbid];
                 uint64_t num=(end-start)>>1;
@@ -1177,7 +1200,7 @@ namespace VQTL {
         }
         return ncount;
     }
-  
+
     void eQTL(char* outFileName,  char* efileName, char* befileName,  char* bFileName, bool transposed,  int efileType, char* problstName,char* problst2exclde,char* genelistName, int chr,char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* probe2exclde,char* indilstName,char* indilst2remove, bool no_fid_flag,int valueType,bool beta2m,bool m2beta, double std_thresh,double upperBeta,double lowerBeta,char* dpvalfName, double dp_thresh, double prb_thresh, double spl_thresh, int filter_mth, double mssratio_prob,int autosome_num, double maf,char* snplstName,char* snplst2exclde,int tsk_ttl,int tsk_id,char* covfileName, char* qcovfileName, bool tosmrflag, bool nofastlinear,bool cis_flag,int cis_itvl)
     {
         //default: OSCA format
@@ -1188,7 +1211,7 @@ namespace VQTL {
         init_einfo(&einfo);
         load_vqtl_workspace(&einfo, &bdata, efileName, befileName, phenofileName, bFileName,transposed, efileType, problstName, problst2exclde, genelistName, chr, prbname, fromprbname, toprbname, prbWind, fromprbkb, toprbkb, prbwindFlag, genename, probe2exclde, indilstName, indilst2remove, no_fid_flag, valueType, beta2m, m2beta, std_thresh, upperBeta, lowerBeta, dpvalfName, dp_thresh, prb_thresh, spl_thresh, filter_mth, mssratio_prob,autosome_num,snplstName,snplst2exclde,tsk_ttl,tsk_id,covfileName,qcovfileName); // using _keep and _eii_include, the individuals are aligned.
         if (maf > 0) filter_snp_maf(&bdata, maf);
-        
+
         char outputname[FNAMESIZE];
         outputname[0]='\0';
         if(tsk_ttl>1) {
@@ -1198,7 +1221,7 @@ namespace VQTL {
                 outFileName=outputname;
             }
         }
-        
+
         LOGPRINTF("\nPerforming eQTL analysis ...\n");
         //LOGPRINTF("\nThe results would be saved in dense BESD format ...\n");
         if(outFileName!=NULL){
@@ -1212,7 +1235,7 @@ namespace VQTL {
         if(tosmrflag && !cis_flag) filetype=SMR_DENSE_3;
         else if(!tosmrflag && cis_flag) filetype=OSCA_SPARSE_1;
         else if(tosmrflag && cis_flag) filetype=SMR_SPARSE_3;
-        
+
         vector<int> ten_ints(RESERVEDUNITS);
         ten_ints[0]=filetype;
         ten_ints[1]=(int)bdata._keep.size();
@@ -1224,7 +1247,7 @@ namespace VQTL {
             LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
             TERMINATE();
         }
-       
+
         // construct X matrix
         vector<MatrixXd> E_float;
         MatrixXd qE_float;
@@ -1241,10 +1264,10 @@ namespace VQTL {
             TERMINATE();
         }
         if(!nofastlinear) fast_adjprobe(&einfo,_Cov, XtX_i);
-        
+
         int slide_wind=10000;
         int loops=ceil(1.0*bdata._include.size()/slide_wind);
-        
+
         vector<double> rst;
         if(filetype==SMR_DENSE_3)
         {
@@ -1252,7 +1275,7 @@ namespace VQTL {
             {
                 printf("%3.0f%%\r", 100.0*jj/einfo._epi_include.size());
                 fflush(stdout);
-                
+
                 VectorXd y(einfo._eii_include.size());
                 if(!nofastlinear) for(int ll=0; ll<einfo._eii_include.size(); ll++) y(ll)=einfo._val[einfo._epi_include[jj]*einfo._eii_num+einfo._eii_include[ll]];
                 vector<float> beta,se;
@@ -1286,7 +1309,7 @@ namespace VQTL {
                             X.block(0,0,_Cov.rows(),_Cov.cols())=_Cov;
                             long x_idx=X.cols()-1;
                             VectorXd y(einfo._eii_include.size());
-                            
+
                             for(int ll=0; ll<einfo._eii_include.size(); ll++)
                             {
                                 if(einfo._eii_fid[einfo._eii_include[ll]]!=bdata._fid[bdata._keep[ll]]) printf("ERROR: Alignment failed. Please report this bug to Futao < futao.zhang@imb.uq.edu.au >. Thanks.\n");
@@ -1381,7 +1404,7 @@ namespace VQTL {
                             X.block(0,0,_Cov.rows(),_Cov.cols())=_Cov;
                             long x_idx=X.cols()-1;
                             VectorXd y(einfo._eii_include.size());
-                            
+
                             for(int ll=0; ll<einfo._eii_include.size(); ll++)
                             {
                                 if(einfo._eii_fid[einfo._eii_include[ll]]!=bdata._fid[bdata._keep[ll]]) printf("ERROR: Alignment failed. Please report this bug to Futao < futao.zhang@imb.uq.edu.au >. Thanks.\n");
@@ -1431,7 +1454,7 @@ namespace VQTL {
             {
                 printf("%3.0f%%\r", 100.0*jj/einfo._epi_include.size());
                 fflush(stdout);
-                
+
                 MatrixXd _X;
                 vector<float> se;
                 string prbid=einfo._epi_prb[einfo._epi_include[jj]];
@@ -1454,7 +1477,7 @@ namespace VQTL {
                     cols[jj+1]=cols[jj];
                     continue;
                 }
-               
+
                 if(!nofastlinear)
                 {
                     VectorXd y(einfo._eii_include.size());
@@ -1496,7 +1519,7 @@ namespace VQTL {
                         X.block(0,0,_Cov.rows(),_Cov.cols())=_Cov;
                         long x_idx=X.cols()-1;
                         VectorXd y(einfo._eii_include.size());
-                        
+
                         for(int ll=0; ll<einfo._eii_include.size(); ll++)
                         {
                             if(einfo._eii_fid[einfo._eii_include[ll]]!=bdata._fid[bdata._keep[ll]]) printf("ERROR: Alignment failed. Please report this bug to Futao < futao.zhang@imb.uq.edu.au >. Thanks.\n");
@@ -1552,7 +1575,7 @@ namespace VQTL {
                 TERMINATE();
             }
              */
-            
+
             vector< vector<uint32_t> > rowids(einfo._epi_include.size());
             vector< vector<float> > betas(einfo._epi_include.size());
             vector< vector<float> > ses(einfo._epi_include.size());
@@ -1579,7 +1602,7 @@ namespace VQTL {
                     {
                         printf("%3.0f%%\r", 100.0*(ii*slide_wind+kk)/bdata._include.size());
                         fflush(stdout);
-                        
+
                         int snpid=snpstart+kk;
                         int snpchr=bdata._chr[bdata._include[snpid]];
                         int snpbp=bdata._bp[bdata._include[snpid]];
@@ -1681,7 +1704,7 @@ namespace VQTL {
                 LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
                 TERMINATE();
             }
-            
+
             if (fwrite_checked(&cols[0],cols.size()*sizeof(uint64_t), besd))
             {
                 LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
@@ -1721,7 +1744,7 @@ namespace VQTL {
         LOGPRINTF("eQTL summary statistics for %ld probes and %ld SNPs are saved in file %s.\n", einfo._epi_include.size(),bdata._include.size(), besdName.c_str());
        // LOGPRINTF("%ld probes cost: %f ms.\n",einfo._epi_include.size(),float( clock () - begin_time ) /  1000);
     }
-    
+
     void eQTL_MLM(char* outFileName,  char* efileName, char* befileName,  char* bFileName, bool transposed,  int efileType, char* problstName,char* problst2exclde,char* genelistName, int chr,char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* probe2exclde,char* indilstName,char* indilst2remove, bool no_fid_flag,int valueType,bool beta2m,bool m2beta, double std_thresh,double upperBeta,double lowerBeta,char* dpvalfName, double dp_thresh, double prb_thresh, double spl_thresh, int filter_mth, double mssratio_prob,int autosome_num, double maf,char* snplstName,char* snplst2exclde,int tsk_ttl,int tsk_id,char* covfileName, char* qcovfileName, bool tosmrflag,bool cis_flag,int cis_itvl,char* grm_file,bool grm_bin_flag,bool no_constrain,int reml_mtd,int MaxIter,bool nopreadj_covar)
     {
         setNbThreads(thread_num);
@@ -1732,7 +1755,7 @@ namespace VQTL {
         vector<string> grm_id, grm_files;
         load_vqtl_workspace(&einfo, &bdata, efileName, befileName, phenofileName,bFileName,transposed, efileType, problstName, problst2exclde, genelistName, chr, prbname, fromprbname, toprbname, prbWind, fromprbkb, toprbkb, prbwindFlag, genename, probe2exclde, indilstName, indilst2remove, no_fid_flag, valueType, beta2m, m2beta, std_thresh, upperBeta, lowerBeta, dpvalfName, dp_thresh, prb_thresh, spl_thresh, filter_mth, mssratio_prob,autosome_num,snplstName,snplst2exclde,tsk_ttl,tsk_id,covfileName,qcovfileName, grm_file);
         if (maf > 0) filter_snp_maf(&bdata, maf);
-        
+
         einfo._r_indx.clear();
         vector<MatrixXd> _A;
         vector<int> kp;
@@ -1740,7 +1763,7 @@ namespace VQTL {
         map<string, int>::iterator iter;
         for(int i=0; i<bdata._keep.size(); i++)
             uni_id.push_back(bdata._fid[bdata._keep[i]]+":"+bdata._pid[bdata._keep[i]]);
-        
+
         int _n=(int)bdata._keep.size();
         if(_n<1) {
             LOGPRINTF("ERROR: no individual is in common among the input files.\n");
@@ -1800,7 +1823,7 @@ namespace VQTL {
         if(tosmrflag && !cis_flag) filetype=SMR_DENSE_3;
         else if(!tosmrflag && cis_flag) filetype=OSCA_SPARSE_1;
         else if(tosmrflag && cis_flag) filetype=SMR_SPARSE_3;
-        
+
         vector<int> ten_ints(RESERVEDUNITS);
         ten_ints[0]=filetype;
         ten_ints[1]=(int)bdata._keep.size();
@@ -1812,7 +1835,7 @@ namespace VQTL {
             LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
             TERMINATE();
         }
-        
+
         //construct X matrix
         vector<MatrixXd> E_float;
         MatrixXd qE_float;
@@ -1829,7 +1852,7 @@ namespace VQTL {
             TERMINATE();
         }
         //if(mlma_adj_covar) fast_adjprobe(&einfo,_Cov, XtX_i);
-        
+
         int slide_wind=10000;
         vector<double> rst;
         if(filetype==SMR_DENSE_3)
@@ -1868,7 +1891,7 @@ namespace VQTL {
                 LOGPRINTF("error open file.\n");
                 TERMINATE();
             }
-           
+
             //if(omp_num_threads>2)
             //{
                 #pragma omp parallel for
@@ -2058,7 +2081,7 @@ namespace VQTL {
                         }
                     }
                 }
-                
+
             }
             */
             uint64_t valNum=0;
@@ -2076,7 +2099,7 @@ namespace VQTL {
                 LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
                 TERMINATE();
             }
-            
+
             if (fwrite_checked(&cols[0],cols.size()*sizeof(uint64_t), besd))
             {
                 LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
@@ -2116,7 +2139,7 @@ namespace VQTL {
         LOGPRINTF("cis-eQTL summary statistics for %ld probes are saved in file %s.\n", einfo._epi_include.size(), besdName.c_str());
         // LOGPRINTF("%ld probes cost: %f ms.\n",einfo._epi_include.size(),float( clock () - begin_time ) /  1000);
     }
-    
+
     void read_annofile(eqtlInfo* eqtlinfo, char* bedFileName)
     {
         FILE* epifile=NULL;
@@ -2181,7 +2204,7 @@ namespace VQTL {
                 //LOGPRINTF("%s\n",Tbuf);
                 eqtlinfo->_epi_chr.push_back(atoi(strlist[0].c_str()));
             } else eqtlinfo->_epi_chr.push_back(atoi(strlist[0].c_str()));
-            
+
             if(strlist[1]=="NA" || strlist[1]=="na" || strlist[2]=="NA" || strlist[2]=="na") {
                 LOGPRINTF("ERROR: NA start / end position found:\n");
                 LOGPRINTF("%s\n",Tbuf);
@@ -2193,7 +2216,7 @@ namespace VQTL {
             eqtlinfo->_epi_bp.push_back(startp);
             eqtlinfo->_epi_prbID.push_back(strlist[3]);
             eqtlinfo->_epi_gd.push_back(endp);
-            
+
             if(strlist[5]=="NA" || strlist[5]=="na") {
                 if(!genewarning) {
                     LOGPRINTF("WARNING: at least one gene id is missing.\n");
@@ -2215,18 +2238,18 @@ namespace VQTL {
         fclose(epifile);
         LOGPRINTF("%llu probes to be included from  %s .\n", eqtlinfo->_probNum, bedFileName);
     }
-    
+
     void gene_check(eInfo* sqtlinfo,vector< vector<int>> &tranids, char* annofileName,eqtlInfo* eqtlinfo)
     {
         eqtlInfo tmpinfo;
         if(annofileName != NULL) read_annofile(&tmpinfo, annofileName);
-        
+
         int ids = 0;
         map<int, int> echr_map;
         map<int, int>::iterator iter1;
         for(int i=0;i<eqtlinfo->_include.size();i++)
             echr_map.insert(pair<int,int>(eqtlinfo->_epi_chr[eqtlinfo->_include[i]],ids++));
-        
+
         map<string, int> gene_count_map;
         map<string, int>::iterator iter;
         vector<string> gene;
@@ -2275,7 +2298,7 @@ namespace VQTL {
                     }
                 }
             }
-        
+
         for(int i=0;i<inids.size();i++)
         {
             vector<int> tmp;
@@ -2284,18 +2307,18 @@ namespace VQTL {
         }
         LOGPRINTF("%ld genes are retained after gene check with annaotation information and eQTL summary statistics.\n",tranids.size());
     }
-    
+
     void gene_check(eInfo* sqtlinfo,vector< vector<int>> &tranids, char* annofileName, bInfo* bdata,eInfo* einfo)
     {
         eqtlInfo tmpinfo;
         read_annofile(&tmpinfo, annofileName);
-        
+
         int ids = 0;
         map<int, int> bchr_map;
         map<int, int>::iterator iter1;
         for(int i=0;i<bdata->_include.size();i++)
             bchr_map.insert(pair<int,int>(bdata->_chr[bdata->_include[i]],ids++));
-        
+
         map<string, int> gene_count_map;
         map<string, int>::iterator iter;
         vector<string> gene;
@@ -2344,7 +2367,7 @@ namespace VQTL {
                     }
                 }
             }
-        
+
         for(int i=0;i<inids.size();i++)
         {
             vector<int> tmp;
@@ -2373,58 +2396,316 @@ namespace VQTL {
             b[i] =1 + count + w;
         }
     }
-    void sQTL(char* outFileName, char* efileName, char* befileName,  char* bFileName, bool transposed,  int efileType, char* problstName,char* problst2exclde,char* genelistName, int chr,char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* probe2exclde,char* indilstName,char* indilst2remove, bool no_fid_flag,int valueType,bool beta2m,bool m2beta, double std_thresh,double upperBeta,double lowerBeta,char* dpvalfName, double dp_thresh, double prb_thresh, double spl_thresh, int filter_mth, double mssratio_prob,int autosome_num, double maf,char* snplstName,char* snplst2exclde,int tsk_ttl,int tsk_id,char* covfileName, char* qcovfileName, bool tosmrflag, bool nofastlinear,bool cis_flag,int cis_itvl, double zeroratio, double call, char* annofileName, char* covbodfileName, char* covefileName, bool transopse_ecov)
-    {
-        
+
+
+    void sQTL(char* outFileName, char* efileName, char* befileName, \
+        char* bFileName, bool transposed, int efileType, char* problstName, \
+        char* problst2exclde, char* genelistName, int chr, char* prbname, \
+        char* fromprbname, char* toprbname, int prbWind, int fromprbkb, \
+        int toprbkb, bool prbwindFlag, char* genename, char* probe2exclde, \
+        char* indilstName, char* indilst2remove, bool no_fid_flag, \
+        int valueType, bool beta2m, bool m2beta, double std_thresh, \
+        double upperBeta, double lowerBeta, char* dpvalfName, double dp_thresh, \
+        double prb_thresh, double spl_thresh, int filter_mth, double mssratio_prob, \
+        int autosome_num, double maf, char* snplstName, char* snplst2exclde, \
+        int tsk_ttl, int tsk_id, char* covfileName, char* qcovfileName, \
+        bool tosmrflag, bool nofastlinear, bool cis_flag, int cis_itvl, \
+        double zeroratio, double call, char* annofileName, char* covbodfileName, \
+        char* covefileName, bool transopse_ecov){
+        printf("outFileName: %s, efileName: %s, befileName: %s, "
+            "bFileName: %s, transposed: %d, efileType: %d, problstName: %s, "
+            "problst2exclde: %s, genelistName: %s, chr: %d, prbname: %s, "
+            "fromprbkb: %s, toprbname: %s, prbWind: %d, fromprbkb: %d, "
+            "toprbkb:  %d, prbwindFlag: %d, genename: %s, probe2exclde: %s, "
+            "indilstName: %s, indilst2remove: %s, no_fid_flag: %d, "
+            "valueType: %d, beta2m: %d, m2beta: %d, std_thresh: %lf, "
+            "upperBeta: %lf, lowerBeta:  %lf, dpvalfName: %s, dp_thresh: %lf, "
+            "prb_thresh: %lf, spl_thresh: %lf, filter_mth: %d, mssratio_prob: %lf, "
+            "autosome_num: %d, maf: %lf, snplstName: %s, snplst2exclde: %s, "
+            "tsk_ttl: %d, tsk_id: %d, covfileName: %s, qcovfileName: %s, "
+            "tosmrflag: %d, nofastlinear: %d, cis_flag: %d, cis_itvl: %d, "
+            "zeroratio: %lf, call: %lf, annofileName: %s, covbodfileName: %s, "
+            "covfileName: %s, transopse_ecov: %d"
+            "\n", \
+            outFileName, efileName, befileName, \
+            bFileName, transposed, efileType, problstName, \
+            problst2exclde, genelistName, chr, prbname, \
+            fromprbname, toprbname, prbWind, fromprbkb, \
+            toprbkb, prbwindFlag, genename, probe2exclde, \
+            indilstName, indilst2remove, no_fid_flag, \
+            valueType, beta2m, m2beta, std_thresh, \
+            upperBeta, lowerBeta, dpvalfName, dp_thresh, \
+            prb_thresh, spl_thresh, filter_mth, mssratio_prob, \
+            autosome_num, maf, snplstName, snplst2exclde, \
+            tsk_ttl, tsk_id, covfileName, qcovfileName, \
+            tosmrflag, nofastlinear, cis_flag, cis_itvl, \
+            zeroratio, call, annofileName, covbodfileName, \
+            covefileName, transopse_ecov
+        );
+
         setNbThreads(thread_num);
         LOGPRINTF("Using %d thread(s) to conduct analysis ...\n", thread_num);
+
+/*
+typedef struct{
+
+    uint32_t _eType;
+    // epi file
+    uint32_t autosome_num;
+    uint64_t _epi_num;
+    vector<int> _epi_chr;
+    vector<string> _epi_prb;
+    vector<int> _epi_gd;
+    vector<int> _epi_bp;
+    vector<string> _epi_gene;
+    vector<char> _epi_orien;
+    vector<int> _epi_include;
+    map<string,int> _epi_map;
+
+    // eii file
+    uint64_t _eii_num;
+    vector<string> _eii_fid;
+    vector<string> _eii_iid;
+    vector<string> _eii_fa_id;
+    vector<string> _eii_mo_id;
+    vector<int> _eii_sex; //-9 to indicate NA
+    vector<double> _eii_pheno;
+    uint32_t _eii_pheno_num;
+    vector<string> _eii_cov; //cov major, values belong to the same covariate are adjacent
+    uint32_t _eii_cov_num;
+    vector<double> _eii_qcov;
+    uint32_t _eii_qcov_num;
+    vector<int> _eii_include;
+    map<string, int> _eii_map;
+
+    // eed file
+    uint32_t _valType; // 0 beta, 1 m, 2 other
+    vector< double > _val; //probe major
+    vector< double > _mu; //probe mean
+    vector< double > _var; //probe variance
+
+    MatrixXf _grm_N;
+    MatrixXd _grm;
+    double * _profile;
+    double * _grm_ptr;
+
+    //
+    int _reml_mtd;
+    int _reml_max_iter;
+    int _V_inv_mtd;
+    bool _reml_force_inv;
+    bool _reml_force_converge;
+    bool _reml_no_converge;
+    bool _reml_AI_not_invertible;
+    MatrixXd _P;
+    vector<int> _r_indx;
+    vector<int> _r_indx_drop;
+    vector<string> _var_name;
+    vector<double> _varcmp;
+    vector<string> _hsq_name;
+
+    bool _within_family;
+    vector<int> _fam_brk_pnt;
+    vector< SparseMatrix<double> > _Asp;
+    vector< SparseMatrix<double> > _Asp_prev;
+    double _y_Ssq;
+    vector<double> _fixed_rg_val;
+    bool _reml_fixed_var;
+    VectorXd _b;
+    VectorXd _se;
+
+    //reserved
+    bool _bivar_reml;
+    bool _bivar_no_constrain;
+    bool _ignore_Ce;
+    double _y2_Ssq;
+    vector< vector<int> > _bivar_pos;
+    vector< vector<int> > _bivar_pos_prev;
+
+    double _ncase;
+    double _ncase2;
+    bool _flag_CC;
+    bool _flag_CC2;
+
+    MatrixXd _varcmp_Py; // BLUP solution to the total genetic effects of individuals
+
+} eInfo;
+*/
+
+/*
+typedef struct{
+    // bim file
+    int _autosome_num;
+    vector<int> _chr;
+    vector<string> _snp_name;
+    map<string, int> _snp_name_map;
+    vector<double> _genet_dst;
+    vector<int> _bp;
+    vector<string> _allele1;
+    vector<string> _allele2;
+    vector<string> _ref_A; // reference allele
+    vector<string> _other_A; // the other allele
+    uint64_t _snp_num;
+    vector<double> _rc_rate;
+    vector<int> _include; // initialized in the read_bimfile()
+    VectorXf _maf;
+
+    // fam file
+    vector<string> _fid;
+    vector<string> _pid;
+    map<string, int> _id_map;
+    vector<string> _fa_id;
+    vector<string> _mo_id;
+    vector<int> _sex;
+    vector<double> _pheno;
+    uint32_t _pheno_num;
+    vector<string> _cov; //cov major, values belong to the same covariate are adjacent
+    uint32_t _cov_num;
+    vector<double> _qcov;
+    uint32_t _qcov_num;
+
+    uint64_t _indi_num;
+    vector<int> _keep; // initialized in the read_famfile()
+    MatrixXd _varcmp_Py; // BLUP solution to the total genetic effects of individuals
+
+    // bed file
+    vector< vector<bool> > _snp_1;
+    vector< vector<bool> > _snp_2;
+
+    // imputed data
+    bool _dosage_flag;
+    vector< vector<float> > _geno_dose;
+    vector<double> _impRsq;
+
+    // genotypes
+    MatrixXd _geno;
+
+    vector<double> _mu;
+    vector<double> _mr;
+
+    MatrixXf _grm_N;
+    MatrixXd _grm;
+
+    //
+    //
+    int _reml_mtd;
+    int _reml_max_iter;
+    int _V_inv_mtd;
+    bool _reml_force_inv;
+    bool _reml_force_converge;
+    bool _reml_no_converge;
+    bool _reml_AI_not_invertible;
+    MatrixXd _P;
+    vector<int> _r_indx;
+    vector<int> _r_indx_drop;
+    vector<string> _var_name;
+    vector<double> _varcmp;
+    vector<string> _hsq_name;
+
+    bool _within_family;
+    vector<int> _fam_brk_pnt;
+    vector< SparseMatrix<double> > _Asp;
+    vector< SparseMatrix<double> > _Asp_prev;
+    double _y_Ssq;
+    vector<double> _fixed_rg_val;
+    bool _reml_fixed_var;
+    VectorXd _b;
+    VectorXd _se;
+
+    //reserved
+    bool _bivar_reml;
+    bool _bivar_no_constrain;
+    bool _ignore_Ce;
+    double _y2_Ssq;
+    vector< vector<int> > _bivar_pos;
+    vector< vector<int> > _bivar_pos_prev;
+
+    double _ncase;
+    double _ncase2;
+    bool _flag_CC;
+    bool _flag_CC2;
+
+} bInfo;
+
+*/
+
+/*
+    befileName: befile,
+    bFileName: bfile,
+    chr: 4,
+    prbWind: 1000,
+    fromprbkb: -9,
+    toprbkb: -9,
+    qcovfileName: qcovfile.eigenvec,
+    annofileName: annofile.bed,
+    maf: 0.01,
+    call: 0.85,
+
+*/
         eInfo einfo;
         bInfo bdata;
         eInfo eCov;
-        char* phenofileName=NULL;
-        int xqtlNO=3;
+
+        char * phenofileName = NULL;
+        int xqtlNO = 3;
         init_einfo(&einfo);
         init_einfo(&eCov);
-        load_vqtl_workspace(&einfo, &bdata, efileName, befileName, phenofileName, bFileName,transposed, efileType, problstName, problst2exclde, genelistName, chr, prbname, fromprbname, toprbname, prbWind, fromprbkb, toprbkb, prbwindFlag, genename, probe2exclde, indilstName, indilst2remove, no_fid_flag, valueType, beta2m, m2beta, std_thresh, upperBeta, lowerBeta, dpvalfName, dp_thresh, prb_thresh, spl_thresh, filter_mth, mssratio_prob,autosome_num,snplstName,snplst2exclde,tsk_ttl,tsk_id,covfileName,qcovfileName, NULL, xqtlNO, zeroratio,&eCov,covbodfileName,covefileName,transopse_ecov); // using _keep and _eii_include, the individuals are aligned.
-        if(maf > 0) filter_snp_maf(&bdata, maf);
-        if(call > 0) filter_snp_call(&bdata, call);
+
+        load_vqtl_workspace(&einfo, &bdata, efileName, befileName, phenofileName, \
+            bFileName, transposed, efileType, problstName, problst2exclde, \
+            genelistName, chr, prbname, fromprbname, toprbname, prbWind, \
+            fromprbkb, toprbkb, prbwindFlag, genename, probe2exclde, indilstName, \
+            indilst2remove, no_fid_flag, valueType, beta2m, m2beta, std_thresh, \
+            upperBeta, lowerBeta, dpvalfName, dp_thresh, prb_thresh, spl_thresh, \
+            filter_mth, mssratio_prob, autosome_num, snplstName, snplst2exclde, \
+            tsk_ttl, tsk_id, covfileName, qcovfileName, NULL, xqtlNO, zeroratio, \
+            &eCov, covbodfileName, covefileName, transopse_ecov); // using _keep and _eii_include, the individuals are aligned.
+
+
+        if(maf > 0)
+            filter_snp_maf(&bdata, maf);
+        if(call > 0)
+            filter_snp_call(&bdata, call);
         char outputname[FNAMESIZE];
         outputname[0]='\0';
         if(tsk_ttl>1) {
-            if(outFileName!=NULL) {
-                string tmp=  string(outFileName)+"_"+atos(tsk_ttl)+"_"+atos(tsk_id);
-                strcpy(outputname,tmp.c_str());
-                outFileName=outputname;
+            if(outFileName != NULL) {
+                string tmp =  string(outFileName) + "_" + atos(tsk_ttl) + "_" + atos(tsk_id);
+                strcpy(outputname, tmp.c_str());
+                outFileName = outputname;
             }
         }
+
+
         eInfo sqtlinfo;
         vector< vector<int>> tranids;  //smaller einfo._epi_include
-        gene_check( &sqtlinfo,tranids, annofileName, &bdata,&einfo);
-        
+        gene_check( &sqtlinfo, tranids, annofileName, &bdata, &einfo);
+
         LOGPRINTF("\nPerforming sQTL analysis ...\n");
-        if(outFileName!=NULL){
+        if(outFileName != NULL){
             write_smr_esi(outFileName, &bdata);
-            write_smr_epi(outFileName, &sqtlinfo,true);
+            write_smr_epi(outFileName, &sqtlinfo, true);
         }
         FILE* besd=NULL;
         string besdName=string(outFileName)+".besd";
         if(fopen_checked(&besd, besdName.c_str(),"wb")) TERMINATE();
         uint32_t filetype=OSCA_SPARSE_1;
         if(tosmrflag) filetype=SMR_SPARSE_3;
-        
+
         vector<int> ten_ints(RESERVEDUNITS);
         ten_ints[0]=filetype;
         ten_ints[1]=(int)bdata._keep.size();
         ten_ints[2]=(int)bdata._include.size();
         ten_ints[3]=(int)sqtlinfo._epi_include.size();
-        for(int i=4;i<RESERVEDUNITS;i++) ten_ints[i]=-9;
+        for(int i=4;i<RESERVEDUNITS;i++)
+            ten_ints[i]=-9;
         if (fwrite_checked(&ten_ints[0],RESERVEDUNITS*sizeof(int), besd))
         {
             LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
             TERMINATE();
         }
+
         if(covfileName!=NULL || qcovfileName!=NULL) adjprobe(&einfo);
-        
         vector< vector<uint32_t> > rowids(sqtlinfo._epi_include.size());
         vector< vector<float> > betas(sqtlinfo._epi_include.size());
         vector< vector<float> > ses(sqtlinfo._epi_include.size());
@@ -2437,30 +2718,39 @@ namespace VQTL {
             betas[ii].resize(cis_num[ii]);
             ses[ii].resize(cis_num[ii]);
         }
-        
+
         bool warned = false;
         int nindi = (int)einfo._eii_include.size();
         double cr=0.0;
-        
         #pragma omp parallel for private(cr)
-        for(int jj=0;jj<sqtlinfo._epi_include.size();jj++)
+        for(int jj = 0; jj < sqtlinfo._epi_include.size(); jj++)
         {
-            double desti=1.0*jj/(sqtlinfo._epi_include.size()-1);
-            if(desti>=cr)
+            if (sqtlinfo._epi_gene[jj] != "TBCK"){
+                continue;
+            }
+            cout << ">" << sqtlinfo._epi_gene[jj] << endl;
+            double desti = 1.0 * jj / (sqtlinfo._epi_include.size() - 1);
+            if(desti >= cr)
             {
                 printf("%3.0f%%\r", 100.0*desti);
                 fflush(stdout);
-                if(cr==0) cr+=0.05;
-                else if(cr==0.05) cr+=0.2;
-                else if(cr==0.25) cr+=0.5;
-                else cr+=0.25;
+                if(cr==0)
+                    cr+=0.05;
+                else if(cr==0.05)
+                    cr+=0.2;
+                else if(cr==0.25)
+                    cr+=0.5;
+                else
+                    cr+=0.25;
             }
-            string prbid=sqtlinfo._epi_prb[sqtlinfo._epi_include[jj]];
-            if(snpids[jj].size()==0)  continue;
-            
+            string prbid = sqtlinfo._epi_prb[sqtlinfo._epi_include[jj]];
+            if(snpids[jj].size()==0)
+                continue;
             MatrixXd _X;
-            make_XMat(&bdata,snpids[jj], _X);
-           
+            make_XMat(&bdata, snpids[jj], _X);
+            //debug output
+            cout << _X << endl;
+
             int numTrans = (int)tranids[jj].size();
             vector<double> tpm(numTrans*nindi);
             VectorXd overall;
@@ -2470,15 +2760,22 @@ namespace VQTL {
             map<string, int>::iterator citer;
             vector< vector<double>> trpv;
             trpv.resize(numTrans);
-            for(int kk=0;kk<numTrans;kk++) trpv[kk].resize(einfo._eii_include.size());
-            for( int kk=0;kk<numTrans;kk++)
-            {
-                for(int ll=0; ll<einfo._eii_include.size(); ll++) trpv[kk][ll]=einfo._val[tranids[jj][kk]*einfo._eii_num+einfo._eii_include[ll]];
-                
+
+            for(int kk = 0; kk < numTrans; kk++){
+                trpv[kk].resize(einfo._eii_include.size());
             }
+
+            for( int kk = 0; kk < numTrans; kk++)
+            {
+                for(int ll=0; ll<einfo._eii_include.size(); ll++)
+                    trpv[kk][ll]=einfo._val[tranids[jj][kk]*einfo._eii_num+einfo._eii_include[ll]];
+
+            }
+
             vector< vector<double>> cor_null;
             cor_null.resize(numTrans);
-            for(int kk=0;kk<numTrans;kk++) cor_null[kk].resize(numTrans);
+            for(int kk = 0;kk < numTrans; kk++)
+                cor_null[kk].resize(numTrans);
             for(int kk=0;kk<numTrans;kk++)
             {
                 for(int ll=kk+1;ll<numTrans;ll++)
@@ -2495,28 +2792,46 @@ namespace VQTL {
                     cor_null[kk][ll] = cor_null[ll][kk] = cor(y,x);
                 }
             }
-            for(int kk=0;kk<numTrans;kk++) cor_null[kk][kk] = 1.0;
-            for(int kk=0;kk<_X.cols();kk++) //_X.cols() ==snpids[jj].size()
+
+            for(int kk = 0; kk < numTrans; kk++)
+                cor_null[kk][kk] = 1.0;
+
+//------------------------------------------------------------------------------
+            unsigned long cc = 0;
+            int a, b, c, d;
+            time_t ti;
+            a = _X.cols();
+            printf("%d\n", _X.rows());
+            b = numTrans;
+            c = einfo._eii_include.size();
+            d = numTrans * (numTrans - 1) / 2;
+            printf("a: %d, b: %d, c: %d, d: %d.\n", a, b, c, d);
+
+            unsigned long e = a * (b*c + (b - 1)*(b - 1) * 0.5 + d + \
+                (b - 1) * (b - 1) * 0.5 * (b - 1) * b + d * d * 0.5);
+            printf("e: %ld.\n", e);
+
+            for(int kk = 0; kk < _X.cols(); kk++) //_X.cols() ==snpids[jj].size()
             {
-                
-                uint32_t snpid=snpids[jj][kk];
-                string snprs=bdata._snp_name[bdata._include[snpid]];
-                
+                time(&ti);
+                uint32_t snpid = snpids[jj][kk];
+                string snprs = bdata._snp_name[bdata._include[snpid]];
                 double snpfreq=bdata._mu[bdata._include[snpid]]/2;
-                if(snpfreq==0 || snpfreq==1) {
+                if(snpfreq == 0 || snpfreq == 1) {
                     if(!warned) {LOGPRINTF("WARNING: MAF found 0 or 1 with SNP(s).\n"); warned=1;}
-                    rowids[jj][kk]=snpid;
-                    betas[jj][kk]=0;
-                    ses[jj][kk]=1;
+                    rowids[jj][kk] = snpid;
+                    betas[jj][kk] = 0;
+                    ses[jj][kk] = 1;
                     continue;
                 }
+
                 vector<double> beta(numTrans), se(numTrans);
-                
-                for(int ll=0;ll<numTrans;ll++)
+                for(int ll = 0; ll < numTrans; ll++)
                 {
-                    vector<double> y,x,rst;
-                    for(int mm=0;mm<einfo._eii_include.size(); mm++)
+                    vector<double> y, x, rst;
+                    for(int mm = 0; mm < einfo._eii_include.size(); mm++)
                     {
+                        cc++;
                         double bval=_X(mm,kk), tval=trpv[ll][mm];
                         if(bval < 1e5 && tval < 1e9)
                         {
@@ -2528,27 +2843,35 @@ namespace VQTL {
                     beta[ll]=rst[0];
                     se[ll]=rst[1];
                 }
-                int varnum=numTrans*(numTrans-1)/2, k=0;
+
+
+                int varnum = numTrans * (numTrans - 1) / 2, k = 0;
                 VectorXd d(varnum),vardev(varnum),chisq_dev(varnum);
-                for(int m1=0;m1<numTrans-1;m1++)
+                for(int m1 = 0; m1 < numTrans-1; m1++)
                 {
-                    for(int m2=m1+1;m2<numTrans;m2++)
+                    for(int m2 = m1 + 1; m2 < numTrans; m2++)
                     {
+                        cc++;
                         d[k]=beta[m1]-beta[m2];
                         vardev[k] = se[m1]*se[m1]+se[m2]*se[m2]-2*cor_null[m1][m2]*se[m1]*se[m2];
                         k++;
                     }
                 }
-                for(int m1=0;m1<varnum;m1++)
+
+
+                for(int m1 = 0; m1 < varnum; m1++){
+                    cc++;
                     chisq_dev[m1] = d[m1]*d[m1]/vardev[m1];
-                
+                }
+
                 MatrixXd vdev(varnum,varnum);
                 int mi = 0, mj =0;
-                for( int m1=0;m1< numTrans-1;m1++) {
+                for( int m1 = 0; m1 < numTrans-1; m1++) {
                     for( int m2=m1+1;m2<numTrans;m2++) {
                         mj=0;
                         for(int m3=0; m3< numTrans-1; m3++){
                             for(int m4=m3+1;m4<numTrans;m4++) {
+                                cc++;
                                 vdev(mi,mj) = se[m1]*se[m3]*cor_null[m1][m3] - se[m1]*se[m4]*cor_null[m1][m4] - se[m2]*se[m3]*cor_null[m2][m3] + se[m2]*se[m4]*cor_null[m2][m4];
                                 mj++;
                             }
@@ -2556,19 +2879,22 @@ namespace VQTL {
                         mi++;
                     }
                 }
-               
+
                 MatrixXd corr_dev = vdev;
-                for( int m1=0;m1<varnum;m1++) {
-                    for( int m2=m1;m2<varnum;m2++){
+                for( int m1 = 0; m1 < varnum; m1++) {
+                    for( int m2 = m1; m2 < varnum; m2++){
+                        cc++;
                         corr_dev(m1,m2) = corr_dev(m2,m1) = vdev(m1,m2)/sqrt(vdev(m1,m1)*vdev(m2,m2));
                     }
                 }
                 VectorXd lambda;
+
                 #pragma omp critical
                 {
                     SelfAdjointEigenSolver<MatrixXd> es(corr_dev);
                     lambda=es.eigenvalues();
                 }
+
                 double sumChisq_dev=chisq_dev.sum();
                 double pdev= 0.0;
                 #pragma omp critical
@@ -2576,15 +2902,24 @@ namespace VQTL {
                 double z=0.0;
                 #pragma omp critical
                 z=sqrt(qchisq(pdev,1));
-                
+
                 double beta_hat=z/sqrt(2*snpfreq*(1-snpfreq)*(nindi+z*z));
                 double se_hat=1/sqrt(2*snpfreq*(1-snpfreq)*(nindi+z*z));
 
                 rowids[jj][kk]=snpid;
                 betas[jj][kk]=beta_hat;
                 ses[jj][kk]=se_hat;
+                printf("cc: %ld %ld\n", cc, ti);
+
             }
+//------------------------------------------------------------------------------
+
         }
+
+        exit(0);
+
+
+
         if(tosmrflag)
         {
             uint64_t valNum=0;
@@ -2604,7 +2939,7 @@ namespace VQTL {
                 LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
                 TERMINATE();
             }
-            
+
             if (fwrite_checked(&cols[0],cols.size()*sizeof(uint64_t), besd))
             {
                 LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
@@ -2642,7 +2977,7 @@ namespace VQTL {
                     }
                 }
             }
-            
+
         }
         else
         {
@@ -2661,7 +2996,7 @@ namespace VQTL {
                 LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
                 TERMINATE();
             }
-            
+
             if (fwrite_checked(&cols[0],cols.size()*sizeof(uint64_t), besd))
             {
                 LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
@@ -2693,11 +3028,13 @@ namespace VQTL {
                 }
             }
         }
-        
-    
+
+
         fclose(besd);
         LOGPRINTF("sQTL summary statistics for %ld probes and %ld SNPs are saved in file %s.\n", einfo._epi_include.size(),bdata._include.size(), besdName.c_str());
     }
+
+
     bool pcc(MatrixXd &PCC, MatrixXd &buffer_beta,MatrixXd &buffer_se, double pmecs, int nmecs)
     {
         long snpnum = buffer_beta.rows();
@@ -2711,7 +3048,7 @@ namespace VQTL {
         for( int i=0;i<cohortnum;i++)
             for(int j=i+1;j<cohortnum;j++)
             {
-                
+
                 beta1.clear();
                 beta2.clear();
                 for(int k=0;k<snpnum;k++)
@@ -2727,7 +3064,7 @@ namespace VQTL {
                         zj*=zj;
                         if(zi < zmecs && zj < zmecs)
                         {
-                            
+
                             beta1.push_back(betai);
                             beta2.push_back(betaj);
                         }
@@ -2768,7 +3105,7 @@ namespace VQTL {
 
     void ssQTL(char* outFileName, char* beqtlFileName, char* problstName,char* problst2exclde,char* genelistName, int chr,int prbchr, char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* probe2exclde,int autosome_num, double maf,char* snplstName,char* snplst2exclde,int snpchr, char* snprs, char* fromsnprs, char* tosnprs, int snpWind, int fromsnpkb, int tosnpkb, bool snpwindFlag, char* snprs2exclde, int tsk_ttl,int tsk_id, bool tosmrflag, bool nofastlinear,bool cis_flag,int cis_itvl,  char* annofileName, double pmecs, int nmecs)
     {
-        
+
         setNbThreads(thread_num);
         LOGPRINTF("Using %d thread(s) to conduct analysis ...\n", thread_num);
         eqtlInfo eqtlinfo;
@@ -2817,7 +3154,7 @@ namespace VQTL {
                 outFileName=outputname;
             }
         }
-        
+
         LOGPRINTF("Loading the file %s into memory...\n",beqtlFileName);
         read_smr_besdfile(&eqtlinfo, inputname);
         if(eqtlinfo._rowid.empty() && eqtlinfo._bxz.empty())
@@ -2850,7 +3187,7 @@ namespace VQTL {
             LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
             TERMINATE();
         }
-        
+
         vector< vector<uint32_t> > rowids(sqtlinfo._epi_include.size());
         vector< vector<float> > betas(sqtlinfo._epi_include.size());
         vector< vector<float> > ses(sqtlinfo._epi_include.size());
@@ -2863,11 +3200,11 @@ namespace VQTL {
             betas[ii].resize(cis_num[ii]);
             ses[ii].resize(cis_num[ii]);
         }
-        
+
         bool warned = false;
         int nindi = eqtlinfo._sampleNum;
         double cr=0.0;
-        
+
          #pragma omp parallel for private(cr)
         for(int jj=0;jj<sqtlinfo._epi_include.size();jj++)
         {
@@ -2883,13 +3220,13 @@ namespace VQTL {
             }
             string prbid=sqtlinfo._epi_prb[sqtlinfo._epi_include[jj]];
             if(snpids[jj].size()==0)  continue;
-            
+
             int numTrans = (int)tranids[jj].size();
             int numSNP = cis_num[jj];
             MatrixXd eqtlb(numSNP,numTrans), eqtls(numSNP,numTrans);
             vector<float> eqtlfreq(numSNP);
             make_bs(&eqtlinfo,tranids[jj],snpids[jj],eqtlb,eqtls,eqtlfreq);
-            
+
             // estimate probe correlaton
             MatrixXd cor_null(numTrans,numTrans);
             pcc(cor_null,  eqtlb, eqtls, pmecs, nmecs);
@@ -2945,7 +3282,7 @@ namespace VQTL {
                 }
                 for(int m1=0;m1<varnum;m1++)
                     chisq_dev[m1] = d[m1]*d[m1]/vardev[m1];
-                
+
                 MatrixXd vdev(varnum,varnum);
                 int mi = 0, mj =0;
                 for( int m1=0;m1< numTrans-1;m1++) {
@@ -2960,7 +3297,7 @@ namespace VQTL {
                         mi++;
                     }
                 }
-                
+
                 MatrixXd corr_dev = vdev;
                 for( int m1=0;m1<varnum;m1++) {
                     for( int m2=m1;m2<varnum;m2++){
@@ -2980,15 +3317,15 @@ namespace VQTL {
                 double z=0.0;
 #pragma omp critical
                 z=sqrt(qchisq(pdev,1));
-                
+
                 double beta_hat=z/sqrt(2*snpfreq*(1-snpfreq)*(nindi+z*z));
                 double se_hat=1/sqrt(2*snpfreq*(1-snpfreq)*(nindi+z*z));
-                
+
                 rowids[jj][kk]=snpid;
                 betas[jj][kk]=beta_hat;
                 ses[jj][kk]=se_hat;
             }
-            
+
         }
         if(tosmrflag)
         {
@@ -3009,7 +3346,7 @@ namespace VQTL {
                 LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
                 TERMINATE();
             }
-            
+
             if (fwrite_checked(&cols[0],cols.size()*sizeof(uint64_t), besd))
             {
                 LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
@@ -3047,7 +3384,7 @@ namespace VQTL {
                     }
                 }
             }
-            
+
         }
         else
         {
@@ -3066,7 +3403,7 @@ namespace VQTL {
                 LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
                 TERMINATE();
             }
-            
+
             if (fwrite_checked(&cols[0],cols.size()*sizeof(uint64_t), besd))
             {
                 LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
@@ -3098,11 +3435,11 @@ namespace VQTL {
                 }
             }
         }
-        
-        
+
+
         fclose(besd);
         //LOGPRINTF("sQTL summary statistics for %ld probes and %ld SNPs are saved in file %s.\n", einfo._epi_include.size(),bdata._include.size(), besdName.c_str());
-        
+
     }
-        
+
 }
