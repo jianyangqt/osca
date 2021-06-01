@@ -5,13 +5,13 @@
 //  Created by Futao Zhang on 31/03/2016.
 //  Copyright (c) 2016 Futao Zhang. All rights reserved.
 //
-#include <time.h>
+
 #include "l2_efile.h"
 
 namespace EFILE {
-
+    
     // read oii, opi, pheno,bod
-
+    
    string getFileType(uint32_t tid)
     {
         return (tid==0?"Gene expression":"Methylation");
@@ -30,10 +30,10 @@ namespace EFILE {
         }
         return("Expression values");
     }
-
+    
     void  read_efile(char* eFileName, eInfo* einfo, uint32_t filetype, bool no_fid_flag,int valueType)
     {
-
+        
         FILE* efile=NULL;
         einfo->_eType=filetype;
         einfo->_valType=valueType;
@@ -45,7 +45,7 @@ namespace EFILE {
         if(!allocReserved(&readBuf, MAXLINEBUFLEN,msg)) TERMINATE();
         if(fopen_checked(&efile, eFileName,"r")) TERMINATE();
         LOGPRINTF("Reading %s data from %s ...\n", typestr.c_str(),eFileName);
-
+        
         if(fgets(readBuf, MAXLINEBUFLEN, efile))
         {
             if(no_fid_flag) split_str(readBuf,strlist,1);
@@ -91,7 +91,7 @@ namespace EFILE {
         einfo->_eii_mo_id.resize(einfo->_eii_num);
         einfo->_eii_sex.resize(einfo->_eii_num);
         einfo->_eii_pheno.resize(einfo->_eii_num);
-
+        
         rewind(efile);
         fgets(readBuf, MAXLINEBUFLEN, efile); //head
         line_idx=0;
@@ -173,7 +173,7 @@ namespace EFILE {
         einfo->_epi_gene.push_back("NA");
         einfo->_epi_orien.push_back('*');
         einfo->_epi_map.insert(pair<string,int>(einfo->_epi_prb[0],0));
-
+        
         while(fgets(readBuf, MAXLINEBUFLEN, efile)) line_idx++;
         LOGPRINTF("%d individuals are scanned from file %s ...\n", line_idx, eFileName);
         einfo->_eii_num=line_idx;
@@ -190,7 +190,7 @@ namespace EFILE {
         einfo->_eii_mo_id.resize(einfo->_eii_num);
         einfo->_eii_sex.resize(einfo->_eii_num);
         einfo->_eii_pheno.resize(einfo->_eii_num);
-
+        
         rewind(efile);
         line_idx=0;
         long colnum=-9;
@@ -212,7 +212,7 @@ namespace EFILE {
             }
             einfo->_eii_fid[line_idx]=strlist[0].c_str();
             einfo->_eii_iid[line_idx]=strlist[1].c_str();
-
+            
             einfo->_eii_include[line_idx]=line_idx;
             einfo->_eii_fa_id[line_idx]="0";
             einfo->_eii_mo_id[line_idx]="0";
@@ -225,8 +225,8 @@ namespace EFILE {
                 TERMINATE();
             }
             int valStartPos=2+colid;
-
-
+            
+            
                 if(strlist[valStartPos]=="na" ||strlist[valStartPos]=="NA" ) einfo->_val[line_idx]=1e10; // -9 as miss value should be questioned. 1e10 presents as miss value also should be questioned.
                 else {
                     double valtmp=atof(strlist[valStartPos].c_str());
@@ -239,7 +239,7 @@ namespace EFILE {
         LOGPRINTF("%llu individuals have been included from the file %s.\n", einfo->_eii_num, eFileName);
     }
     void  read_efile_t(char* eFileName, eInfo* einfo, uint32_t filetype, bool no_fid_flag,int valueType){
-
+        
         FILE* efile=NULL;
          einfo->_eType=filetype;
         einfo->_valType=valueType;
@@ -272,7 +272,7 @@ namespace EFILE {
                 strlist.swap(einfo->_eii_iid);
             }
         }
-
+      
         if(!sudoAllocReserved( einfo->_eii_iid.size()*(sizeof(int)*3+sizeof(string)*3+sizeof(double)), "individual information")) TERMINATE();
         einfo->_eii_include.resize(einfo->_eii_iid.size());
         einfo->_eii_fa_id.resize(einfo->_eii_iid.size());
@@ -297,7 +297,7 @@ namespace EFILE {
           clock_t begin_time = clock();
         while(fgets(readBuf, MAXLINEBUFLEN, efile))  line_idx++;
         LOGPRINTF("%d probes are scanned from the transposed file %s ...\n", line_idx, eFileName);
-
+        
         einfo->_eii_num=einfo->_eii_iid.size();
         einfo->_epi_num=line_idx;
         einfo->_eii_pheno_num=1;
@@ -355,7 +355,7 @@ namespace EFILE {
                         einfo->_val[line_idx*einfo->_eii_num+iid]=valtmp;
                     }
                 }
-
+                
             }
             line_idx++;
             //memset(readBuf,0,sizeof(char)*(MAXLINEBUFLEN));
@@ -381,7 +381,7 @@ namespace EFILE {
         } else {
             LOGPRINTF("WARNING: This data are not beta-values. Transformation would not be performed.\n");
         }
-
+        
     }
     void m_2_beta(eInfo* einfo)
     {
@@ -397,7 +397,7 @@ namespace EFILE {
         } else {
             LOGPRINTF("WARNING: This data are not m-values. Transformation would not be performed.\n");
         }
-
+        
     }
     void write_efile(char* outFileName, eInfo* einfo,bool impute_mean_flag)
     {
@@ -506,7 +506,7 @@ namespace EFILE {
             string str=einfo->_eii_fid[einfo->_eii_include[i]]+'\t'+einfo->_eii_iid[einfo->_eii_include[i]]+'\t'+einfo->_eii_fa_id[einfo->_eii_include[i]]+'\t'+einfo->_eii_mo_id[einfo->_eii_include[i]]+'\t'+atosm(einfo->_eii_sex[einfo->_eii_include[i]])+'\n';
             if(fputs_checked(str.c_str(),efile))
             {
-
+                
                 LOGPRINTF("ERROR: in writing file %s .\n", eiiName.c_str());
                 TERMINATE();
             }
@@ -527,7 +527,7 @@ namespace EFILE {
             if(einfo->_epi_chr[einfo->_epi_include[i]]==23) chrstr="X";
             else if(einfo->_epi_chr[einfo->_epi_include[i]]==24) chrstr="Y";
             else chrstr=atosm(einfo->_epi_chr[einfo->_epi_include[i]]);
-
+                    
             string str=chrstr+'\t'+einfo->_epi_prb[einfo->_epi_include[i]]+'\t'+atosm(einfo->_epi_bp[einfo->_epi_include[i]])+'\t'+einfo->_epi_gene[einfo->_epi_include[i]]+'\t'+(einfo->_epi_orien[einfo->_epi_include[i]]=='*'?"NA":atos(einfo->_epi_orien[einfo->_epi_include[i]]))+'\n';
             if(fputs_checked(str.c_str(),efile))
             {
@@ -544,7 +544,7 @@ namespace EFILE {
         string beedName=string(outFileName)+".bod";
         if(fopen_checked(&efile, beedName.c_str(),"wb")) TERMINATE();
         uint32_t indicator=(einfo->_eType << 8)| einfo->_valType;
-
+        
         if(einfo->_eii_include.size()==einfo->_eii_num && einfo->_epi_include.size()==einfo->_epi_num )
         {
             if (fwrite_checked(&indicator, sizeof(uint32_t), efile))
@@ -568,7 +568,7 @@ namespace EFILE {
                 TERMINATE();
             }
         }else{
-
+            
             if (fwrite_checked(&indicator, sizeof(uint32_t), efile))
             {
                 LOGPRINTF("ERROR: in writing binary file %s .\n", beedName.c_str());
@@ -602,7 +602,7 @@ namespace EFILE {
                              TERMINATE();
                          }
                          dptr=(double*)writeBuf;
-                     }
+                     }                     
                  }
              }
             if((char*)dptr-writeBuf>0)
@@ -630,7 +630,7 @@ namespace EFILE {
         einfo->_val.clear();
         einfo->_mu.clear();
         einfo->_var.clear();
-
+        
         einfo->_eType = 2;
         einfo->autosome_num=22;
         einfo->_epi_chr.clear();
@@ -641,7 +641,7 @@ namespace EFILE {
         einfo->_epi_orien.clear();
         einfo->_epi_include.clear();
         einfo->_epi_map.clear();
-
+        
 
         einfo->_eii_fid.clear();
         einfo->_eii_iid.clear();
@@ -653,13 +653,13 @@ namespace EFILE {
         einfo->_eii_qcov.clear();
         einfo->_eii_include.clear();
         einfo->_eii_map.clear();
-
+        
         einfo->_valType = 2; // 0 beta, 1 m, 2 other
-
-
+        
+     
         einfo->_profile=NULL;
         einfo->_grm_ptr=NULL;
-
+        
         //
         einfo->_reml_mtd = 0;
         einfo->_reml_max_iter = 100;
@@ -668,13 +668,13 @@ namespace EFILE {
         einfo->_reml_force_converge = false;
         einfo->_reml_no_converge = false;
         einfo->_reml_AI_not_invertible = false;
-
+   
         einfo->_r_indx.clear();
         einfo->_r_indx_drop.clear();
         einfo->_var_name.clear();
         einfo->_varcmp.clear();
         einfo->_hsq_name.clear();
-
+        
         einfo->_within_family = false;
         einfo->_fam_brk_pnt.clear();
         einfo->_Asp.clear();
@@ -682,8 +682,8 @@ namespace EFILE {
         einfo->_y_Ssq = 0;
         einfo->_fixed_rg_val.clear();
         einfo->_reml_fixed_var = 0;
-
-
+       
+        
         //reserved
         einfo->_bivar_reml = false;
         einfo->_bivar_no_constrain =  false;
@@ -691,13 +691,13 @@ namespace EFILE {
         einfo->_y2_Ssq = 0.0;
         einfo->_bivar_pos.clear();
         einfo->_bivar_pos_prev.clear();
-
+        
         einfo->_ncase = 0.0;
         einfo->_ncase2 = 0.0;
         einfo->_flag_CC = false;
         einfo->_flag_CC2 = false;
-
-
+        
+   
     }
     void read_eii(char* eiiFileName,eInfo* einfo)
     {
@@ -814,7 +814,7 @@ namespace EFILE {
                 LOGPRINTF("%s\n",Tbuf);
                 einfo->_epi_chr.push_back(atoi(strlist[0].c_str()));
             } else einfo->_epi_chr.push_back(atoi(strlist[0].c_str()));
-
+            
             if(strlist[1]=="NA" || strlist[1]=="na") {
                 LOGPRINTF("ERROR: NA probe ID found:\n");
                 LOGPRINTF("%s\n",Tbuf);
@@ -845,8 +845,6 @@ namespace EFILE {
         fclose(epifile);
         LOGPRINTF("%llu probes to be included from  %s .\n", einfo->_epi_num, epiFileName);
     }
-
-
     void read_beed(char* beedFileName,eInfo* einfo)
     {
         bool sorted = is_sorted(einfo->_eii_include.begin(), einfo->_eii_include.end()) && is_sorted(einfo->_epi_include.begin(), einfo->_epi_include.end());
@@ -873,7 +871,7 @@ namespace EFILE {
             LOGPRINTF("ERROR: File %s read failed!\n", beedFileName);
             TERMINATE();
         }
-
+        
         uint64_t cur_pos = ftell( beedfile );
         fseek( beedfile, 0L, SEEK_END );
         uint64_t size_file = ftell( beedfile );
@@ -901,9 +899,8 @@ namespace EFILE {
                 TERMINATE();
             }
         }
-        else if(einfo -> _epi_include.size() < einfo -> _epi_num / 2)
+        else if(einfo->_epi_include.size()<einfo->_epi_num/2)
         {
-            printf("here7\n");
             char* readBuf;
             string msg="Reading Buffer";
             if(!allocReserved(&readBuf, einfo->_eii_num*sizeof(double),msg)) TERMINATE();
@@ -922,7 +919,7 @@ namespace EFILE {
                     double* ptr=(double *)readBuf;
                     einfo->_val[i*einfo->_eii_include.size()+j]=*(ptr+einfo->_eii_include[j]);
                 }
-
+                
             }
             deallocReserved(&readBuf, einfo->_eii_num*sizeof(double));
         }
@@ -931,7 +928,7 @@ namespace EFILE {
             char* readBuf;
             uint64_t rBufsize=allocReserved(&readBuf,einfo->_epi_num*einfo->_eii_num*sizeof(double));
             double* dptr=(double *)readBuf;
-
+            
             if(rBufsize==einfo->_epi_num*einfo->_eii_num*sizeof(double)) // read the whole
             {
                 if(fread(readBuf, 1,rBufsize, beedfile)!=rBufsize)
@@ -945,7 +942,6 @@ namespace EFILE {
             }
             else
             {
-
                 uint64_t prb_per_time=rBufsize/(einfo->_eii_num*sizeof(double));
                 uint64_t prb_lower_boundary=0, prb_upper_boundary=0;
                 int i=0;
@@ -960,7 +956,7 @@ namespace EFILE {
                         for(int j=0;j<einfo->_eii_include.size();j++)
                             einfo->_val[i*einfo->_eii_include.size()+j]=*(dptr+(einfo->_epi_include[i]-prb_lower_boundary)*einfo->_eii_num+einfo->_eii_include[j]);
                     }
-                    prb_lower_boundary=prb_upper_boundary;
+                    prb_lower_boundary=prb_upper_boundary;                    
                 }
             }
              deallocReserved(&readBuf, rBufsize);
@@ -973,8 +969,6 @@ namespace EFILE {
         string valtypestr=getValType(einfo->_eType, einfo->_valType);
         LOGPRINTF("%s of %s data for %llu probes of %llu individuals have been included from the file %s.\n",valtypestr.c_str(), typestr.c_str(),  einfo->_epi_num, einfo->_eii_num, beedFileName);
     }
-
-
     void update_eii(eInfo* einfo)
     {
         vector<int> inttmp;
@@ -1009,7 +1003,7 @@ namespace EFILE {
         einfo->_eii_qcov.clear();
         einfo->_eii_qcov.swap(dtmp);
         einfo->_eii_num =einfo->_eii_include.size();
-
+        
         einfo->_eii_include.clear();
         einfo->_eii_map.clear();
         for (int i = 0; i < einfo->_eii_num; i++)
@@ -1017,7 +1011,7 @@ namespace EFILE {
             einfo->_eii_include.push_back(i);
             einfo->_eii_map.insert(pair<string,int>( einfo->_eii_fid[i]+":"+einfo->_eii_iid[i],i));
         }
-
+        
 
     }
     void update_epi(eInfo* einfo)
@@ -1044,7 +1038,7 @@ namespace EFILE {
         einfo->_epi_orien.clear();
         einfo->_epi_orien.swap(chartmp);
         einfo->_epi_num =einfo->_epi_include.size();
-
+        
         einfo->_epi_include.clear();
         einfo->_epi_map.clear();
         for (int i = 0; i < einfo->_epi_num; i++)
@@ -1074,7 +1068,7 @@ namespace EFILE {
         read_epi(inputname,&einfo);
         memcpy(suffix,".bak",5);
         write_epi(inputname, &einfo);
-
+        
         FILE* epifile=NULL;
         map<string, int>::iterator iter;
         vector<string> strlist;
@@ -1125,7 +1119,7 @@ namespace EFILE {
                     einfo._epi_orien[probeidx]='*';
                 } else einfo._epi_orien[probeidx]=strlist[4][0];
             }
-
+       
             line_idx++;
         }
         fclose(epifile);
@@ -1171,7 +1165,7 @@ namespace EFILE {
         vector<string> genelist;
         string msg="genes";
         read_msglist(genelistName, genelist,msg);
-
+        
         vector<string> prblst;
         for(int i=0;i<genelist.size();i++)
         {
@@ -1244,7 +1238,7 @@ namespace EFILE {
             }
         }
         int num_per_tsk=ceill(length/(1.0*tsk_ttl));
-
+        
         start=(tsk_id-1)*num_per_tsk;
         if(start>=length) {
             LOGPRINTF("The whole analysis can be accomplished by the tasks ahead. This task %d would be no more needed.\n", tsk_id);
@@ -1254,11 +1248,9 @@ namespace EFILE {
         if(end >= length) end=length-1;
         LOGPRINTF("The %dth probe to the %dth probe of total %d probes are extracted from this sub-task.\n", start+1,end+1,length);
     }
-
-
     void extract_probe(eInfo* einfo, int tsk_ttl, int tsk_id)
     {
-        if(tsk_ttl > einfo->_epi_include.size()) {
+        if(tsk_ttl>einfo->_epi_include.size()) {
             LOGPRINTF("WARNING: Total task number %d is larger than the probe number %ld.\nThe task number shrinks to %ld.\n", tsk_ttl, einfo->_epi_include.size(),einfo->_epi_include.size());
             tsk_ttl=(int)einfo->_epi_include.size();
             if(tsk_id>tsk_ttl) {
@@ -1267,7 +1259,7 @@ namespace EFILE {
             }
         }
         long num_per_tsk=ceill(einfo->_epi_include.size()/(1.0*tsk_ttl));
-
+        
         long fromidx=(tsk_id-1)*num_per_tsk;
         if(fromidx>=einfo->_epi_include.size()) {
             LOGPRINTF("The whole analysis can be accomplished by the tasks ahead. This task %d would be no more needed.\n", tsk_id);
@@ -1286,7 +1278,6 @@ namespace EFILE {
         LOGPRINTF("%ld probes are extracted from task id %d of total task number %d.\n",  einfo->_epi_include.size(), tsk_id, tsk_ttl);
     }
 
-
     void extract_probe(eInfo* einfo, string fromprbname, string toprbname)
     {
         long fromidx=find(einfo->_epi_prb.begin(), einfo->_epi_prb.end(), fromprbname)-einfo->_epi_prb.begin();
@@ -1297,7 +1288,7 @@ namespace EFILE {
         }
         int fromprbbp=einfo->_epi_bp[fromidx];
         int prbchr=einfo->_epi_chr[fromidx];
-
+        
         long toidx=find(einfo->_epi_prb.begin(), einfo->_epi_prb.end(), toprbname)-einfo->_epi_prb.begin();
         if(toidx==einfo->_epi_prb.size())
         {
@@ -1317,7 +1308,7 @@ namespace EFILE {
             fromprbbp=toprbbp;
             toprbbp=tmp;
         }
-
+        
         vector<string> prblst;
         for(int i=0;i<einfo->_epi_include.size();i++)
         {
@@ -1331,14 +1322,14 @@ namespace EFILE {
     {
         int fromprbbp=fromprbkb*1000;
         int toprbbp=toprbkb*1000;
-
+        
         if(fromprbbp>toprbbp)
         {
             int tmp=fromprbbp;
             fromprbbp=toprbbp;
             toprbbp=tmp;
         }
-
+        
         vector<string> prblst;
         for(int i=0;einfo->_epi_include.size();i++)
         {
@@ -1386,7 +1377,7 @@ namespace EFILE {
         vector<int> inids;
         for(int i=0;i<idx.size();i++)
             if(idx[i].size()>1) inids.push_back(i);
-
+        
         LOGPRINTF("%ld genes with more than 1 transcript are extracted.\n", inids.size());
         int unicount=(int)inids.size();
         if(tsk_ttl>1)
@@ -1400,7 +1391,7 @@ namespace EFILE {
                 }
             }
             long num_per_tsk=ceill(unicount/(1.0*tsk_ttl));
-
+            
             long fromidx=(tsk_id-1)*num_per_tsk;
             if(fromidx>=unicount) {
                 LOGPRINTF("The whole analysis can be accomplished by the tasks ahead. This task %d would be no more needed.\n", tsk_id);
@@ -1429,7 +1420,7 @@ namespace EFILE {
         update_map_kp(prblst, einfo->_epi_map, einfo->_epi_include);
         LOGPRINTF("%ld genes are extracted from task id %d of total task number %d (total %ld probes).\n",  inids.size(), tsk_id, tsk_ttl, einfo->_epi_include.size());
     }
-
+    
     void extract_probe_by_single_gene(eInfo* einfo, string genename)
     {
         vector<string> prblst;
@@ -1486,7 +1477,7 @@ namespace EFILE {
         {
             extract_probe_by_chr(einfo, chr);
         }
-
+        
         if(problstName != NULL || genelistName != NULL)
         {
             if(problstName != NULL) extract_probe(einfo, problstName);
@@ -1531,7 +1522,7 @@ namespace EFILE {
         {
             extract_probe_by_single_gene(einfo, genename);
         }
-
+        
         if(problst2exclde!=NULL)
         {
             exclude_probe(einfo, problst2exclde);
@@ -1546,21 +1537,21 @@ namespace EFILE {
         if(indilstName!=NULL) keep_indi(einfo,indilstName);
         if(indilst2remove!=NULL) remove_indi(einfo,indilst2remove);
     }
-
+    
     /*Standardise probes and save the standardised probes in an eigen matrix. missing values in the standardised matrix are saved as 0.0 that means mean*/
     void std_probe(eInfo* einfo, vector< vector<bool> > &X_bool, bool divid_by_std, MatrixXd &_probe_data, bool output_profile)
     {
         Map<MatrixXd> X(&einfo->_val[0],einfo->_eii_num,einfo->_epi_num);
-
+        
         uint64_t n = einfo->_eii_include.size(), m = einfo->_epi_include.size();
         _probe_data.resize(n,m);
-
-
+       
+        
         #pragma omp parallel for
         for(int i=0; i<n; i++){
             for(int j=0; j<m; j++) _probe_data(i,j)=X(einfo->_eii_include[i], einfo->_epi_include[j]);
         }
-
+        
         /*
         FILE* tmpfile=fopen("raw.txt","w");
         if(!tmpfile)
@@ -1580,9 +1571,9 @@ namespace EFILE {
         }
         fclose(tmpfile);
          */
-
+        
         VectorXd mu(m), nonmiss(m);
-
+        
         X_bool.resize(n);
         for(int i=0; i<n; i++) X_bool[i].resize(m);
         for(int j=0; j<m; j++){
@@ -1622,9 +1613,9 @@ namespace EFILE {
                     einfo->_profile[i*m+j]=_probe_data(i,j);
                 }
             }
-
+            
         }
-
+       
         if(divid_by_std)
         {
             VectorXd sd(m);
@@ -1645,7 +1636,7 @@ namespace EFILE {
     /* standardisze eigen matrix */
     void std_probe_in_place( bool divid_by_std, MatrixXd &_probe_data)
     {
-
+        
         uint64_t n = _probe_data.rows(), m = _probe_data.cols();
         for(int j=0; j<m; j++){
             double mu=0.0;
@@ -1657,13 +1648,13 @@ namespace EFILE {
                 }
             }
             mu/=nonmiss;
-
+            
             #pragma omp parallel for
             for(int i=0; i<n; i++){
                 if(_probe_data(i,j)<1e9) _probe_data(i,j) -= mu;
                 else _probe_data(i,j) = 0.0;
             }
-
+            
             if(divid_by_std){
                 double sd = sqrt((_probe_data.col(j).dot(_probe_data.col(j))) / (nonmiss - 1.0));
                 for(int i=0; i<n; i++){
@@ -1690,7 +1681,7 @@ namespace EFILE {
                 }
             }
             mu/=nonmiss;
-
+            
             double sd =0.0;
             for(int i=0; i<n; i++){
                 double val=einfo->_val[einfo->_epi_include[j]*ttl_n+einfo->_eii_include[i]];
@@ -1703,7 +1694,7 @@ namespace EFILE {
         for(int i=0;i<keep.size();i++)
             einfo->_epi_map.insert(pair<string,int>(einfo->_epi_prb[keep[i]],keep[i]));
         einfo->_epi_include.swap(keep);
-
+        
         LOGPRINTF("%ld of %ld sites are Excluded with low variance (std < %f) and %ld sites left.\n",m-einfo->_epi_include.size(),m,std_thresh,einfo->_epi_include.size());
     }
     /* QC step: remove the probes whose mean value is larger than upper beta value or smaller than lower beta value*/
@@ -1717,7 +1708,7 @@ namespace EFILE {
             upper_beta_thresh=log2(upper_beta_thresh/(1-upper_beta_thresh));
             lower_beta_thresh=log2(lower_beta_thresh/(1-lower_beta_thresh));
             LOGPRINTF("Excluding constitutively methylated/unmethylated sites with upper m threshold %f and lower m threshold %f ...\n",upper_beta_thresh, lower_beta_thresh);
-
+            
         } else {
              LOGPRINTF("ERROR: No methylation data found.\n");
             TERMINATE();
@@ -1738,14 +1729,14 @@ namespace EFILE {
             }
             mu/=nonmiss;
             if(mu>=upper_beta_thresh || mu<=lower_beta_thresh) rmflag=true;
-
+            
             if(!rmflag) keep.push_back(einfo->_epi_include[j]);
         }
         einfo->_epi_map.clear();
         for(int i=0;i<keep.size();i++)
             einfo->_epi_map.insert(pair<string,int>(einfo->_epi_prb[keep[i]],keep[i]));
         einfo->_epi_include.swap(keep);
-
+        
         LOGPRINTF("%ld of %ld sites are Excluded with upper beta threshold %f and lower beta threshold %f and %ld sites left.\n",m-einfo->_epi_include.size(),m,upper_beta_thresh,lower_beta_thresh,einfo->_epi_include.size());
     }
     /* QC step: remove the probe which has one or more detection pvlaues voilate the threshold*/
@@ -1759,14 +1750,14 @@ namespace EFILE {
             TERMINATE();
         }
         FILE* pfile=NULL;  //each row of this file is for a probe. each column is for an individual.
-
+   
         vector<string> strlist;
         uint32_t line_idx = 0;
         char* readBuf;
         string msg="Reading Buffer";
         if(!allocReserved(&readBuf, MAXLINEBUFLEN,msg)) TERMINATE();
         if(fopen_checked(&pfile, dpvalfName,"r")) TERMINATE();
-
+        
         LOGPRINTF("Reading detection p-values from %s ...\n",dpvalfName);
         vector<string> fid;
         vector<string> iid;
@@ -1777,7 +1768,7 @@ namespace EFILE {
                 split_str(readBuf,strlist,1);
                 fid.swap(strlist);
                 iid=fid;
-
+               
             }
         } else {
             if(fgets(readBuf, MAXLINEBUFLEN, pfile))
@@ -1831,7 +1822,7 @@ namespace EFILE {
              // begin_time = clock();
             printf("\t%d\r", line_idx);
             fflush(stdout);
-
+            
             int curpIdx=-9;
             split_str(readBuf,strlist,0);
             if(strlist.size()!=1+pfiid.size())
@@ -1839,9 +1830,9 @@ namespace EFILE {
                 LOGPRINTF("ERROR: Inconsistent element number found in line %u with probe ID %s .\n", line_idx+1, strlist[0].c_str());
                 TERMINATE();
             }
-
+ 
             iter = einfo->_epi_map.find(strlist[0].c_str());
-
+            
             if (iter != einfo->_epi_map.end()){
                 probe_match_count++;
                 curpIdx=iter->second;
@@ -1888,7 +1879,7 @@ namespace EFILE {
                 if(prb_count[i]>maxnum) pid_rm.push_back(einfo->_epi_prb[i]);
             }
             update_map_rm(pid_rm, einfo->_epi_map, einfo->_epi_include);
-
+            
             maxnum=ceil(spl_thresh*einfo->_epi_include.size());
             vector<string> iid_rm;
             for(int i=0;i<spl_count.size();i++){
@@ -1898,23 +1889,23 @@ namespace EFILE {
             LOGPRINTF("%ld probes have been excluded and %ld probes remained. \n", pid_rm.size(),  einfo->_epi_include.size());
             LOGPRINTF("%ld individuals have been excluded and %ld individuals remained. \n", iid_rm.size(),  einfo->_eii_include.size());
         }
-
+        
     }
     void std_probe_ind(eInfo* einfo, vector< vector<bool> > &X_bool, bool divid_by_std, MatrixXd &_probe_data, bool output_profile)
     {
-
+      
         uint64_t n = einfo->_eii_include.size(), m = einfo->_epi_include.size();
         Map<MatrixXd> X(&einfo->_val[0],n,m);
         _probe_data.resize(n, m);
-
+        
 #pragma omp parallel for
         for(int i=0; i<n; i++){
             for(int j=0; j<m; j++) _probe_data(i,j)=X(einfo->_eii_include[i], einfo->_epi_include[j]);
         }
         X.resize(0,0);
-
+        
         VectorXd mu(n), nonmiss(n);
-
+        
         X_bool.resize(n);
         for(int i=0; i<n; i++) X_bool[i].resize(m);
 #pragma omp parallel for
@@ -1931,7 +1922,7 @@ namespace EFILE {
             }
             mu(i)/=nonmiss(i);
         }
-
+        
 #pragma omp parallel for
         for(int i=0; i<n; i++){
             for(int j=0; j<m; j++){
@@ -1947,7 +1938,7 @@ namespace EFILE {
                     einfo->_profile[i*m+j]=_probe_data(i,j);
                 }
             }
-
+            
         }
         if(divid_by_std){
             VectorXd sd(n);
@@ -1955,14 +1946,14 @@ namespace EFILE {
             for(int i=0; i<n; i++){
                 sd(i) = sqrt((_probe_data.row(i).dot(_probe_data.row(i))) / (nonmiss(i) - 1.0));
             }
-
+            
 #pragma omp parallel for
             for(int i=0; i<n; i++){
                 for(int j=0; j<m; j++) _probe_data(i,j) /= sd(i);
             }
         }
     }
-
+    
     void std_probe_inplace(MatrixXd &_probe_data, bool missingAsitis=false) //return standardised matrix with missing as missing with 1e10 if missingAsitis is true, otherwise return 0 (: mean after standardisation)
     {
         LOGPRINTF("Standardising each probe....\n");
@@ -1989,24 +1980,24 @@ namespace EFILE {
                 }
             }
 
-
+            
             for(int i=0; i<n; i++){
                 if(_probe_data(i,j)<1e9) _probe_data(i,j) -= mu;
                 else _probe_data(i,j) = 0.0;
             }
-
+            
             double sd = 0.0;
             if(nonmiss>1) sd=sqrt((_probe_data.col(j).dot(_probe_data.col(j))) / (nonmiss - 1.0));
-
+            
             for(int i=0; i<n; i++){
                if(fabs(sd)>1e-30) _probe_data(i,j) /= sd;
                else _probe_data(i,j)=0.0;
             }
-
+            
             if(missingAsitis){
                 for(int i=0;i<missid.size();i++) _probe_data(missid[i],j)=1e10;
             }
-
+            
         }
     }
     void std_indi_inplace(MatrixXd &_probe_data, bool missingAsitis=false)
@@ -2034,20 +2025,20 @@ namespace EFILE {
                     warningflag=true;
                 }
             }
-
+            
             for(int j=0; j<m; j++){
                 if(_probe_data(i,j)<1e9) _probe_data(i,j) -= mu;
                 else _probe_data(i,j) = 0.0;
             }
-
+           
             double sd = 0.0;
             if(nonmiss>1) sd=sqrt((_probe_data.row(i).dot(_probe_data.row(i))) / (nonmiss - 1.0));
-
+            
             for(int j=0; j<m; j++){
                 if(fabs(sd)>1e-30) _probe_data(i,j) /= sd;
                 else _probe_data(i,j)=0.0;
             }
-
+            
             if(missingAsitis){
                 for(int j=0;j<missid.size();j++) _probe_data(i,missid[j])=1e10;
             }
@@ -2073,7 +2064,7 @@ namespace EFILE {
             for(int i=0; i<n; i++){
                 if(_probe_data(i,j)<1e9) sd+=(_probe_data(i,j)-mu)*(_probe_data(i,j)-mu);
             }
-
+            
             if(nonmiss>1) sd=sqrt(sd / (nonmiss - 1.0));
             if(abs(mu)<esp && abs(sd-1)<esp) passed=true;
             else {
@@ -2103,7 +2094,7 @@ namespace EFILE {
             for(int j=0; j<m; j++){
                 if(_probe_data(i,j)<1e9) sd+=(_probe_data(i,j)-mu)*(_probe_data(i,j)-mu);
             }
-
+            
             if(nonmiss>1) sd=sqrt(sd / (nonmiss - 1.0));
             if(abs(mu)<esp && abs(sd-1)<esp) passed=true;
             else {
@@ -2125,7 +2116,7 @@ namespace EFILE {
             for(int j=0; j<m; j++) _probe_data(i,j)=X(einfo->_eii_include[i], einfo->_epi_include[j]);
         }
         vector<int> misscid, missrid;
-
+        
         LOGPRINTF("Standardising each probe....\n");
         VectorXd mu(m), nonmiss(m);
         X_bool.resize(n);
@@ -2210,9 +2201,9 @@ namespace EFILE {
                 break;
             }
         }
-
+        
         for(int i=0;i<missrid.size();i++) _probe_data(missrid[i],misscid[i])=0.0; // once done, impute the missing with the mean
-
+        
         if(output_profile)
         {
             einfo->_profile=new double[n*m]; // alloc memory
@@ -2221,7 +2212,7 @@ namespace EFILE {
                     einfo->_profile[i*m+j]=_probe_data(i,j);
                 }
             }
-
+            
         }
 
     }
@@ -2242,7 +2233,7 @@ namespace EFILE {
                     nmiss+=1.0;
                 }
             }
-
+            
             double mrate=nmiss/n;
             if(mrate<=missratioprobe) keep.push_back(einfo->_epi_include[j]);
             else rmprb.push_back(einfo->_epi_prb[einfo->_epi_include[j]]);
@@ -2258,7 +2249,7 @@ namespace EFILE {
         for(int i=0;i<keep.size();i++)
             einfo->_epi_map.insert(pair<string,int>(einfo->_epi_prb[keep[i]],keep[i]));
         einfo->_epi_include.swap(keep);
-
+        
         LOGPRINTF("%ld of %ld probes are excluded with a missing value threshold (%f) and %ld sites left.\n",m-einfo->_epi_include.size(),m,missratioprobe,einfo->_epi_include.size());
     }
     void filtering_with_zeroratio(eInfo* einfo,double zeroratioprobe)
@@ -2276,7 +2267,7 @@ namespace EFILE {
                     nmiss+=1.0;
                 }
             }
-
+            
             double mrate=nmiss/n;
             if(mrate<=zeroratioprobe) keep.push_back(einfo->_epi_include[j]);
             else rmprb.push_back(einfo->_epi_prb[einfo->_epi_include[j]]);
@@ -2292,7 +2283,7 @@ namespace EFILE {
         for(int i=0;i<keep.size();i++)
         einfo->_epi_map.insert(pair<string,int>(einfo->_epi_prb[keep[i]],keep[i]));
         einfo->_epi_include.swap(keep);
-
+        
         LOGPRINTF("%ld of %ld probes are excluded with a zero count ratio threshold (%f) and %ld probes left.\n",m-einfo->_epi_include.size(),m,zeroratioprobe,einfo->_epi_include.size());
     }
     void filtering_indi_missingratio(eInfo* einfo,double missratioindi)
@@ -2310,7 +2301,7 @@ namespace EFILE {
                     nmiss+=1.0;
                 }
             }
-
+            
             double mrate=nmiss/m;
             if(mrate<=missratioindi) keep.push_back(einfo->_eii_include[i]);
             else rmindi.push_back(einfo->_eii_fid[einfo->_eii_include[i]]+"\t"+einfo->_eii_iid[einfo->_eii_include[i]]);
@@ -2326,7 +2317,7 @@ namespace EFILE {
         for(int i=0;i<keep.size();i++)
             einfo->_eii_map.insert(pair<string,int>(einfo->_eii_fid[keep[i]]+":"+einfo->_eii_iid[keep[i]],keep[i]));
         einfo->_eii_include.swap(keep);
-
+        
         LOGPRINTF("%ld of %ld individuals are excluded with a missing value threshold (%f) and %ld sites left.\n",n-einfo->_eii_include.size(),n,missratioindi,einfo->_eii_include.size());
     }
 
@@ -2337,12 +2328,12 @@ namespace EFILE {
      mvFlg indicates mulitple variates analysis or not.
      if mpheno is null and mvFlg is false, the first trait is to be read.
      if mpheno is null and mvFlg is true, all traits are to be read.
-     either included phenotype of the individual is missing, this
+     either included phenotype of the individual is missing, this 
      individual is deemed as missning individual.
      */
     void read_phen(eInfo* einfo, string phen_file, char* mpheno, bool mvFlg)
     {
-
+        
         if(einfo->_eii_include.size()==0 )
         {
             LOGPRINTF("Error: no individual found in gene expression / methylation data.\n");
@@ -2355,14 +2346,14 @@ namespace EFILE {
             LOGPRINTF("Error: can not open the file %s to read.\n",phen_file.c_str());
             TERMINATE();
         }
-
+        
         vector<string>  vs_buf, indi_list;
         string str_buf, fid_buf, iid_buf;
         vector<int> pheno_ids;
-
+      
         LOGPRINTF("Reading phenotypes from %s ...\n",phen_file.c_str());
         getline(in_phen, str_buf);
-
+        
         int phen_num = split_string(str_buf, vs_buf) - 2;
         if (phen_num <= 0)
         {
@@ -2395,7 +2386,7 @@ namespace EFILE {
                 {
                     LOGPRINTF("Warning: duplicate phenotype id specified by --mpheno.\n");
                 } else {
-
+                    
                     pheno_ids.push_back(curid);
                     mapsize=tmpidsmap.size();
                 }
@@ -2406,7 +2397,7 @@ namespace EFILE {
                 TERMINATE();
             }
         }
-
+        
         einfo->_eii_pheno_num=(int)pheno_ids.size();
         if(!sudoAllocReserved( (pheno_ids.size()-1)*einfo->_eii_num*sizeof(double), "phenotype")) {TERMINATE();}
         einfo->_eii_pheno.resize(pheno_ids.size()*einfo->_eii_num);
@@ -2441,12 +2432,12 @@ namespace EFILE {
             }
         }
         in_phen.close();
-
+        
         for(int i=0;i<pheno_ids.size();i++)
             for(int j=0;j<einfo->_eii_num;j++)
                 if(einfo->_eii_pheno[i*einfo->_eii_num+j]==MISSING_PHENO) missindi.insert(pair<string,int>(einfo->_eii_fid[j] + ":" + einfo->_eii_iid[j],j));
-
-        for (iter = missindi.begin(); iter != missindi.end(); iter++) indi_list.push_back(iter->first);
+        
+        for (iter = missindi.begin(); iter != missindi.end(); iter++) indi_list.push_back(iter->first);        
         update_map_rm(indi_list, einfo->_eii_map, einfo->_eii_include);
         if(einfo->_eii_include.size()==0)
         {
@@ -2456,7 +2447,7 @@ namespace EFILE {
         LOGPRINTF("Non-missing phenotypes of %ld individuals are included from %s. \n",einfo->_eii_include.size(), phen_file.c_str());
     }
     void read_cc(eInfo* einfo, string phen_file, char* mpheno, bool mvFlg) {
-
+        
         if(einfo->_eii_include.size()==0 )
         {
             LOGPRINTF("Error: no individual found in gene expression / methylation data.\n");
@@ -2469,14 +2460,14 @@ namespace EFILE {
             LOGPRINTF("Error: can not open the file %s to read.\n",phen_file.c_str());
             TERMINATE();
         }
-
+        
         vector<string>  vs_buf, indi_list;
         string str_buf, fid_buf, iid_buf;
         vector<int> pheno_ids;
-
+        
         LOGPRINTF("Reading phenotypes from %s ...\n",phen_file.c_str());
         getline(in_phen, str_buf);
-
+        
         int phen_num = split_string(str_buf, vs_buf) - 2;
         if (phen_num <= 0)
         {
@@ -2509,7 +2500,7 @@ namespace EFILE {
                 {
                     LOGPRINTF("Warning: duplicate phenotype id specified by --mpheno.\n");
                 } else {
-
+                    
                     pheno_ids.push_back(curid);
                     mapsize=tmpidsmap.size();
                 }
@@ -2520,7 +2511,7 @@ namespace EFILE {
                 TERMINATE();
             }
         }
-
+        
         einfo->_eii_pheno_num=(int)pheno_ids.size();
         if(!sudoAllocReserved( (pheno_ids.size()-1)*einfo->_eii_num*sizeof(double), "phenotype")) {TERMINATE();}
         einfo->_eii_pheno.resize(pheno_ids.size()*einfo->_eii_num);
@@ -2592,8 +2583,8 @@ namespace EFILE {
                 else if(flag==2 && einfo->_eii_pheno[i*einfo->_eii_num+j]==2) einfo->_eii_pheno[i*einfo->_eii_num+j]=1;
                 else if(flag==3) einfo->_eii_pheno[i*einfo->_eii_num+j]-=1;
             }
-
-
+        
+        
         for (iter = missindi.begin(); iter != missindi.end(); iter++) indi_list.push_back(iter->first);
         update_map_rm(indi_list, einfo->_eii_map, einfo->_eii_include);
         if(einfo->_eii_include.size()==0)
@@ -2603,9 +2594,9 @@ namespace EFILE {
         }
         LOGPRINTF("Non-missing case-control phenotypes of %ld individuals are included from %s. \n",einfo->_eii_include.size(), phen_file.c_str());
     }
-
+    
     void read_cov(eInfo* einfo, string cov_file, bool qcovFlg) {
-
+        
         if(einfo->_eii_include.size()==0 )
         {
             LOGPRINTF("Error: no individual found in gene expression / methylation data.\n");
@@ -2618,23 +2609,23 @@ namespace EFILE {
             LOGPRINTF("Error: can not open the file %s to read.\n",cov_file.c_str());
             TERMINATE();
         }
-
+        
         vector<string>  vs_buf, indi_list;
         string str_buf, fid_buf, iid_buf, covtypestr;
 
         if(qcovFlg) covtypestr="quantitative";
         else covtypestr="discrete";
-
+        
         LOGPRINTF("Reading %s covariate(s) from %s ...\n",covtypestr.c_str(),cov_file.c_str());
         getline(in_cov, str_buf);
-
+        
         int cov_num = split_string(str_buf, vs_buf) - 2;
         if (cov_num <= 0)
         {
             LOGPRINTF("Error: no covariate data is found.\n");
             TERMINATE();
         }
-
+        
         if(qcovFlg)
         {
             einfo->_eii_qcov_num=cov_num;
@@ -2724,7 +2715,7 @@ namespace EFILE {
         }
         LOGPRINTF("Non-missing %s covariates of %ld individuals are included from %s. \n",covtypestr.c_str(),einfo->_eii_include.size(), cov_file.c_str());
     }
-
+    
     void output_grm(eInfo* einfo, string _out, bool output_grm_bin)
     {
         int i = 0, j = 0;
@@ -2747,7 +2738,7 @@ namespace EFILE {
             }
             A_Bin.close();
             LOGPRINTF("ORM of %ld individuals has been saved in the file [%s] (in binary format).\n",einfo->_eii_include.size(),grm_file.c_str());
-
+            
             string grm_N_file = _out + ".orm.N.bin";
             fstream N_Bin(grm_N_file.c_str(), ios::out | ios::binary);
             if (!N_Bin) {
@@ -2774,7 +2765,7 @@ namespace EFILE {
                 TERMINATE();
             }
             LOGPRINTF("Saving the omics relationship matrix to the file [%s] (in compressed text format).\n",grm_file.c_str());
-
+           
             for (i = 0; i < einfo->_eii_include.size(); i++) {
                  string tmpstr="";
                 if (einfo->_grm_N.rows() > 0){
@@ -2795,12 +2786,12 @@ namespace EFILE {
                         }
                     }
                 }
-
+                
             }
             gzclose(zoutf);
             LOGPRINTF("The omics relationship matrix has been saved in the file [ %s ] (in compressed text format).\n",grm_file.c_str());
         }
-
+        
         string famfile = _out + ".orm.id";
         ofstream Fam(famfile.c_str());
         if (!Fam) {
@@ -2812,7 +2803,7 @@ namespace EFILE {
         LOGPRINTF("IDs for the ORM file %s have been saved in the file %s.\n",grm_file.c_str(),famfile.c_str());
     }
 
-
+    
     void make_erm(eInfo* einfo, int erm_mtd, bool output_bin, char* outFileName, bool output_profile, bool have_stand)
     {
         uint64_t n = einfo->_eii_include.size(), m = einfo->_epi_include.size();
@@ -2827,10 +2818,10 @@ namespace EFILE {
         {
             LOGPRINTF("Recoding %s data...\n",typestr.c_str());
         }
-
+      
         bool divid_by_std = false;
         vector< vector<bool> > X_bool;
-
+        
         if(erm_mtd < 2){
             if(have_stand)
             {
@@ -2852,7 +2843,7 @@ namespace EFILE {
                         }
                     }
                 }
-
+                
             } else {
                 if(erm_mtd == 0) divid_by_std = true;
                 else if(erm_mtd == 1) divid_by_std = false;
@@ -2892,7 +2883,7 @@ namespace EFILE {
                 if (X_bool[i][j] == false) miss_pos[i].push_back(j);
             }
         }
-
+        
         // Calculate A_N matrix
         einfo->_grm_N.resize(n, n);
         if(erm_mtd == 0 || erm_mtd == 3){
@@ -2918,7 +2909,7 @@ namespace EFILE {
                 for(int j=0; j<m; j++){
                     if((nonmiss(j) - 1.0) > 0.0) var(j) = (_probe_data.col(j).dot(_probe_data.col(j))) / (nonmiss(j) - 1.0);
                     else var(j) = 0.0;
-
+                    
                 }
                 double sum_var = var.sum();
                 for (int i = 0; i < n; i++) {
@@ -2968,7 +2959,7 @@ namespace EFILE {
          //einfo->_grm = einfo->_grm.array() / einfo->_grm.diagonal().mean(); //disabled by Futao on 4 June,2019. Mean of the diagonal is approximate to 1.
         // Output A_N and A
         if(outFileName!=NULL) output_grm(einfo, outFileName ,output_bin);
-
+       
         if(output_profile)
         {
             einfo->_grm_ptr=new double[n*n]; // alloc memory
@@ -2977,10 +2968,10 @@ namespace EFILE {
                     einfo->_grm_ptr[i*n+j]=einfo->_grm(i,j);
                 }
             }
-
+            
         }
     }
-
+    
     void make_erm(eInfo* einfo, MatrixXd &VZ, int erm_mtd, bool output_bin, char* outFileName, bool output_profile, bool have_stand)
     {
         uint64_t n = einfo->_eii_include.size(), m = einfo->_epi_include.size();
@@ -2995,10 +2986,10 @@ namespace EFILE {
         {
             LOGPRINTF("Recoding %s data...\n",typestr.c_str());
         }
-
+        
         bool divid_by_std = false;
         vector< vector<bool> > X_bool;
-
+        
         if(erm_mtd < 2){
             if(have_stand)
             {
@@ -3020,7 +3011,7 @@ namespace EFILE {
                         }
                     }
                 }
-
+                
             } else {
             if(erm_mtd == 0) divid_by_std = true;
             else if(erm_mtd == 1) divid_by_std = false;
@@ -3029,7 +3020,7 @@ namespace EFILE {
         }
         //else if(erm_mtd ==2)  std_probe_ind(einfo, X_bool, false, _probe_data, output_profile);
         else std_iteration(einfo, X_bool, _probe_data, output_profile);
-
+        
         if(loud)
         {
             LOGPRINTF("Calculating Omics Relationship Matrix (ORM) ...\n");
@@ -3041,7 +3032,7 @@ namespace EFILE {
                 if (X_bool[i][j] == false) miss_pos[i].push_back(j);
             }
         }
-
+        
         // Calculate A_N matrix
         einfo->_grm_N.resize(n, n);
         if(erm_mtd == 0 || erm_mtd == 3){
@@ -3067,7 +3058,7 @@ namespace EFILE {
                 for(int j=0; j<m; j++){
                     if((nonmiss(j) - 1.0) > 0.0) var(j) = (_probe_data.col(j).dot(_probe_data.col(j))) / (nonmiss(j) - 1.0);
                     else var(j) = 0.0;
-
+                    
                 }
                 double sum_var = var.sum();
                 for (int i = 0; i < n; i++) {
@@ -3118,7 +3109,7 @@ namespace EFILE {
         //einfo->_grm = einfo->_grm.array() / einfo->_grm.diagonal().mean(); //disabled by Futao on 4 June,2019. Mean of the diagonal is approximate to 1.
         // Output A_N and A
         if(outFileName!=NULL) output_grm(einfo, outFileName ,output_bin);
-
+        
         if(output_profile)
         {
             einfo->_grm_ptr=new double[n*n]; // alloc memory
@@ -3127,17 +3118,17 @@ namespace EFILE {
                     einfo->_grm_ptr[i*n+j]=einfo->_grm(i,j);
                 }
             }
-
+            
         }
-
+      
     }
-
+    
     void read_grm(eInfo* einfo, string grm_file, vector<string> &grm_id, bool out_id_log, bool read_id_only, bool dont_read_N, bool grm_bin_flag)
     {
         if (grm_bin_flag) read_grm_bin(einfo, grm_file, grm_id, out_id_log, read_id_only, dont_read_N);
         else read_grm_gz(einfo, grm_file, grm_id, out_id_log, read_id_only);
     }
-
+    
     int read_grm_id(eInfo* einfo, string grm_file, vector<string> &grm_id, bool out_id_log)
     {
         // read ORM IDs
@@ -3165,7 +3156,7 @@ namespace EFILE {
         i_grm_id.close();
         int n = (int)grm_id.size();
         if (out_id_log) { LOGPRINTF("%d  IDs read from %s.\n",n, grm_id_file.c_str() );}
-
+        
         if (einfo->_eii_map.empty()) {
             einfo->_eii_fid = fid;
             einfo->_eii_iid = pid;
@@ -3186,23 +3177,23 @@ namespace EFILE {
         }else{
             update_map_kp(grm_id, einfo->_eii_map, einfo->_eii_include);
         }
-
+        
         return (n);
     }
 
     void read_grm_gz(eInfo* einfo, string grm_file, vector<string> &grm_id, bool out_id_log, bool read_id_only) {
         int n = read_grm_id(einfo,grm_file, grm_id, out_id_log);
         if (read_id_only) return;
-
+        
         string grm_gzfile = grm_file + ".orm.gz", str_buf;
         char buf[MAX_LINE_SIZE];
         gzFile zinf= gzopen(grm_gzfile.c_str(), "rb");
-
+      
         if (!(zinf)) {
             LOGPRINTF("ERROR: Couldn't open file %s\n", grm_gzfile.c_str());
             TERMINATE();
         }
-
+        
         int indx1 = 0, indx2 = 0, nline = 0;
         double grm_buf = 0.0, grm_N_buf;
         string errmsg = "Error: failed to read [" + grm_gzfile + "]. The format of the ORM file has been changed?\nError occurs in line:\n";
@@ -3245,17 +3236,17 @@ namespace EFILE {
         if (!einfo->_within_family && nline != (int) (n * (n + 1)*0.5)){
             LOGPRINTF("Error: there are %d lines in the %s file. The expected number of lines is %d.\n", nline, grm_gzfile.c_str(), (int)(n * (n + 1)*0.5));
             TERMINATE();
-
+            
         }
         LOGPRINTF("ORM for %d individuals are included from %s.\n",n,grm_gzfile.c_str());
     }
-
+    
     void read_grm_bin(eInfo* einfo, string grm_file, vector<string> &grm_id, bool out_id_log, bool read_id_only, bool dont_read_N)
     {
         int i = 0, j = 0, n = read_grm_id(einfo,grm_file, grm_id, out_id_log);
-
+        
         if (read_id_only) return;
-
+        
         string grm_binfile = grm_file + ".orm.bin";
         ifstream A_bin(grm_binfile.c_str(), ios::in | ios::binary);
         if (!A_bin.is_open()) {
@@ -3276,7 +3267,7 @@ namespace EFILE {
             }
         }
         A_bin.close();
-
+        
         if(!dont_read_N){
             string grm_Nfile = grm_file + ".orm.N.bin";
             ifstream N_bin(grm_Nfile.c_str(), ios::in | ios::binary);
@@ -3304,12 +3295,12 @@ namespace EFILE {
     void merge_grm(eInfo* einfo, char* merge_grm_file) {
         vector<string> grm_files, grm_id;
         read_msglist(merge_grm_file, grm_files, "ORM file");
-
-
+        
+        
         for (int f = 0; f < grm_files.size(); f++) {
             read_grm(einfo, grm_files[f], grm_id, false, true, false,true);
         }
-
+        
         vector<string> uni_id;
         map<string, int> uni_id_map;
         map<string, int>::iterator iter;
@@ -3317,14 +3308,14 @@ namespace EFILE {
             uni_id.push_back(einfo->_eii_fid[einfo->_eii_include[i]]+":"+einfo->_eii_iid[einfo->_eii_include[i]]);
             uni_id_map.insert(pair<string,int>(einfo->_eii_fid[einfo->_eii_include[i]]+":"+einfo->_eii_iid[einfo->_eii_include[i]], i));
         }
-
+        
         int _n=(int)einfo->_eii_include.size();
         if(_n<1) {
             LOGPRINTF("ERROR: no individual is in common among the input files.\n");
             TERMINATE();
         }
         LOGPRINTF("%d individuals are in common in the input files.\n",_n);
-
+        
         vector<int> kp;
         MatrixXd grm = MatrixXd::Zero(_n, _n);
         MatrixXd grm_N = MatrixXd::Zero(_n, _n);
@@ -3355,7 +3346,7 @@ namespace EFILE {
         grm_N.resize(0, 0);
         LOGPRINTF("\n%ld ORMs have been merged together.\n",grm_files.size());
     }
-
+    
     void rm_cor_indi(eInfo* einfo, double grm_cutoff,bool erm_cutoff_2sides) {
         if(erm_cutoff_2sides){
             LOGPRINTF( "Pruning the ORM with a cutoff of %f and %f...\n",grm_cutoff, -1.0*grm_cutoff);
@@ -3364,9 +3355,9 @@ namespace EFILE {
         {
             LOGPRINTF( "Pruning the ORM with a cutoff of %f...\n",grm_cutoff);
         }
-
+        
         int i = 0, j = 0, i_buf = 0;
-
+        
         // identify the positions where you see a value > than the threshold
         vector<int> rm_grm_ID1, rm_grm_ID2;
         for (i = 0; i < einfo->_eii_include.size(); i++) {
@@ -3385,10 +3376,10 @@ namespace EFILE {
                         rm_grm_ID2.push_back(einfo->_eii_include[j]);
                     }
                 }
-
+                
             }
         }
-
+        
         // count the number of appearance of each "position" in the vector, which involves a few steps
         vector<int> rm_uni_ID(rm_grm_ID1);
         rm_uni_ID.insert(rm_uni_ID.end(), rm_grm_ID2.begin(), rm_grm_ID2.end());
@@ -3399,7 +3390,7 @@ namespace EFILE {
             i_buf = count(rm_grm_ID1.begin(), rm_grm_ID1.end(), rm_uni_ID[i]) + count(rm_grm_ID2.begin(), rm_grm_ID2.end(), rm_uni_ID[i]);
             rm_uni_ID_count.insert(pair<int, int>(rm_uni_ID[i], i_buf));
         }
-
+        
         // swapping
         map<int, int>::iterator iter1, iter2;
         for (i = 0; i < rm_grm_ID1.size(); i++) {
@@ -3411,18 +3402,18 @@ namespace EFILE {
                 rm_grm_ID2[i] = i_buf;
             }
         }
-
+        
         stable_sort(rm_grm_ID1.begin(), rm_grm_ID1.end());
         rm_grm_ID1.erase(unique(rm_grm_ID1.begin(), rm_grm_ID1.end()), rm_grm_ID1.end());
         vector<string> removed_ID;
         for (i = 0; i < rm_grm_ID1.size(); i++) removed_ID.push_back(einfo->_eii_fid[rm_grm_ID1[i]] + ":" + einfo->_eii_iid[rm_grm_ID1[i]]);
-
+        
         // update _keep and _id_map
         update_map_rm(removed_ID, einfo->_eii_map, einfo->_eii_include);
-
+        
         cout << "After pruning the ORM, there are " << einfo->_eii_include.size() << " individuals (" << removed_ID.size() << " individuals removed)." << endl;
     }
-
+    
     void update_sex(eInfo* einfo, char* sex_file) {
         ifstream isex(sex_file);
         if (!isex) throw ("Error: can not open the file [" + string(sex_file) + "] to read.");
@@ -3449,13 +3440,13 @@ namespace EFILE {
             getline(isex, str_buf);
         }
         isex.close();
-
+        
         for (int i = 0; i < einfo->_eii_include.size(); i++) {
             if (confirm[einfo->_eii_include[i]] != 1) throw ("Error: sex information for all of the included individuals should be updated.");
         }
         cout << "Sex information for " << icount << " individuals are update from [" + string(sex_file) + "]." << endl;
     }
-
+    
     void adj_grm(eInfo* einfo, double adj_grm_fac) {
         cout << "Adjusting the ORM for sampling errors ..." << endl;
         int i = 0, j = 0, n = einfo->_eii_include.size();
@@ -3484,13 +3475,13 @@ namespace EFILE {
             }
         }
     }
-
-
+    
+    
     void dc(eInfo* einfo, int dosage_compen) {
         cout << "Parameterizing the ORM under the assumption of ";
         if (dosage_compen == 1) cout << "full dosage compensation ..." << endl;
         else if (dosage_compen == 0) cout << "no dosage compensation ..." << endl;
-
+        
         int i = 0, j = 0, i_buf = 0;
         double c1 = 1.0, c2 = 1.0;
         if (dosage_compen == 1) {
@@ -3509,7 +3500,7 @@ namespace EFILE {
             }
         }
     }
-
+    
     void cal_var_mean(eInfo* einfo, bool mean_flag, bool var_flag)
     {
         long n = einfo->_eii_include.size(), m = einfo->_epi_num;
@@ -3615,13 +3606,13 @@ namespace EFILE {
         }
     }
     int construct_X(eInfo* einfo, vector<MatrixXd> &E_float, MatrixXd &qE_float, MatrixXd &_X) {
-
+        
         int n=(int)einfo->_eii_include.size();
-
+        
         int i = 0, j = 0;
         map<string, int>::iterator iter;
         stringstream errmsg;
-
+        
         int  _X_c = 1;
         // quantitative covariates
         MatrixXd X_q;
@@ -3633,7 +3624,7 @@ namespace EFILE {
             if(loud) {LOGPRINTF("%d quantitative variable(s) included as covariate(s).\n",einfo->_eii_qcov_num);}
             _X_c += einfo->_eii_qcov_num;
         }
-
+        
         // discrete covariates
         vector<MatrixXd> X_d;
         if (einfo->_eii_cov_num>0) {
@@ -3658,7 +3649,7 @@ namespace EFILE {
         // E factor
         _X_c += qE_float.cols();
         for (i = 0; i < E_float.size(); i++) _X_c += (E_float[i]).cols() - 1;
-
+        
         // Construct _X
         int col = 0;
         _X.resize(n, _X_c);
@@ -3716,7 +3707,7 @@ namespace EFILE {
                     x(MISS[k])=mu;
                 }
             }
-
+            
             if(x.size()!=X.rows() || x.size()<1) {
                 LOGPRINTF("Error: The row number of C and the length of y not match.\n");
                 TERMINATE();
@@ -3745,13 +3736,13 @@ namespace EFILE {
             TERMINATE();
         }
         MatrixXd XtXiXt=XtX_i*_X.transpose();
-
+        
         //LOGPRINTF("\nFast adjusting probes...\n");
         for(int i=0;i<einfo->_epi_include.size();i++)
         {
             printf("%3.0f%%\r", 100.0*i/einfo->_epi_include.size());
             fflush(stdout);
-
+            
             vector<int> MISS;
             VectorXd x(einfo->_eii_include.size());
             double mu= 0.0, sum=0.0;
@@ -3779,12 +3770,12 @@ namespace EFILE {
                     x(MISS[k])=mu;
                 }
             }
-
+           
             if(x.size()!=_X.rows() || x.size()<1) {
                 LOGPRINTF("Error: The row number of C and the length of y not match.\n");
                 TERMINATE();
             }
-
+            
             VectorXd b_hat=XtXiXt*x;
             VectorXd residual=(x-_X*b_hat);
             for(int j=0;j<residual.size();j++) einfo->_val[einfo->_epi_include[i]*einfo->_eii_num+einfo->_eii_include[j]]=residual(j);
@@ -3825,15 +3816,15 @@ namespace EFILE {
                     miss++;
                 }
             }
-
+            
             VectorXd x(xvec.size());
             for(int j=0;j<xvec.size();j++) x(j)=xvec[j];
-
+            
             if(x.size()!=X.rows() || x.size()<1) {
                 LOGPRINTF("Error: The row number of C and the length of y do not match.\n");
                 TERMINATE();
             }
-
+            
             MatrixXd XtX_i;
             //XtX_i=(X.transpose()*X).inverse(); //DO NOT USE IT, IT WOULD GIVE A VERY VERY WRONG RESULT WHEN THE MATRIX IS NOT INVERTIBLE
             XtX_i=X.transpose()*X;
@@ -3843,7 +3834,7 @@ namespace EFILE {
                 LOGPRINTF("ERROR: Maybe there is multicollinearity in the covariates.\n");
                 TERMINATE();
             }
-
+            
             VectorXd b_hat=XtX_i*X.transpose()*x;
             VectorXd residual=(x-X*b_hat);
             for(int j=0;j<residual.size();j++) einfo->_val[einfo->_epi_include[i]*einfo->_eii_num+NMISS[j]]=residual(j);
@@ -3870,5 +3861,6 @@ namespace EFILE {
         }
         return false;
     }
-
+    
 }
+

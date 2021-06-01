@@ -1860,6 +1860,8 @@ void option(int option_num, char * option_str[])
                 cis_flag, cis_itvl, bedfileName, pmecs,nmecs);
             }
         else{
+
+
             sQTL(outfileName, efileName, befileName, bFileName, transposedin, \
                 efileType, problstName, problst2exclde, genelistName, chr, prbname, \
                 fromprbname, toprbname, prbWind, fromprbkb, toprbkb, prbwindFlag, \
