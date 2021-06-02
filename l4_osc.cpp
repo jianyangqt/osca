@@ -1861,7 +1861,7 @@ void option(int option_num, char * option_str[])
             }
         else{
 
-
+            //the entry point of function which need debugs.
             sQTL(outfileName, efileName, befileName, bFileName, transposedin, \
                 efileType, problstName, problst2exclde, genelistName, chr, prbname, \
                 fromprbname, toprbname, prbWind, fromprbkb, toprbkb, prbwindFlag, \
