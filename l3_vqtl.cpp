@@ -7,6 +7,8 @@
 //
 
 #include "l3_vqtl.hpp"
+#include <time.h>
+#include <fstream>
 
 namespace VQTL {
     void indi_check(bInfo* bdata,eInfo* einfo)
@@ -2394,6 +2396,36 @@ namespace VQTL {
         setNbThreads(thread_num);
         LOGPRINTF("Using %d thread(s) to conduct analysis ...\n", thread_num);
 
+        printf("outFileName: %s, efileName: %s, bedFileName: %s,\n"
+            "bFileName: %s, transposed: %d, efileType: %d, problstName: %s,"
+            "problst2exclde: %s, genelistName: %s, chr: %d, prbname: %s,"
+            "fromprbname: %s, toprbname: %s, prbWind: %d, fromprbkb: %d,"
+            "toprbkb: %d, prbwindFlag: %d, genename: %s, probe2exclde: %s,"
+            "indilstName: %s, indilst2remove: %s, no_fid_flag: %d, valueType: %d,"
+            "beta2m: %d, m2beta: %d, std_thresh: %lf, upperBeta: %lf,"
+            "lowerBeta: %lf, dpvalfName: %s, dp_thresh: %lf, prb_thresh: %lf,"
+            "spl_thresh: %lf, filter_mth: %d, mssratio_prob: %lf, autosome_num: %d,"
+            "maf: %lf, snplstName: %s, snplst2exclde: %s, tsk_ttl: %d,"
+            "tsk_id: %d, covfileName: %s, qcovfileName: %s, tosmrflag: %d,"
+            "nofastlinear: %d, cis_flag: %d, cis_itvl: %d, zeroratio: %lf, call: %lf,"
+            "annofileName: %s, covbodfileName: %s, covefileName: %s, transopse_ecov: %d.\n"
+            ,
+            outFileName, efileName, befileName, \
+            bFileName, transposed, efileType, problstName, \
+            problst2exclde, genelistName, chr, prbname, \
+            fromprbname, toprbname, prbWind, fromprbkb, \
+            toprbkb, prbwindFlag, genename, probe2exclde, \
+            indilstName, indilst2remove, no_fid_flag, valueType, \
+            beta2m, m2beta, std_thresh, upperBeta, \
+            lowerBeta, dpvalfName, dp_thresh, prb_thresh, \
+            spl_thresh, filter_mth, mssratio_prob, autosome_num, \
+            maf, snplstName, snplst2exclde, tsk_ttl, \
+            tsk_id, covfileName, qcovfileName, tosmrflag, \
+            nofastlinear, cis_flag, cis_itvl, zeroratio, call, \
+            annofileName, covbodfileName, covefileName, transopse_ecov
+
+         );
+
 
 /*
 typedef struct{
@@ -2577,6 +2609,7 @@ typedef struct{
 } bInfo;
 */
 
+
         eInfo einfo;
         bInfo bdata;
         eInfo eCov;
@@ -2606,6 +2639,8 @@ typedef struct{
                 outFileName=outputname;
             }
         }
+
+
         eInfo sqtlinfo;
         vector< vector<int>> tranids;  //smaller einfo._epi_include
         gene_check( &sqtlinfo,tranids, annofileName, &bdata,&einfo);
@@ -2640,6 +2675,8 @@ typedef struct{
         vector<int> cis_num;
         vector< vector<uint32_t> > snpids; //to save _include id not _include value
         cis_eQTL_num_2(&sqtlinfo,&bdata,cis_itvl,snpids, cis_num);
+
+
         for(int ii=0;ii<sqtlinfo._epi_include.size();ii++)
         {
             rowids[ii].resize(cis_num[ii]);
@@ -2651,26 +2688,42 @@ typedef struct{
         int nindi = (int)einfo._eii_include.size();
         double cr=0.0;
 
+
+//===================================================================================
         #pragma omp parallel for private(cr)
         for(int jj=0;jj<sqtlinfo._epi_include.size();jj++)
         {
-            double desti=1.0*jj/(sqtlinfo._epi_include.size()-1);
-            if(desti>=cr)
+/*
+            if (sqtlinfo._epi_gene[jj] != "ANK2")
+                continue;
+*/
+            cout << ">" << sqtlinfo._epi_gene[jj] << endl;
+            double desti = 1.0 * jj / (sqtlinfo._epi_include.size() - 1);
+            cout << "desti: " << desti << endl;
+
+            if(desti >= cr)
             {
                 printf("%3.0f%%\r", 100.0*desti);
                 fflush(stdout);
-                if(cr==0) cr+=0.05;
-                else if(cr==0.05) cr+=0.2;
-                else if(cr==0.25) cr+=0.5;
-                else cr+=0.25;
+                if(cr == 0)
+                    cr += 0.05;
+                else if(cr == 0.05)
+                    cr += 0.2;
+                else if(cr == 0.25)
+                    cr += 0.5;
+                else
+                    cr += 0.25;
             }
-            string prbid=sqtlinfo._epi_prb[sqtlinfo._epi_include[jj]];
-            if(snpids[jj].size()==0)  continue;
+            string prbid = sqtlinfo._epi_prb[sqtlinfo._epi_include[jj]];
+            if(snpids[jj].size() == 0){
+                continue;
+            }
 
             MatrixXd _X;
             make_XMat(&bdata,snpids[jj], _X);
 
             int numTrans = (int)tranids[jj].size();
+
             vector<double> tpm(numTrans*nindi);
             VectorXd overall;
             vector<int> missidx;
@@ -2679,21 +2732,27 @@ typedef struct{
             map<string, int>::iterator citer;
             vector< vector<double>> trpv;
             trpv.resize(numTrans);
-            for(int kk=0;kk<numTrans;kk++) trpv[kk].resize(einfo._eii_include.size());
-            for( int kk=0;kk<numTrans;kk++)
+            for(int kk = 0; kk < numTrans; kk++)
+                trpv[kk].resize(einfo._eii_include.size());
+            for( int kk = 0; kk < numTrans; kk++)
             {
-                for(int ll=0; ll<einfo._eii_include.size(); ll++) trpv[kk][ll]=einfo._val[tranids[jj][kk]*einfo._eii_num+einfo._eii_include[ll]];
+                for(int ll = 0; ll < einfo._eii_include.size(); ll++)
+                    trpv[kk][ll] = einfo._val[tranids[jj][kk]*einfo._eii_num + einfo._eii_include[ll]];
 
             }
-            vector< vector<double>> cor_null;
+
+
+            vector< vector<double> > cor_null;
             cor_null.resize(numTrans);
-            for(int kk=0;kk<numTrans;kk++) cor_null[kk].resize(numTrans);
-            for(int kk=0;kk<numTrans;kk++)
+            for(int kk = 0; kk < numTrans; kk++)
+                cor_null[kk].resize(numTrans);
+
+            for(int kk = 0; kk < numTrans; kk++)
             {
-                for(int ll=kk+1;ll<numTrans;ll++)
+                for(int ll = kk + 1; ll < numTrans; ll++)
                 {
-                    vector<double> y,x;
-                    for(int mm=0; mm<einfo._eii_include.size(); mm++)
+                    vector<double> y, x;
+                    for(int mm = 0; mm < einfo._eii_include.size(); mm++)
                     {
                         if(trpv[kk][mm] < 1e9 && trpv[ll][mm] < 1e9)
                         {
@@ -2704,24 +2763,86 @@ typedef struct{
                     cor_null[kk][ll] = cor_null[ll][kk] = cor(y,x);
                 }
             }
-            for(int kk=0;kk<numTrans;kk++) cor_null[kk][kk] = 1.0;
-            for(int kk=0;kk<_X.cols();kk++) //_X.cols() ==snpids[jj].size()
+
+            //remove row and columns which contain value is 1
+            vector < int > need_remove;
+            int i = 0, j = 0, k = 0, l = 0;
+            vector < int >::iterator it;
+
+            for (i = 0; i < cor_null.size(); i++){
+                for (j = 1 + i; j < cor_null[i].size(); j++){
+                    if (abs(cor_null[i][j] - 1) < 1e-15){
+                        need_remove.push_back(i);
+                    }
+                }
+            }
+
+            numTrans -= need_remove.size();
+            vector < vector <double> > cor_null_clean;
+            cor_null_clean.resize(numTrans);
+            for (i = 0; i < numTrans; i++){
+                cor_null_clean[i].resize(numTrans);
+            }
+
+            k = 0;
+            for (i = 0; i < cor_null.size(); i++){
+                l = 0;
+                it = find(need_remove.begin(), need_remove.end(), i);
+                if (it != need_remove.end()){
+                    k++;
+                } else{
+                    for (j = 0; j < cor_null[i].size(); j++){
+                        it = find(need_remove.begin(), need_remove.end(), j);
+                        if (it != need_remove.end()){
+                            l++;
+                        } else{
+                            cor_null_clean[i - k][j - l] = cor_null[i][j];
+
+                        }
+                    }
+                }
+            }
+/*
+            for (i = 0; i < numTrans + need_remove.size(); i++){
+                cor_null[i][i] = 1.0;
+            }
+*/
+            for(int kk = 0; kk < numTrans; kk++)
+                cor_null_clean[kk][kk] = 1.0;
+/*
+            for (i = 0; i < cor_null.size(); i++){
+                for (j = 0; j < cor_null[i].size(); j++){
+                    cout << cor_null[i][j] << " ";
+                }
+                cout << endl;
+            }
+
+
+            for (i = 0; i < cor_null_clean.size(); i++){
+                for (j = 0; j < cor_null_clean[i].size(); j++){
+                    cout << cor_null_clean[i][j] << " ";
+                }
+                cout << endl;
+            }
+*/
+//------------------------------------------------------------------------------------------------
+            for(int kk = 0; kk < _X.cols(); kk ++) //_X.cols() ==snpids[jj].size()
             {
 
-                uint32_t snpid=snpids[jj][kk];
-                string snprs=bdata._snp_name[bdata._include[snpid]];
+                uint32_t snpid = snpids[jj][kk];
+                string snprs = bdata._snp_name[bdata._include[snpid]];
 
-                double snpfreq=bdata._mu[bdata._include[snpid]]/2;
-                if(snpfreq==0 || snpfreq==1) {
+                double snpfreq = bdata._mu[bdata._include[snpid]]/2;
+                if(snpfreq == 0 || snpfreq == 1) {
                     if(!warned) {LOGPRINTF("WARNING: MAF found 0 or 1 with SNP(s).\n"); warned=1;}
-                    rowids[jj][kk]=snpid;
-                    betas[jj][kk]=0;
-                    ses[jj][kk]=1;
+                    rowids[jj][kk] = snpid;
+                    betas[jj][kk] = 0;
+                    ses[jj][kk] = 1;
                     continue;
                 }
-                vector<double> beta(numTrans), se(numTrans);
 
-                for(int ll=0;ll<numTrans;ll++)
+                vector<double> beta(numTrans), se(numTrans);
+                for(int ll = 0; ll < numTrans; ll++)
                 {
                     vector<double> y,x,rst;
                     for(int mm=0;mm<einfo._eii_include.size(); mm++)
@@ -2744,10 +2865,11 @@ typedef struct{
                     for(int m2=m1+1;m2<numTrans;m2++)
                     {
                         d[k]=beta[m1]-beta[m2];
-                        vardev[k] = se[m1]*se[m1]+se[m2]*se[m2]-2*cor_null[m1][m2]*se[m1]*se[m2];
+                        vardev[k] = se[m1]*se[m1]+se[m2]*se[m2]-2*cor_null_clean[m1][m2]*se[m1]*se[m2];
                         k++;
                     }
                 }
+
                 for(int m1=0;m1<varnum;m1++)
                     chisq_dev[m1] = d[m1]*d[m1]/vardev[m1];
 
@@ -2758,7 +2880,9 @@ typedef struct{
                         mj=0;
                         for(int m3=0; m3< numTrans-1; m3++){
                             for(int m4=m3+1;m4<numTrans;m4++) {
-                                vdev(mi,mj) = se[m1]*se[m3]*cor_null[m1][m3] - se[m1]*se[m4]*cor_null[m1][m4] - se[m2]*se[m3]*cor_null[m2][m3] + se[m2]*se[m4]*cor_null[m2][m4];
+                                vdev(mi,mj) = se[m1]*se[m3]*cor_null_clean[m1][m3] - \
+                                    se[m1]*se[m4]*cor_null_clean[m1][m4] - se[m2]*se[m3]*cor_null_clean[m2][m3] + \
+                                    se[m2]*se[m4]*cor_null_clean[m2][m4];
                                 mj++;
                             }
                         }
@@ -2772,28 +2896,39 @@ typedef struct{
                         corr_dev(m1,m2) = corr_dev(m2,m1) = vdev(m1,m2)/sqrt(vdev(m1,m1)*vdev(m2,m2));
                     }
                 }
+
+                cout << corr_dev.cols() << endl;
+                cout << corr_dev.rows() << endl;
+ //-----------------------------------------------------------------------------
                 VectorXd lambda;
                 #pragma omp critical
                 {
                     SelfAdjointEigenSolver<MatrixXd> es(corr_dev);
+                    //printf("here\n");
                     lambda=es.eigenvalues();
+                    //cerr << lambda << endl;
                 }
-                double sumChisq_dev=chisq_dev.sum();
-                double pdev= 0.0;
-                #pragma omp critical
-                pdev=pchisqsum(sumChisq_dev,lambda);
-                double z=0.0;
-                #pragma omp critical
-                z=sqrt(qchisq(pdev,1));
+//-----------------------------------------------------------------------------
 
-                double beta_hat=z/sqrt(2*snpfreq*(1-snpfreq)*(nindi+z*z));
-                double se_hat=1/sqrt(2*snpfreq*(1-snpfreq)*(nindi+z*z));
+                double sumChisq_dev = chisq_dev.sum();
+                double pdev = 0.0;
+                #pragma omp critical
+                pdev = pchisqsum(sumChisq_dev,lambda);
+                double z = 0.0;
+                #pragma omp critical
+                z = sqrt(qchisq(pdev,1));
 
-                rowids[jj][kk]=snpid;
-                betas[jj][kk]=beta_hat;
-                ses[jj][kk]=se_hat;
+                double beta_hat = z / sqrt(2 * snpfreq * (1 - snpfreq) * (nindi + z * z));
+                double se_hat = 1 / sqrt(2 * snpfreq * (1 - snpfreq) * (nindi + z * z));
+
+                rowids[jj][kk] = snpid;
+                betas[jj][kk] = beta_hat;
+                ses[jj][kk] = se_hat;
+                cout << "oneloop\n";
             }
+//--------------------------------------------------------------------------------------
         }
+//===================================================================================
         if(tosmrflag)
         {
             uint64_t valNum=0;
@@ -2907,6 +3042,8 @@ typedef struct{
         fclose(besd);
         LOGPRINTF("sQTL summary statistics for %ld probes and %ld SNPs are saved in file %s.\n", einfo._epi_include.size(),bdata._include.size(), besdName.c_str());
     }
+
+
     bool pcc(MatrixXd &PCC, MatrixXd &buffer_beta,MatrixXd &buffer_se, double pmecs, int nmecs)
     {
         long snpnum = buffer_beta.rows();
