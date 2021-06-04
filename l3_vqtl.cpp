@@ -2690,6 +2690,8 @@ typedef struct{
 
 
 //===================================================================================
+        clock_t t1, t2, t3, t4;
+
         #pragma omp parallel for private(cr)
         for(int jj=0;jj<sqtlinfo._epi_include.size();jj++)
         {
@@ -2699,7 +2701,7 @@ typedef struct{
 */
             cout << ">" << sqtlinfo._epi_gene[jj] << endl;
             double desti = 1.0 * jj / (sqtlinfo._epi_include.size() - 1);
-            cout << "desti: " << desti << endl;
+            //cout << "desti: " << desti << endl;
 
             if(desti >= cr)
             {
@@ -2724,6 +2726,7 @@ typedef struct{
 
             int numTrans = (int)tranids[jj].size();
 
+
             vector<double> tpm(numTrans*nindi);
             VectorXd overall;
             vector<int> missidx;
@@ -2731,6 +2734,7 @@ typedef struct{
             map<int, int>::iterator iter;
             map<string, int>::iterator citer;
             vector< vector<double>> trpv;
+
             trpv.resize(numTrans);
             for(int kk = 0; kk < numTrans; kk++)
                 trpv[kk].resize(einfo._eii_include.size());
@@ -2764,6 +2768,8 @@ typedef struct{
                 }
             }
 
+
+            //modified by fanghl
             //remove row and columns which contain value is 1
             vector < int > need_remove;
             int i = 0, j = 0, k = 0, l = 0;
@@ -2776,6 +2782,9 @@ typedef struct{
                     }
                 }
             }
+
+            for (int i = 0; i < need_remove.size(); i++)
+                cout << need_remove[i] << endl;
 
             numTrans -= need_remove.size();
             vector < vector <double> > cor_null_clean;
@@ -2825,10 +2834,26 @@ typedef struct{
                 cout << endl;
             }
 */
+            vector < vector < double > > trpv_clean;
+            vector < double > tmp;
+            for (i = 0; i < trpv.size(); i++){
+                tmp.clear();
+                it = find(need_remove.begin(), need_remove.end(), i);
+                if (it == need_remove.end()){
+                    for (j = 0; j < trpv[i].size(); j++){
+                        tmp.push_back(trpv[i][j]);
+                    }
+                    trpv_clean.push_back(tmp);
+                }
+            }
+
+
+
 //------------------------------------------------------------------------------------------------
             for(int kk = 0; kk < _X.cols(); kk ++) //_X.cols() ==snpids[jj].size()
             {
 
+                t1 = clock();
                 uint32_t snpid = snpids[jj][kk];
                 string snprs = bdata._snp_name[bdata._include[snpid]];
 
@@ -2840,14 +2865,13 @@ typedef struct{
                     ses[jj][kk] = 1;
                     continue;
                 }
-
                 vector<double> beta(numTrans), se(numTrans);
                 for(int ll = 0; ll < numTrans; ll++)
                 {
                     vector<double> y,x,rst;
                     for(int mm=0;mm<einfo._eii_include.size(); mm++)
                     {
-                        double bval=_X(mm,kk), tval=trpv[ll][mm];
+                        double bval=_X(mm,kk), tval=trpv_clean[ll][mm];
                         if(bval < 1e5 && tval < 1e9)
                         {
                             y.push_back(tval);
@@ -2855,9 +2879,11 @@ typedef struct{
                         }
                     }
                     reg(y,x,rst);
+
                     beta[ll]=rst[0];
                     se[ll]=rst[1];
                 }
+
                 int varnum=numTrans*(numTrans-1)/2, k=0;
                 VectorXd d(varnum),vardev(varnum),chisq_dev(varnum);
                 for(int m1=0;m1<numTrans-1;m1++)
@@ -2897,9 +2923,10 @@ typedef struct{
                     }
                 }
 
-                cout << corr_dev.cols() << endl;
-                cout << corr_dev.rows() << endl;
+                //cout << corr_dev.cols() << endl;
+                //cout << corr_dev.rows() << endl;
  //-----------------------------------------------------------------------------
+                t2 = clock();
                 VectorXd lambda;
                 #pragma omp critical
                 {
@@ -2909,7 +2936,7 @@ typedef struct{
                     //cerr << lambda << endl;
                 }
 //-----------------------------------------------------------------------------
-
+                t3 = clock();
                 double sumChisq_dev = chisq_dev.sum();
                 double pdev = 0.0;
                 #pragma omp critical
@@ -2924,7 +2951,8 @@ typedef struct{
                 rowids[jj][kk] = snpid;
                 betas[jj][kk] = beta_hat;
                 ses[jj][kk] = se_hat;
-                cout << "oneloop\n";
+                t4 = clock();
+                //printf("totall time: %ld, eigen_time: %ld\n", t4 - t1, t3 - t2);
             }
 //--------------------------------------------------------------------------------------
         }
