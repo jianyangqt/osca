@@ -2697,10 +2697,10 @@ typedef struct{
         for(int jj=0;jj<sqtlinfo._epi_include.size();jj++)
         {
 
-/*
+
             if (sqtlinfo._epi_gene[jj] != "MIR99AHG")
                 continue;
-*/
+
             cout << ">" << sqtlinfo._epi_gene[jj] << endl;
             ofstream f_out_cor_null;
             ofstream f_out_cor_null_clean;
@@ -2893,7 +2893,6 @@ typedef struct{
                 f_out_lambda.open(f_name.str());
 
 
-
                 t1 = clock();
                 uint32_t snpid = snpids[jj][kk];
                 string snprs = bdata._snp_name[bdata._include[snpid]];
@@ -2974,31 +2973,22 @@ typedef struct{
 
                 t2 = clock();
                 VectorXd lambda;
-
-
                 #pragma omp critical
                 {
                     SelfAdjointEigenSolver<MatrixXd> es;
                     es.compute(corr_dev, EigenvaluesOnly);
                     lambda=es.eigenvalues();
+                    f_out_lambda << lambda << endl;
 
                 }
 
-                f_out_lambda << lambda << endl;
-/*
-                SelfAdjointEigenSolver<MatrixXd> es;
-                es.compute(corr_dev, EigenvaluesOnly);
-                lambda=es.eigenvalues();
-                f_out_lambda << lambda << endl;
-                exit(0);
-*/
-
-                exit(0);
-//-----------------------------------------------------------------------------
                 t3 = clock();
+//-----------------------------------------------------------------------------
+
                 double sumChisq_dev = chisq_dev.sum();
                 double pdev = 0.0;
                 #pragma omp critical
+                cout << "sumChisq_dev: " << sumChisq_dev << endl;
                 pdev = pchisqsum(sumChisq_dev,lambda);
                 cout << "pdev: " << pdev << endl;
                 double z = 0.0;
