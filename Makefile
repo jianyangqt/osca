@@ -9,10 +9,11 @@ MKL_INCLUDE = /home/fanghl/.local/opt/mkl_v2021.2.0_d20210524/include
 MKL_LIB = /home/fanghl/.local/opt/mkl_v2021.2.0_d20210524/lib/intel64
 
 
-CXX = g++
+#CXX = g++
+CXX = /home/fanghl/.local/uti/gcc_v10.2.0_d20210401/bin/g++
 CXXFLAGS= -Wall -O3 -fopenmp
-CPPFLAGS= -I$(EIGEN_PATH) -I$(MKL_INCLUDE)
-LDFLAGS= -L$(MKL_LIB)
+CPPFLAGS= -I/home/fanghl/.local/uti/gcc_v10.2.0_d20210401/include -I$(EIGEN_PATH) -I$(MKL_INCLUDE)
+LDFLAGS= -L/home/fanghl/.local/uti/gcc_v10.2.0_d20210401/lib64 -L/home/fanghl/.local/uti/gcc_v10.2.0_d20210401/lib -L$(MKL_LIB)
 LIBS= -lz -lgomp -lmkl_core -lpthread -lmkl_gnu_thread -lmkl_gf_lp64
 
 

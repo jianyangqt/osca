@@ -9,6 +9,7 @@
 #include "l3_vqtl.hpp"
 #include <time.h>
 #include <fstream>
+#include <sstream>
 
 namespace VQTL {
     void indi_check(bInfo* bdata,eInfo* einfo)
@@ -2695,14 +2696,23 @@ typedef struct{
         #pragma omp parallel for private(cr)
         for(int jj=0;jj<sqtlinfo._epi_include.size();jj++)
         {
+
 /*
-            if (sqtlinfo._epi_gene[jj] != "ANK2")
+            if (sqtlinfo._epi_gene[jj] != "MIR99AHG")
                 continue;
 */
             cout << ">" << sqtlinfo._epi_gene[jj] << endl;
-            double desti = 1.0 * jj / (sqtlinfo._epi_include.size() - 1);
-            //cout << "desti: " << desti << endl;
+            ofstream f_out_cor_null;
+            ofstream f_out_cor_null_clean;
+            ofstream f_out_trpv;
+            ofstream f_out_trpv_clean;
+            f_out_cor_null.open("cor_null_before_filter");
+            f_out_cor_null_clean.open("cor_null_filtered");
+            f_out_trpv.open("trpv_before_filter");
+            f_out_trpv_clean.open("trpv_filtered");
 
+
+            double desti = 1.0 * jj / (sqtlinfo._epi_include.size() - 1);
             if(desti >= cr)
             {
                 printf("%3.0f%%\r", 100.0*desti);
@@ -2725,6 +2735,11 @@ typedef struct{
             make_XMat(&bdata,snpids[jj], _X);
 
             int numTrans = (int)tranids[jj].size();
+
+
+            cout << "numTrans: " << numTrans << endl;
+            cout << "snpids[jj].size(): " << snpids[jj].size() << endl;
+            cout << "_X.cols(): " << _X.cols() << endl;
 
 
             vector<double> tpm(numTrans*nindi);
@@ -2769,6 +2784,22 @@ typedef struct{
             }
 
 
+            for (int ii = 0; ii < trpv.size(); ii++){
+
+                for (int jj = 0; jj < trpv[ii].size(); jj++){
+                    f_out_trpv << trpv[ii][jj] << " ";
+                }
+                f_out_trpv << endl;
+            }
+
+            for (int ii = 0; ii < cor_null.size(); ii++){
+                for (int jj = 0; jj < cor_null[ii].size(); jj++){
+                    f_out_cor_null << cor_null[ii][jj] << " ";
+                }
+                f_out_cor_null << endl;
+            }
+
+
             //modified by fanghl
             //remove row and columns which contain value is 1
             vector < int > need_remove;
@@ -2783,8 +2814,6 @@ typedef struct{
                 }
             }
 
-            for (int i = 0; i < need_remove.size(); i++)
-                cout << need_remove[i] << endl;
 
             numTrans -= need_remove.size();
             vector < vector <double> > cor_null_clean;
@@ -2811,29 +2840,11 @@ typedef struct{
                     }
                 }
             }
-/*
-            for (i = 0; i < numTrans + need_remove.size(); i++){
-                cor_null[i][i] = 1.0;
-            }
-*/
+
             for(int kk = 0; kk < numTrans; kk++)
                 cor_null_clean[kk][kk] = 1.0;
-/*
-            for (i = 0; i < cor_null.size(); i++){
-                for (j = 0; j < cor_null[i].size(); j++){
-                    cout << cor_null[i][j] << " ";
-                }
-                cout << endl;
-            }
 
 
-            for (i = 0; i < cor_null_clean.size(); i++){
-                for (j = 0; j < cor_null_clean[i].size(); j++){
-                    cout << cor_null_clean[i][j] << " ";
-                }
-                cout << endl;
-            }
-*/
             vector < vector < double > > trpv_clean;
             vector < double > tmp;
             for (i = 0; i < trpv.size(); i++){
@@ -2848,10 +2859,40 @@ typedef struct{
             }
 
 
+            for (int ii = 0; ii < trpv_clean.size(); ii++){
+                for (int jj = 0; jj < trpv_clean[ii].size(); jj++){
+                    f_out_trpv_clean << trpv_clean[ii][jj] << " ";
+                }
+                f_out_trpv_clean << endl;
+            }
 
+
+            for (int ii = 0; ii < cor_null_clean.size(); ii++){
+                for (int jj = 0; jj < cor_null_clean[ii].size(); jj++){
+                    f_out_cor_null_clean << cor_null_clean[ii][jj] << " ";
+                }
+                f_out_cor_null_clean << endl;
+            }
+
+            ofstream f_out_vdev;
+            ofstream f_out_corr_dev;
+            ofstream f_out_lambda;
+            ostringstream f_name;
 //------------------------------------------------------------------------------------------------
             for(int kk = 0; kk < _X.cols(); kk ++) //_X.cols() ==snpids[jj].size()
             {
+
+                f_name.str("");
+                f_name << "vdev_" << kk;
+                f_out_vdev.open(f_name.str());
+                f_name.str("");
+                f_name << "corr_dev_" << kk;
+                f_out_corr_dev.open(f_name.str());
+                f_name.str("");
+                f_name << "lambda_" << kk;
+                f_out_lambda.open(f_name.str());
+
+
 
                 t1 = clock();
                 uint32_t snpid = snpids[jj][kk];
@@ -2884,7 +2925,7 @@ typedef struct{
                     se[ll]=rst[1];
                 }
 
-                int varnum=numTrans*(numTrans-1)/2, k=0;
+                int varnum = numTrans * (numTrans - 1) / 2, k = 0;
                 VectorXd d(varnum),vardev(varnum),chisq_dev(varnum);
                 for(int m1=0;m1<numTrans-1;m1++)
                 {
@@ -2901,14 +2942,15 @@ typedef struct{
 
                 MatrixXd vdev(varnum,varnum);
                 int mi = 0, mj =0;
-                for( int m1=0;m1< numTrans-1;m1++) {
-                    for( int m2=m1+1;m2<numTrans;m2++) {
-                        mj=0;
-                        for(int m3=0; m3< numTrans-1; m3++){
-                            for(int m4=m3+1;m4<numTrans;m4++) {
-                                vdev(mi,mj) = se[m1]*se[m3]*cor_null_clean[m1][m3] - \
-                                    se[m1]*se[m4]*cor_null_clean[m1][m4] - se[m2]*se[m3]*cor_null_clean[m2][m3] + \
-                                    se[m2]*se[m4]*cor_null_clean[m2][m4];
+                for( int m1 = 0; m1< numTrans - 1; m1++) {
+                    for( int m2 = m1 + 1; m2 < numTrans; m2++) {
+                        mj = 0;
+                        for(int m3 = 0; m3 < numTrans-1; m3++){
+                            for(int m4 = m3 + 1; m4 < numTrans; m4++) {
+                                vdev(mi,mj) = se[m1] * se[m3] * cor_null_clean[m1][m3] - \
+                                    se[m1] * se[m4] * cor_null_clean[m1][m4] - \
+                                    se[m2] * se[m3] * cor_null_clean[m2][m3] + \
+                                    se[m2] * se[m4] * cor_null_clean[m2][m4];
                                 mj++;
                             }
                         }
@@ -2917,30 +2959,48 @@ typedef struct{
                 }
 
                 MatrixXd corr_dev = vdev;
-                for( int m1=0;m1<varnum;m1++) {
-                    for( int m2=m1;m2<varnum;m2++){
-                        corr_dev(m1,m2) = corr_dev(m2,m1) = vdev(m1,m2)/sqrt(vdev(m1,m1)*vdev(m2,m2));
+                for( int m1 = 0; m1 < varnum; m1++) {
+                    for( int m2 = m1; m2 < varnum; m2++){
+                        corr_dev(m1,m2) = corr_dev(m2,m1) = vdev(m1, m2) / sqrt(vdev(m1, m1) * vdev(m2, m2));
                     }
                 }
 
-                //cout << corr_dev.cols() << endl;
-                //cout << corr_dev.rows() << endl;
+
+                f_out_vdev << vdev << endl;
+                f_out_corr_dev << scientific << setprecision(9) << corr_dev << endl;
+
+
  //-----------------------------------------------------------------------------
+
                 t2 = clock();
                 VectorXd lambda;
+
+
                 #pragma omp critical
                 {
-                    SelfAdjointEigenSolver<MatrixXd> es(corr_dev);
-                    //printf("here\n");
+                    SelfAdjointEigenSolver<MatrixXd> es;
+                    es.compute(corr_dev, EigenvaluesOnly);
                     lambda=es.eigenvalues();
-                    //cerr << lambda << endl;
+
                 }
+
+                f_out_lambda << lambda << endl;
+/*
+                SelfAdjointEigenSolver<MatrixXd> es;
+                es.compute(corr_dev, EigenvaluesOnly);
+                lambda=es.eigenvalues();
+                f_out_lambda << lambda << endl;
+                exit(0);
+*/
+
+                exit(0);
 //-----------------------------------------------------------------------------
                 t3 = clock();
                 double sumChisq_dev = chisq_dev.sum();
                 double pdev = 0.0;
                 #pragma omp critical
                 pdev = pchisqsum(sumChisq_dev,lambda);
+                cout << "pdev: " << pdev << endl;
                 double z = 0.0;
                 #pragma omp critical
                 z = sqrt(qchisq(pdev,1));
@@ -2952,11 +3012,18 @@ typedef struct{
                 betas[jj][kk] = beta_hat;
                 ses[jj][kk] = se_hat;
                 t4 = clock();
-                //printf("totall time: %ld, eigen_time: %ld\n", t4 - t1, t3 - t2);
+                printf("totall time: %ld, eigen_time: %ld\n", t4 - t1, t3 - t2);
+
+
+                f_out_vdev.close();
+                f_out_corr_dev.close();
+                f_out_lambda.close();
+
             }
 //--------------------------------------------------------------------------------------
         }
 //===================================================================================
+
         if(tosmrflag)
         {
             uint64_t valNum=0;
