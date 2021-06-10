@@ -183,7 +183,19 @@ namespace VQTL {
         LOGPRINTF("%ld individuals in common are kept.\n",  einfo->_eii_include.size());
     }
 
-    void load_vqtl_workspace(eInfo* einfo,bInfo* bdata, char* efileName, char* befileName, char* phenofileName, char* bFileName, bool transposed, int efileType,char* problstName,char* problst2exclde,char* genelistName, int chr,char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* probe2exclde,char* indilstName,char* indilst2remove, bool no_fid_flag,int valueType,bool beta2m,bool m2beta, double std_thresh,double upperBeta,double lowerBeta,char* dpvalfName, double dp_thresh, double prb_thresh, double spl_thresh, int filter_mth, double mssratio_prob, int autosome_num,char* snplstName,char* snplst2exclde,int tsk_ttl,int tsk_id, char* covfileName, char* qcovfileName,char* grm_file, int xqtlNO, double zeroratio, eInfo* eCov, char* covbodfileName, char* covefileName, bool transopse_ecov)
+    void load_vqtl_workspace(eInfo* einfo, bInfo* bdata, char* efileName, \
+        char* befileName, char* phenofileName, char* bFileName, bool transposed, \
+        int efileType,char* problstName,char* problst2exclde,char* genelistName, \
+        int chr,char* prbname, char* fromprbname, char* toprbname,int prbWind, \
+        int fromprbkb, int toprbkb,bool prbwindFlag, char* genename, \
+        char* probe2exclde,char* indilstName,char* indilst2remove, \
+        bool no_fid_flag,int valueType,bool beta2m,bool m2beta, double std_thresh, \
+        double upperBeta,double lowerBeta,char* dpvalfName, double dp_thresh, \
+        double prb_thresh, double spl_thresh, int filter_mth, double mssratio_prob, \
+        int autosome_num,char* snplstName,char* snplst2exclde,int tsk_ttl, \
+        int tsk_id, char* covfileName, char* qcovfileName,char* grm_file, \
+        int xqtlNO, double zeroratio, eInfo* eCov, char* covbodfileName, \
+        char* covefileName, bool transopse_ecov)
     {
 
         if(befileName==NULL && efileName==NULL && phenofileName==NULL)
@@ -256,6 +268,7 @@ namespace VQTL {
             if(snplst2exclde != NULL) exclude_snp(bdata, snplst2exclde);
             read_bedfile(bdata, string(bFileName)+".bed");
 
+        //here
         }else if(befileName!=NULL){
             vector<string> grm_id;
             char inputname[FNAMESIZE];
@@ -282,8 +295,10 @@ namespace VQTL {
                 }
             }
             //commn individuals
-            if(covbodfileName!=NULL || covefileName!=NULL) indi_check(bdata,einfo,eCov);
-            else indi_check(bdata,einfo);
+            if(covbodfileName!=NULL || covefileName!=NULL)
+                indi_check(bdata,einfo,eCov);
+            else
+                indi_check(bdata,einfo);
             if(covbodfileName!=NULL)
             {
                 char* suffix=bcname+strlen(covbodfileName);
@@ -295,8 +310,10 @@ namespace VQTL {
             memcpy(suffix,".opi",5);
             read_epi(inputname,einfo);
             epi_man(einfo,problstName,problst2exclde,genelistName, chr,prbname, fromprbname, toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag, genename,probe2exclde);
-            if(xqtlNO == 3) extract_sqtl_probe(einfo,tsk_ttl,  tsk_id);
-            else if(tsk_ttl>1) extract_probe(einfo,  tsk_ttl,  tsk_id);
+            if(xqtlNO == 3)
+                extract_sqtl_probe(einfo,tsk_ttl,  tsk_id);
+            else if(tsk_ttl>1)
+                extract_probe(einfo,  tsk_ttl,  tsk_id);
             memcpy(suffix,".bod",5);
             clock_t begin_time = clock();
             read_beed(inputname,einfo);
@@ -2397,7 +2414,7 @@ namespace VQTL {
         setNbThreads(thread_num);
         LOGPRINTF("Using %d thread(s) to conduct analysis ...\n", thread_num);
 
-        printf("outFileName: %s, efileName: %s, bedFileName: %s,\n"
+        printf("outFileName: %s, efileName: %s, befileName: %s,\n"
             "bFileName: %s, transposed: %d, efileType: %d, problstName: %s,"
             "problst2exclde: %s, genelistName: %s, chr: %d, prbname: %s,"
             "fromprbname: %s, toprbname: %s, prbWind: %d, fromprbkb: %d,"
@@ -2696,12 +2713,13 @@ typedef struct{
         #pragma omp parallel for private(cr)
         for(int jj=0;jj<sqtlinfo._epi_include.size();jj++)
         {
-
-
-            if (sqtlinfo._epi_gene[jj] != "MIR99AHG")
+/*
+            if (sqtlinfo._epi_gene[jj] != "BRI3BP")
                 continue;
-
-            cout << ">" << sqtlinfo._epi_gene[jj] << endl;
+*/
+            LOGPRINTF("> %s \n", sqtlinfo._epi_gene[jj].c_str());
+            //cout << ">" << sqtlinfo._epi_gene[jj] << endl;
+/*
             ofstream f_out_cor_null;
             ofstream f_out_cor_null_clean;
             ofstream f_out_trpv;
@@ -2710,7 +2728,7 @@ typedef struct{
             f_out_cor_null_clean.open("cor_null_filtered");
             f_out_trpv.open("trpv_before_filter");
             f_out_trpv_clean.open("trpv_filtered");
-
+*/
 
             double desti = 1.0 * jj / (sqtlinfo._epi_include.size() - 1);
             if(desti >= cr)
@@ -2783,7 +2801,7 @@ typedef struct{
                 }
             }
 
-
+/*
             for (int ii = 0; ii < trpv.size(); ii++){
 
                 for (int jj = 0; jj < trpv[ii].size(); jj++){
@@ -2798,7 +2816,7 @@ typedef struct{
                 }
                 f_out_cor_null << endl;
             }
-
+*/
 
             //modified by fanghl
             //remove row and columns which contain value is 1
@@ -2811,54 +2829,67 @@ typedef struct{
                     if (abs(cor_null[i][j] - 1) < 1e-15){
                         need_remove.push_back(i);
                     }
+
                 }
             }
 
-
-            numTrans -= need_remove.size();
-            vector < vector <double> > cor_null_clean;
-            cor_null_clean.resize(numTrans);
-            for (i = 0; i < numTrans; i++){
-                cor_null_clean[i].resize(numTrans);
-            }
-
-            k = 0;
+/*
             for (i = 0; i < cor_null.size(); i++){
-                l = 0;
-                it = find(need_remove.begin(), need_remove.end(), i);
-                if (it != need_remove.end()){
-                    k++;
-                } else{
-                    for (j = 0; j < cor_null[i].size(); j++){
-                        it = find(need_remove.begin(), need_remove.end(), j);
-                        if (it != need_remove.end()){
-                            l++;
-                        } else{
-                            cor_null_clean[i - k][j - l] = cor_null[i][j];
+                for (j = 0; j < cor_null[i].size(); j++){
+                    cout << "|" << cor_null[i][j] << " ";
+                }
+                cout << endl;
+            }
+*/
+            numTrans -= need_remove.size();
+            cout << "numTrans after filter: " << numTrans << endl;
+            vector < vector <double> > cor_null_clean;
+            vector < vector < double > > trpv_clean;
+            vector < double > tmp;
+            if (numTrans > 1){
+                cor_null_clean.resize(numTrans);
+                for (i = 0; i < numTrans; i++){
+                    cor_null_clean[i].resize(numTrans);
+                }
 
+                k = 0;
+                for (i = 0; i < cor_null.size(); i++){
+                    l = 0;
+                    it = find(need_remove.begin(), need_remove.end(), i);
+                    if (it != need_remove.end()){
+                        k++;
+                    } else{
+                        for (j = 0; j < cor_null[i].size(); j++){
+                            it = find(need_remove.begin(), need_remove.end(), j);
+                            if (it != need_remove.end()){
+                                l++;
+                            } else{
+                                cor_null_clean[i - k][j - l] = cor_null[i][j];
+
+                            }
                         }
                     }
                 }
-            }
 
-            for(int kk = 0; kk < numTrans; kk++)
-                cor_null_clean[kk][kk] = 1.0;
+                for(int kk = 0; kk < numTrans; kk++)
+                    cor_null_clean[kk][kk] = 1.0;
 
-
-            vector < vector < double > > trpv_clean;
-            vector < double > tmp;
-            for (i = 0; i < trpv.size(); i++){
-                tmp.clear();
-                it = find(need_remove.begin(), need_remove.end(), i);
-                if (it == need_remove.end()){
-                    for (j = 0; j < trpv[i].size(); j++){
-                        tmp.push_back(trpv[i][j]);
+                for (i = 0; i < trpv.size(); i++){
+                    tmp.clear();
+                    it = find(need_remove.begin(), need_remove.end(), i);
+                    if (it == need_remove.end()){
+                        for (j = 0; j < trpv[i].size(); j++){
+                            tmp.push_back(trpv[i][j]);
+                        }
+                        trpv_clean.push_back(tmp);
                     }
-                    trpv_clean.push_back(tmp);
                 }
+            } else{
+                numTrans += need_remove.size();
+                cor_null_clean = cor_null;
+                trpv_clean = trpv;
             }
-
-
+/*
             for (int ii = 0; ii < trpv_clean.size(); ii++){
                 for (int jj = 0; jj < trpv_clean[ii].size(); jj++){
                     f_out_trpv_clean << trpv_clean[ii][jj] << " ";
@@ -2873,15 +2904,17 @@ typedef struct{
                 }
                 f_out_cor_null_clean << endl;
             }
-
+*/
+/*
             ofstream f_out_vdev;
             ofstream f_out_corr_dev;
             ofstream f_out_lambda;
             ostringstream f_name;
+*/
 //------------------------------------------------------------------------------------------------
             for(int kk = 0; kk < _X.cols(); kk ++) //_X.cols() ==snpids[jj].size()
             {
-
+/*
                 f_name.str("");
                 f_name << "vdev_" << kk;
                 f_out_vdev.open(f_name.str());
@@ -2891,7 +2924,7 @@ typedef struct{
                 f_name.str("");
                 f_name << "lambda_" << kk;
                 f_out_lambda.open(f_name.str());
-
+*/
 
                 t1 = clock();
                 uint32_t snpid = snpids[jj][kk];
@@ -2964,10 +2997,10 @@ typedef struct{
                     }
                 }
 
-
+/*
                 f_out_vdev << vdev << endl;
                 f_out_corr_dev << scientific << setprecision(9) << corr_dev << endl;
-
+*/
 
  //-----------------------------------------------------------------------------
 
@@ -2978,7 +3011,7 @@ typedef struct{
                     SelfAdjointEigenSolver<MatrixXd> es;
                     es.compute(corr_dev, EigenvaluesOnly);
                     lambda=es.eigenvalues();
-                    f_out_lambda << lambda << endl;
+                    //f_out_lambda << lambda << endl;
 
                 }
 
@@ -2988,9 +3021,9 @@ typedef struct{
                 double sumChisq_dev = chisq_dev.sum();
                 double pdev = 0.0;
                 #pragma omp critical
-                cout << "sumChisq_dev: " << sumChisq_dev << endl;
+                //cout << "sumChisq_dev: " << sumChisq_dev << endl;
                 pdev = pchisqsum(sumChisq_dev,lambda);
-                cout << "pdev: " << pdev << endl;
+                //cout << "pdev: " << pdev << endl;
                 double z = 0.0;
                 #pragma omp critical
                 z = sqrt(qchisq(pdev,1));
@@ -3002,13 +3035,13 @@ typedef struct{
                 betas[jj][kk] = beta_hat;
                 ses[jj][kk] = se_hat;
                 t4 = clock();
-                printf("totall time: %ld, eigen_time: %ld\n", t4 - t1, t3 - t2);
+                //printf("totall time: %ld, eigen_time: %ld\n", t4 - t1, t3 - t2);
 
-
+/*
                 f_out_vdev.close();
                 f_out_corr_dev.close();
                 f_out_lambda.close();
-
+*/
             }
 //--------------------------------------------------------------------------------------
         }
