@@ -2713,10 +2713,10 @@ typedef struct{
         #pragma omp parallel for private(cr)
         for(int jj=0;jj<sqtlinfo._epi_include.size();jj++)
         {
-/*
-            if (sqtlinfo._epi_gene[jj] != "BRI3BP")
+
+            if (sqtlinfo._epi_gene[jj] != "MAPK10")
                 continue;
-*/
+
             LOGPRINTF("> %s \n", sqtlinfo._epi_gene[jj].c_str());
             //cout << ">" << sqtlinfo._epi_gene[jj] << endl;
 /*
@@ -3230,9 +3230,20 @@ typedef struct{
         return true;
     }
 
-    void ssQTL(char* outFileName, char* beqtlFileName, char* problstName,char* problst2exclde,char* genelistName, int chr,int prbchr, char* prbname, char* fromprbname, char* toprbname,int prbWind,int fromprbkb, int toprbkb,bool prbwindFlag, char* genename,char* probe2exclde,int autosome_num, double maf,char* snplstName,char* snplst2exclde,int snpchr, char* snprs, char* fromsnprs, char* tosnprs, int snpWind, int fromsnpkb, int tosnpkb, bool snpwindFlag, char* snprs2exclde, int tsk_ttl,int tsk_id, bool tosmrflag, bool nofastlinear,bool cis_flag,int cis_itvl,  char* annofileName, double pmecs, int nmecs)
+
+    void ssQTL(char * outFileName, char * beqtlFileName, char * problstName, \
+        char * problst2exclde, char * genelistName, int chr, int prbchr, \
+        char * prbname, char * fromprbname, char * toprbname, int prbWind, \
+        int fromprbkb, int toprbkb, bool prbwindFlag, char * genename, \
+        char * probe2exclde, int autosome_num, double maf, char * snplstName, \
+        char * snplst2exclde, int snpchr, char * snprs, char * fromsnprs, \
+        char * tosnprs, int snpWind, int fromsnpkb, int tosnpkb, bool snpwindFlag, \
+        char * snprs2exclde, int tsk_ttl, int tsk_id, bool tosmrflag, \
+        bool nofastlinear, bool cis_flag, int cis_itvl,  char * annofileName, \
+        double pmecs, int nmecs)
     {
 
+        printf(">>>>>>>>>>>>>here\n");
         setNbThreads(thread_num);
         LOGPRINTF("Using %d thread(s) to conduct analysis ...\n", thread_num);
         eqtlInfo eqtlinfo;
@@ -3331,32 +3342,94 @@ typedef struct{
         bool warned = false;
         int nindi = eqtlinfo._sampleNum;
         double cr=0.0;
-
-         #pragma omp parallel for private(cr)
-        for(int jj=0;jj<sqtlinfo._epi_include.size();jj++)
+        clock_t t1, t2;
+        unsigned int i = 0, j = 0, k = 0, l = 0;
+        vector < int > need_remove;
+        vector < int >::iterator it;
+//==============================================================================
+        #pragma omp parallel for private(cr)
+        for(int jj = 0; jj < sqtlinfo._epi_include.size(); jj++)
         {
-            double desti=1.0*jj/(sqtlinfo._epi_include.size()-1);
-            if(desti>=cr)
+/*
+            if (sqtlinfo._epi_gene[jj] != "MAPK10")
+                continue;
+*/
+            LOGPRINTF("> %s \n", sqtlinfo._epi_gene[jj].c_str());
+
+
+            double desti = 1.0 * jj / (sqtlinfo._epi_include.size() - 1);
+            if(desti >= cr)
             {
-                printf("%3.0f%%\r", 100.0*desti);
+                printf("%3.0f%%\r", 100.0 * desti);
                 fflush(stdout);
-                if(cr==0) cr+=0.05;
-                else if(cr==0.05) cr+=0.2;
-                else if(cr==0.25) cr+=0.5;
-                else cr+=0.25;
+                if(cr == 0)
+                    cr+=0.05;
+                else if(cr == 0.05)
+                    cr+=0.2;
+                else if(cr == 0.25)
+                    cr+=0.5;
+                else
+                    cr+=0.25;
             }
-            string prbid=sqtlinfo._epi_prb[sqtlinfo._epi_include[jj]];
-            if(snpids[jj].size()==0)  continue;
+            string prbid = sqtlinfo._epi_prb[sqtlinfo._epi_include[jj]];
+            if(snpids[jj].size()==0){
+                continue;
+            }
 
             int numTrans = (int)tranids[jj].size();
             int numSNP = cis_num[jj];
-            MatrixXd eqtlb(numSNP,numTrans), eqtls(numSNP,numTrans);
+            MatrixXd eqtlb(numSNP, numTrans), eqtls(numSNP, numTrans);
             vector<float> eqtlfreq(numSNP);
             make_bs(&eqtlinfo,tranids[jj],snpids[jj],eqtlb,eqtls,eqtlfreq);
 
+
+            cout << "numTrans: " << numTrans << endl;
+
             // estimate probe correlaton
-            MatrixXd cor_null(numTrans,numTrans);
+            MatrixXd cor_null(numTrans, numTrans);
             pcc(cor_null,  eqtlb, eqtls, pmecs, nmecs);
+
+            //filter cor_null, eqtls eqtlb
+            need_remove.clear();
+            for (i = 0; i < cor_null.rows(); i++){
+                for (j = 0; j < cor_null.cols(); j++){
+                    if (abs(cor_null(i, j) - 1) < 1e-15 && (i != j)){
+                        need_remove.push_back(i);
+                    }
+                }
+            }
+            numTrans -= need_remove.size();
+            cout <<"numTrans after filter: " << numTrans << endl;
+            MatrixXd cor_null_clean(numTrans, numTrans);
+            MatrixXd eqtlb_clean(numTrans, numTrans);
+            MatrixXd eqtls_clean(numTrans, numTrans);
+            k = 0;
+            if (numTrans > 1){
+                l = 0;
+                for (i = 0; i < cor_null.rows(); i++){
+                    it = find(need_remove.begin(), need_remove.end(), i);
+                    if (it != need_remove.end()){
+                        k++;
+                    }
+                    else{
+                        for (j = 0; j < cor_null.cols(); j++){
+                            it = find(need_remove.begin(), need_remove.end(), j);
+                            if (it != need_remove.end()){
+                                l++;
+                            } else{
+                                cor_null_clean(i - k, j - l) = cor_null(i, j);
+                                eqtlb_clean(i - k, j - l) = eqtlb(i, j);
+                                eqtls_clean(i - k, j - l) = eqtls(i, j);
+                            }
+                        }
+                    }
+                }
+            }
+            cor_null = cor_null_clean;
+            eqtlb = eqtlb_clean;
+            eqtls = eqtls_clean;
+
+
             if(loud)
             {
                 string filename=string(outfileName)+"."+atos(prbid)+".corr.txt";
@@ -3378,8 +3451,12 @@ typedef struct{
                 }
                 fclose(tmpfile);
             }
-            for(int kk=0;kk<numSNP;kk++)
+
+//------------------------------------------------------------------------------
+            cout << "numSNP: " << numSNP << endl;
+            for(int kk = 0; kk < numSNP; kk++)
             {
+                t1 = clock();
                 uint32_t snpid=snpids[jj][kk];
                 string snprs=eqtlinfo._esi_rs[snpid];
                 double snpfreq=eqtlinfo._esi_freq[snpid];
@@ -3431,14 +3508,22 @@ typedef struct{
                         corr_dev(m1,m2) = corr_dev(m2,m1) = vdev(m1,m2)/sqrt(vdev(m1,m1)*vdev(m2,m2));
                     }
                 }
+/*
+                ofstream f_out;
+                f_out.open("matrx_out");
+                f_out << corr_dev << endl;
+                printf("output finished\n");
+*/
+//--------------------------------------------------------------------------------
                 VectorXd lambda;
 #pragma omp critical
                 {
-                    SelfAdjointEigenSolver<MatrixXd> es(corr_dev);
+                    SelfAdjointEigenSolver<MatrixXd> es(corr_dev, EigenvaluesOnly);
                     lambda=es.eigenvalues();
                 }
                 double sumChisq_dev=chisq_dev.sum();
                 double pdev= 0.0;
+//------------------------------------------------------------------------------
 #pragma omp critical
                 pdev=pchisqsum(sumChisq_dev,lambda);
                 double z=0.0;
@@ -3451,9 +3536,12 @@ typedef struct{
                 rowids[jj][kk]=snpid;
                 betas[jj][kk]=beta_hat;
                 ses[jj][kk]=se_hat;
+                t2 = clock();
+                printf("clock used: %lu\n", t2 - t1);
             }
-
+//------------------------------------------------------------------------------
         }
+//==============================================================================
         if(tosmrflag)
         {
             uint64_t valNum=0;
