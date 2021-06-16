@@ -317,6 +317,7 @@ void option(int option_num, char * option_str[])
     bool Baptiste = false;
     bool reverseAssoc = false;
     bool fdrflag = false;
+    bool use_top_p = false;
     for(int i=0;i<option_num;i++)
     {
         if(0==strcmp(option_str[i],"--efile")){
@@ -325,6 +326,12 @@ void option(int option_num, char * option_str[])
             FileExist(efileName);
             LOGPRINTF("--efile %s\n",efileName);
         }
+
+        if (0 == strcmp(option_str[i], "--use-top")){
+            use_top_p = true;
+            LOGPRINTF("--use-top ture\n");
+        }
+
         if(0==strcmp(option_str[i],"--tefile")){
             efileName=option_str[++i];
             transposedin=true;
@@ -1857,7 +1864,7 @@ void option(int option_num, char * option_str[])
                 problst2exclde, autosome_num, maf, snplstName, snplst2exclde, \
                 snpchr, snprs, fromsnprs, tosnprs, snpWind, fromsnpkb, tosnpkb, \
                 snpwindFlag, snp2rm, tsk_ttl, tsk_id, to_smr_flag, nofastlinear, \
-                cis_flag, cis_itvl, bedfileName, pmecs,nmecs);
+                cis_flag, cis_itvl, bedfileName, pmecs, nmecs, use_top_p);
             }
         else{
 
@@ -1872,7 +1879,7 @@ void option(int option_num, char * option_str[])
                 snplstName, snplst2exclde, tsk_ttl, tsk_id, covfileName, \
                 qcovfileName, to_smr_flag, nofastlinear, cis_flag, cis_itvl, \
                 zero_ratio_prob, call, bedfileName, bcovfileName, ecovfileName, \
-                transopse_ecov);
+                transopse_ecov, use_top_p);
         }
     }
     else if(queryBesd)
