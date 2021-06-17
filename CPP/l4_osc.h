@@ -61,7 +61,7 @@ static inline void FLAGS_VALID_CK(int option_num, char* option_str[])
         "--loud","--zero-ratio-probe","--call","--bed","--stepwise-fdr","--stepwise-rsq",
         "--moment2-beta","--tpm","--stepwise-logistic","--stepwise-forward","--covar-bod",
         "--covar-efile","--covar-tefile","--nmecs","--reverse-assoc","--fdr","--cor-r2",
-        "--make-bld","--save-r2","--r2-thresh","--moment-force"
+        "--make-bld","--save-r2","--r2-thresh","--moment-force", "--use-top",
     };
 
     vector<string> flags(flgs, flgs + sizeof(flgs)/sizeof(flgs[0]));

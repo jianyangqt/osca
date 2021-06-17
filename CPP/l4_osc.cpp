@@ -326,12 +326,6 @@ void option(int option_num, char * option_str[])
             FileExist(efileName);
             LOGPRINTF("--efile %s\n",efileName);
         }
-
-        if (0 == strcmp(option_str[i], "--use-top")){
-            use_top_p = true;
-            LOGPRINTF("--use-top ture\n");
-        }
-
         if(0==strcmp(option_str[i],"--tefile")){
             efileName=option_str[++i];
             transposedin=true;
@@ -1634,6 +1628,10 @@ void option(int option_num, char * option_str[])
             fdrflag=true;
             LOGPRINTF("--fdr \n");
         }
+        if (0 == strcmp(option_str[i], "--use-top")){
+            use_top_p = true;
+            LOGPRINTF("--use-top ture\n");
+        }
     }
 
 #ifndef __APPLE__
@@ -1846,59 +1844,59 @@ void option(int option_num, char * option_str[])
             qcovfileName, to_smr_flag, nofastlinear, cis_flag, cis_itvl);
     }
     else if(mlmeqtl)
-        eQTL_MLM(outfileName, efileName, befileName, bFileName, transposedin, \
-            efileType, problstName, problst2exclde, genelistName, chr, prbname, \
-            fromprbname, toprbname, prbWind, fromprbkb, toprbkb, prbwindFlag, \
-            genename, problst2exclde, indilstName, indilst2remove, no_fid_flag, \
-            valueType, beta2m, m2beta, std_thresh, upperBeta, lowerBeta, \
-            dpvalfName, thresh_det_pval, thresh_prpt_prb, thresh_prpt_spl, \
-            filter_det_pval_mth, missing_ratio_prob, autosome_num, maf, \
-            snplstName, snplst2exclde, tsk_ttl, tsk_id,covfileName, \
-            qcovfileName, to_smr_flag, cis_flag, cis_itvl, grm_file, grm_bin_flag, \
+        eQTL_MLM(outfileName, efileName, befileName, bFileName, transposedin,
+            efileType, problstName, problst2exclde, genelistName, chr, prbname,
+            fromprbname, toprbname, prbWind, fromprbkb, toprbkb, prbwindFlag,
+            genename, problst2exclde, indilstName, indilst2remove, no_fid_flag,
+            valueType, beta2m, m2beta, std_thresh, upperBeta, lowerBeta,
+            dpvalfName, thresh_det_pval, thresh_prpt_prb, thresh_prpt_spl,
+            filter_det_pval_mth, missing_ratio_prob, autosome_num, maf,
+            snplstName, snplst2exclde, tsk_ttl, tsk_id,covfileName,
+            qcovfileName, to_smr_flag, cis_flag, cis_itvl, grm_file, grm_bin_flag,
             no_constrain, reml_mtd, MaxIter, nopreadj_covar);
     else if(sqtl) {
         if(beqtlFileName){
-            ssQTL(outfileName, beqtlFileName, problstName, problst2exclde, \
-                genelistName, chr, prbchr, prbname, fromprbname, toprbname, \
-                prbWind, fromprbkb, toprbkb, prbwindFlag, genename, \
-                problst2exclde, autosome_num, maf, snplstName, snplst2exclde, \
-                snpchr, snprs, fromsnprs, tosnprs, snpWind, fromsnpkb, tosnpkb, \
-                snpwindFlag, snp2rm, tsk_ttl, tsk_id, to_smr_flag, nofastlinear, \
+            ssQTL(outfileName, beqtlFileName, problstName, problst2exclde,
+                genelistName, chr, prbchr, prbname, fromprbname, toprbname,
+                prbWind, fromprbkb, toprbkb, prbwindFlag, genename,
+                problst2exclde, autosome_num, maf, snplstName, snplst2exclde,
+                snpchr, snprs, fromsnprs, tosnprs, snpWind, fromsnpkb, tosnpkb,
+                snpwindFlag, snp2rm, tsk_ttl, tsk_id, to_smr_flag, nofastlinear,
                 cis_flag, cis_itvl, bedfileName, pmecs, nmecs, use_top_p);
             }
         else{
 
             //the entry point of function which need debugs.
-            sQTL(outfileName, efileName, befileName, bFileName, transposedin, \
-                efileType, problstName, problst2exclde, genelistName, chr, prbname, \
-                fromprbname, toprbname, prbWind, fromprbkb, toprbkb, prbwindFlag, \
-                genename, problst2exclde, indilstName, indilst2remove, no_fid_flag, \
-                valueType, beta2m, m2beta, std_thresh, upperBeta, lowerBeta, \
-                dpvalfName, thresh_det_pval, thresh_prpt_prb, thresh_prpt_spl, \
-                filter_det_pval_mth, missing_ratio_prob, autosome_num, maf, \
-                snplstName, snplst2exclde, tsk_ttl, tsk_id, covfileName, \
-                qcovfileName, to_smr_flag, nofastlinear, cis_flag, cis_itvl, \
-                zero_ratio_prob, call, bedfileName, bcovfileName, ecovfileName, \
+            sQTL(outfileName, efileName, befileName, bFileName, transposedin,
+                efileType, problstName, problst2exclde, genelistName, chr, prbname,
+                fromprbname, toprbname, prbWind, fromprbkb, toprbkb, prbwindFlag,
+                genename, problst2exclde, indilstName, indilst2remove, no_fid_flag,
+                valueType, beta2m, m2beta, std_thresh, upperBeta, lowerBeta,
+                dpvalfName, thresh_det_pval, thresh_prpt_prb, thresh_prpt_spl,
+                filter_det_pval_mth, missing_ratio_prob, autosome_num, maf,
+                snplstName, snplst2exclde, tsk_ttl, tsk_id, covfileName,
+                qcovfileName, to_smr_flag, nofastlinear, cis_flag, cis_itvl,
+                zero_ratio_prob, call, bedfileName, bcovfileName, ecovfileName,
                 transopse_ecov, use_top_p);
         }
     }
     else if(queryBesd)
-        query_besd(outfileName, beqtlFileName, snplstName, snplst2exclde, \
-            problstName, problst2exclde, genelistName, pQueryBesd, chr, prbchr, \
-            snpchr, snprs, fromsnprs, tosnprs, prbname, fromprbname, toprbname, \
-            snpWind, prbWind, genename, fromsnpkb, tosnpkb, fromprbkb, toprbkb, \
+        query_besd(outfileName, beqtlFileName, snplstName, snplst2exclde,
+            problstName, problst2exclde, genelistName, pQueryBesd, chr, prbchr,
+            snpchr, snprs, fromsnprs, tosnprs, prbname, fromprbname, toprbname,
+            snpWind, prbWind, genename, fromsnpkb, tosnpkb, fromprbkb, toprbkb,
             snpwindFlag, prbwindFlag, cis_flag, cis_itvl,  probe2rm, snp2rm);
     else if (metaflg) {
         if(besdflstName != NULL)
-            meta( besdflstName, outfileName, meta_mtd, pmecs, cis_flag, \
-                cis_itvl, nmecs, problstName, problst2exclde, genelistName, chr, \
-                prbchr, prbname, fromprbname, toprbname, prbWind, fromprbkb, \
-                toprbkb, prbwindFlag, genename, snplstName, snplst2exclde, \
-                snpchr, snprs, fromsnprs, tosnprs, snpWind, fromsnpkb, tosnpkb, \
+            meta( besdflstName, outfileName, meta_mtd, pmecs, cis_flag,
+                cis_itvl, nmecs, problstName, problst2exclde, genelistName, chr,
+                prbchr, prbname, fromprbname, toprbname, prbWind, fromprbkb,
+                toprbkb, prbwindFlag, genename, snplstName, snplst2exclde,
+                snpchr, snprs, fromsnprs, tosnprs, snpWind, fromsnpkb, tosnpkb,
                 snpwindFlag, probe2rm, snp2rm);
         else if(gwasflstName != NULL || ewasflstName != NULL)
-            meta_gwas(gwasflstName, ewasflstName, outfileName, meta_mtd, pmecs, \
-                mecs_mth, corMatFName, snplstName, problstName, zflag, \
+            meta_gwas(gwasflstName, ewasflstName, outfileName, meta_mtd, pmecs,
+                mecs_mth, corMatFName, snplstName, problstName, zflag,
                 out_comm_flag, all_comm_flag);
         else {
             LOGPRINTF("ERROR: please input a file list using --besd-flist or --gwas-flist.\n");
@@ -1906,12 +1904,12 @@ void option(int option_num, char * option_str[])
         }
     }
     else if(make_besd_flag)
-        make_besd(outfileName, beqtlFileName, snplstName, snplst2exclde, \
-            problstName, problst2exclde, genelistName, pQueryBesd, chr, prbchr, \
-            snpchr, snprs, fromsnprs, tosnprs, prbname, fromprbname, toprbname, \
-            snpWind, prbWind, genename, fromsnpkb, tosnpkb, fromprbkb, toprbkb, \
-            snpwindFlag, prbwindFlag, cis_flag, cis_itvl, probe2rm, snp2rm, \
-            save_dense_flag, to_smr_flag, besd_shrink_flag, stdprb, freqFName, \
+        make_besd(outfileName, beqtlFileName, snplstName, snplst2exclde,
+            problstName, problst2exclde, genelistName, pQueryBesd, chr, prbchr,
+            snpchr, snprs, fromsnprs, tosnprs, prbname, fromprbname, toprbname,
+            snpWind, prbWind, genename, fromsnpkb, tosnpkb, fromprbkb, toprbkb,
+            snpwindFlag, prbwindFlag, cis_flag, cis_itvl, probe2rm, snp2rm,
+            save_dense_flag, to_smr_flag, besd_shrink_flag, stdprb, freqFName,
             varFName);
     else if(gc_flag)
         gc_ewas(outfileName, ewasfileName);
