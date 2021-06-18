@@ -2396,7 +2396,7 @@ namespace VQTL {
 
 
 static double
-get_var_mean(vector <double>& se, vector <vector <double>>& cor_null)
+get_var_mean(vector <double>& se, MatrixXd& cor_null)
 {
     double part1 = 0;
     double part2 = 0;
@@ -2408,7 +2408,7 @@ get_var_mean(vector <double>& se, vector <vector <double>>& cor_null)
     }
     for (i = 0; i < vector_len - 1; i++) {
         for (j = i + 1; j < vector_len; j++) {
-            part2 += 2 * se[i] * se[j] + cor_null[i][j];
+            part2 += 2 * se[i] * se[j] + cor_null(i, j);
         }
     }
 
@@ -2418,13 +2418,13 @@ get_var_mean(vector <double>& se, vector <vector <double>>& cor_null)
 
 
 static double
-get_cov_beta_mean(int target, vector <double>& se, vector <vector <double>>& cor_null)
+get_cov_beta_mean(int target, vector <double>& se, MatrixXd& cor_null)
 {
     double dt_out = 0;
     int vector_len = se.size();
     int i = 0;
     for (i = 0; i < vector_len; i++) {
-        dt_out += se[target] * se[i] * cor_null[target][i];
+        dt_out += se[target] * se[i] * cor_null(target, i);
     }
 
     dt_out = dt_out / vector_len;
@@ -2835,6 +2835,7 @@ typedef struct{
                 for (j = 1 + i; j < cor_null[i].size(); j++){
                     if (abs(cor_null[i][j] - 1) < 1e-15){
                         need_remove.push_back(i);
+                        break;
                     }
 
                 }
@@ -3013,6 +3014,7 @@ typedef struct{
                     }
 
                 } else {
+                    k = 0;
                     for(int m1 = 0; m1 < numTrans - 1; m1++) {
                         for(int m2 = m1 + 1; m2 < numTrans; m2++) {
                             d[k] = beta[m1] - beta[m2];
@@ -3390,8 +3392,7 @@ typedef struct{
         vector < int >::iterator it;
 //==============================================================================
         #pragma omp parallel for private(cr)
-        for(int jj = 0; jj < sqtlinfo._epi_include.size(); jj++)
-        {
+        for (int jj = 0; jj < sqtlinfo._epi_include.size(); jj++) {
 /*
             if (sqtlinfo._epi_gene[jj] != "MAPK10")
                 continue;
@@ -3400,8 +3401,7 @@ typedef struct{
 
 
             double desti = 1.0 * jj / (sqtlinfo._epi_include.size() - 1);
-            if(desti >= cr)
-            {
+            if (desti >= cr) {
                 printf("%3.0f%%\r", 100.0 * desti);
                 fflush(stdout);
                 if(cr == 0)
@@ -3421,8 +3421,8 @@ typedef struct{
             int numTrans = (int)tranids[jj].size();
             int numSNP = cis_num[jj];
             MatrixXd eqtlb(numSNP, numTrans), eqtls(numSNP, numTrans);
-            vector<float> eqtlfreq(numSNP);
-            make_bs(&eqtlinfo,tranids[jj],snpids[jj],eqtlb,eqtls,eqtlfreq);
+            vector < float > eqtlfreq(numSNP);
+            make_bs(&eqtlinfo, tranids[jj], snpids[jj], eqtlb, eqtls, eqtlfreq);
 
             LOGPRINTF("numTrans %d\n", numTrans);
 
@@ -3432,10 +3432,11 @@ typedef struct{
 
             //filter cor_null, eqtls eqtlb
             need_remove.clear();
-            for (i = 0; i < cor_null.rows(); i++){
+            for (i = 0; i < cor_null.rows(); i++) {
                 for (j = 0; j < cor_null.cols(); j++){
                     if (abs(cor_null(i, j) - 1) < 1e-15 && (i != j)){
                         need_remove.push_back(i);
+                        break;
                     }
                 }
             }
@@ -3444,33 +3445,56 @@ typedef struct{
             numTrans -= need_remove.size();
             LOGPRINTF("numTrans after filter: %u\n", numTrans);
             MatrixXd cor_null_clean(numTrans, numTrans);
-            MatrixXd eqtlb_clean(numTrans, numTrans);
-            MatrixXd eqtls_clean(numTrans, numTrans);
+            MatrixXd eqtlb_clean(numSNP, numTrans);
+            MatrixXd eqtls_clean(numSNP, numTrans);
             k = 0;
-            if (need_remove.size() > 0 && numTrans > 1){
+            if (need_remove.size() > 0 && numTrans > 1) {
                 l = 0;
                 for (i = 0; i < cor_null.rows(); i++){
                     it = find(need_remove.begin(), need_remove.end(), i);
                     if (it != need_remove.end()){
                         k++;
-                    }
-                    else{
+                    } else {
                         for (j = 0; j < cor_null.cols(); j++){
                             it = find(need_remove.begin(), need_remove.end(), j);
                             if (it != need_remove.end()){
                                 l++;
                             } else{
                                 cor_null_clean(i - k, j - l) = cor_null(i, j);
-                                eqtlb_clean(i - k, j - l) = eqtlb(i, j);
-                                eqtls_clean(i - k, j - l) = eqtls(i, j);
                             }
                         }
                     }
                 }
+
+                k = 0;
+                for (i = 0; i < eqtlb.rows(); i++) {
+                    for (j = 0; j < eqtlb.cols(); j++) {
+                        it = find(need_remove.begin(), need_remove.end(), j);
+                        if (it != need_remove.end()) {
+                            k++;
+                        } else {
+                            eqtlb_clean(i, j - k) = eqtlb(i, j);
+                        }
+                    }
+                }
+
+                k = 0;
+                for (i = 0; i < eqtls.rows(); i++) {
+                    for (j = 0; j < eqtls.cols(); j++) {
+                        it = find(need_remove.begin(), need_remove.end(), j);
+                        if (it != need_remove.end()) {
+                            k++;
+                        } else {
+                            eqtls(i, j - k) = eqtls(i, j);
+                        }
+                    }
+                }
+
                 cor_null = cor_null_clean;
                 eqtlb = eqtlb_clean;
                 eqtls = eqtls_clean;
-            } else{
+
+            } else {
                 numTrans += need_remove.size();
             }
 
@@ -3519,46 +3543,97 @@ typedef struct{
                     se[ll]=eqtls(kk,ll);
                 }
 
-                int varnum = numTrans * (numTrans - 1) / 2, k = 0;
+
+                int varnum = numTrans * (numTrans - 1) / 2;
                 VectorXd d(varnum), vardev(varnum), chisq_dev(varnum);
-                for(int m1 = 0; m1 < numTrans - 1; m1++)
-                {
-                    for(int m2 = m1 + 1; m2 < numTrans; m2++){
-                        d[k]=beta[m1]-beta[m2];
-                        vardev[k] = se[m1] * se[m1] + se[m2] * se[m2] - 2 * \
-                            cor_null(m1, m2) * se[m1] * se[m2];
-                        k++;
+                int i = 0, j = 0, k = 0, l = 0;
+                MatrixXd vdev (varnum, varnum);
+                MatrixXd corr_dev (varnum, varnum);
+                double beta_mean = 0;
+                double var_mean = 0;
+                double tmp1 = 0;
+                double tmp2 = 0;
+
+                if (use_top_p) {
+                    d.resize(numTrans);
+                    vardev.resize(numTrans);
+                    chisq_dev.resize(numTrans);
+                    vdev.resize(numTrans, numTrans);
+                    corr_dev.resize(numTrans, numTrans);
+
+                    for (i = 0; i < numTrans; i++) {
+                        beta_mean += beta[i];
                     }
-                }
-                for(int m1=0;m1<varnum;m1++)
-                    chisq_dev[m1] = d[m1]*d[m1]/vardev[m1];
-                MatrixXd vdev(varnum,varnum);
-                int mi = 0, mj =0;
-                for( int m1=0;m1< numTrans-1;m1++) {
-                    for( int m2=m1+1;m2<numTrans;m2++) {
-                        mj=0;
-                        for(int m3=0; m3< numTrans-1; m3++){
-                            for(int m4=m3+1;m4<numTrans;m4++) {
-                                vdev(mi,mj) = se[m1]*se[m3]*cor_null(m1,m3) - se[m1]*se[m4]*cor_null(m1,m4) - se[m2]*se[m3]*cor_null(m2,m3) + se[m2]*se[m4]*cor_null(m2,m4);
-                                mj++;
-                            }
+                    beta_mean /= numTrans;
+
+                    var_mean = get_var_mean(se, cor_null);
+
+                    for (i = 0; i < numTrans; i++) {
+                        d[i] = beta[i] - beta_mean;
+                        vardev[i] = se[i] * se[i] + var_mean - \
+                            2 * get_cov_beta_mean(i, se, cor_null);
+                    }
+
+                    for (i = 0; i < numTrans; i++) {
+                        chisq_dev[i] = d[i] * d[i] / vardev[i];
+                    }
+
+                    for (i = 0; i < numTrans; i++) {
+                        for (j = 0; j < numTrans; j++) {
+                            vdev(i, j) = se[i] * se[j] * cor_null(i, j) - \
+                                get_cov_beta_mean(i, se, cor_null) - \
+                                get_cov_beta_mean(j, se, cor_null) + \
+                                var_mean;
                         }
-                        mi++;
+                    }
+
+                    for (i = 0; i < numTrans; i++) {
+                        for (j = 0; j < numTrans; j++) {
+                            corr_dev(i, j) = corr_dev(j, i) = \
+                                vdev(i, j) / sqrt(vdev(i, j) * vdev(j, i));
+                        }
+                    }
+
+
+                } else {
+                    k = 0;
+                    for(int m1 = 0; m1 < numTrans - 1; m1++)
+                    {
+                        for(int m2 = m1 + 1; m2 < numTrans; m2++){
+                            d[k]=beta[m1]-beta[m2];
+                            vardev[k] = se[m1] * se[m1] + se[m2] * se[m2] - 2 * \
+                                cor_null(m1, m2) * se[m1] * se[m2];
+                            k++;
+                        }
+                    }
+                    for(int m1=0;m1<varnum;m1++)
+                        chisq_dev[m1] = d[m1]*d[m1]/vardev[m1];
+                    MatrixXd vdev(varnum,varnum);
+                    int mi = 0, mj =0;
+                    for( int m1=0;m1< numTrans-1;m1++) {
+                        for( int m2=m1+1;m2<numTrans;m2++) {
+                            mj=0;
+                            for(int m3=0; m3< numTrans-1; m3++){
+                                for(int m4=m3+1;m4<numTrans;m4++) {
+                                    vdev(mi,mj) = se[m1] * se[m3] * cor_null(m1,m3) - \
+                                        se[m1] * se[m4] * cor_null(m1,m4) - \
+                                        se[m2] * se[m3] * cor_null(m2,m3) + \
+                                        se[m2] * se[m4] * cor_null(m2,m4);
+                                    mj++;
+                                }
+                            }
+                            mi++;
+                        }
+                    }
+
+                    MatrixXd corr_dev = vdev;
+                    for( int m1=0;m1<varnum;m1++) {
+                        for( int m2=m1;m2<varnum;m2++){
+                            corr_dev(m1,m2) = corr_dev(m2,m1) = vdev(m1,m2)/sqrt(vdev(m1,m1)*vdev(m2,m2));
+                        }
                     }
                 }
 
-                MatrixXd corr_dev = vdev;
-                for( int m1=0;m1<varnum;m1++) {
-                    for( int m2=m1;m2<varnum;m2++){
-                        corr_dev(m1,m2) = corr_dev(m2,m1) = vdev(m1,m2)/sqrt(vdev(m1,m1)*vdev(m2,m2));
-                    }
-                }
-/*
-                ofstream f_out;
-                f_out.open("matrx_out");
-                f_out << corr_dev << endl;
-                printf("output finished\n");
-*/
 //--------------------------------------------------------------------------------
                 VectorXd lambda;
 #pragma omp critical
