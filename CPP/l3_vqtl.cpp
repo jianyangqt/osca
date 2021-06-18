@@ -2395,6 +2395,43 @@ namespace VQTL {
     }
 
 
+static double
+get_var_mean(vector <double>& se, vector <vector <double>>& cor_null)
+{
+    double part1 = 0;
+    double part2 = 0;
+    double dt_out = 0;
+    int i = 0, j = 0;
+    int vector_len = se.size();
+    for (i = 0; i < vector_len; i++) {
+        part1 += se[i] * se[i];
+    }
+    for (i = 0; i < vector_len - 1; i++) {
+        for (j = i + 1; j < vector_len; j++) {
+            part2 += 2 * se[i] * se[j] + cor_null[i][j];
+        }
+    }
+
+    dt_out = (part1 + part2) / (vector_len * vector_len);
+    return dt_out;
+}
+
+
+static double
+get_cov_beta_mean(int target, vector <double>& se, vector <vector <double>>& cor_null)
+{
+    double dt_out = 0;
+    int vector_len = se.size();
+    int i = 0;
+    for (i = 0; i < vector_len; i++) {
+        dt_out += se[target] * se[i] * cor_null[target][i];
+    }
+
+    dt_out = dt_out / vector_len;
+    return dt_out;
+}
+
+
 //here is function need look for.
     void sQTL(char* outFileName, char* efileName, char* befileName,
         char* bFileName, bool transposed, int efileType, char* problstName,
@@ -2788,23 +2825,6 @@ typedef struct{
                 }
             }
 
-/*
-            for (int ii = 0; ii < trpv.size(); ii++){
-
-                for (int jj = 0; jj < trpv[ii].size(); jj++){
-                    f_out_trpv << trpv[ii][jj] << " ";
-                }
-                f_out_trpv << endl;
-            }
-
-            for (int ii = 0; ii < cor_null.size(); ii++){
-                for (int jj = 0; jj < cor_null[ii].size(); jj++){
-                    f_out_cor_null << cor_null[ii][jj] << " ";
-                }
-                f_out_cor_null << endl;
-            }
-*/
-
             //modified by fanghl
             //remove row and columns which contain value is 1
             vector < int > need_remove;
@@ -2820,20 +2840,12 @@ typedef struct{
                 }
             }
 
-/*
-            for (i = 0; i < cor_null.size(); i++){
-                for (j = 0; j < cor_null[i].size(); j++){
-                    cout << "|" << cor_null[i][j] << " ";
-                }
-                cout << endl;
-            }
-*/
             numTrans -= need_remove.size();
             cout << "numTrans after filter: " << numTrans << endl;
             vector < vector <double> > cor_null_clean;
             vector < vector < double > > trpv_clean;
             vector < double > tmp;
-            if (numTrans > 1){
+            if (need_remove.size() > 0 && numTrans > 1){
                 cor_null_clean.resize(numTrans);
                 for (i = 0; i < numTrans; i++){
                     cor_null_clean[i].resize(numTrans);
@@ -2927,72 +2939,76 @@ typedef struct{
                     se[ll]=rst[1];
                 }
 
-
                 int varnum = numTrans * (numTrans - 1) / 2;
                 int i = 0, j = 0, k = 0;
                 VectorXd d(varnum), vardev(varnum), chisq_dev(varnum);
                 MatrixXd vdev(varnum, varnum);
                 MatrixXd corr_dev(varnum, varnum);
-                unsigned int Max_z_val_index = 0;
-
+                double beta_mean = 0;
+                double var_mean = 0;
+                double tmp1 = 0;
+                double tmp2 = 0;
                 if (use_top_p) {
-                    unsigned int item_trans = 0;
-                    double z_val = 0;
-                    vector < double > z_values;
-                    double beta_choosed = 0;
-                    double se_choosed = 0;
-                    d.resize(numTrans - 1);
-                    vardev.resize(numTrans - 1);
-                    chisq_dev.resize(numTrans - 1);
-                    vdev.resize(numTrans - 1, numTrans - 1);
-                    corr_dev.resize(numTrans - 1, numTrans - 1);
+                    d.resize(numTrans);
+                    vardev.resize(numTrans);
+                    chisq_dev.resize(numTrans);
+                    vdev.resize(numTrans, numTrans);
+                    corr_dev.resize(numTrans, numTrans);
 
                     for (i = 0; i < numTrans; i++) {
-                        z_val = beta[i] / se[i];
-                        z_val *= z_val;
-                        z_values.push_back(z_val);
+                        beta_mean += beta[i];
                     }
-                    z_val = -1;
-                    for (i = 0; i < numTrans; i++){
-                        if (z_values[i] > z_val) {
-                            z_val = z_values[i];
-                            Max_z_val_index = i;
-                        }
-                    }
-                    beta_choosed = beta[Max_z_val_index];
-                    se_choosed = se[Max_z_val_index];
+                    beta_mean = beta_mean / numTrans;
 
-
+                    tmp1 = 0;
+                    tmp2 = 0;
                     for (i = 0; i < numTrans; i++) {
-                        if (i == Max_z_val_index) {
-                            i -= 1;
-                            continue;
-                        }
-                        d[i] = beta[i] - beta_choosed;
-                        vardev[i] = se[i] * se[i] + se_choosed * se_choosed - \
-                            2 * cor_null_clean[i][Max_z_val_index] * se[i] * se_choosed;
+                        tmp1 += se[i] * se[i];
                     }
-
-
-
                     for (i = 0; i < numTrans - 1; i++) {
+                        for (j = i + 1; j < numTrans; j++) {
+                            tmp2 += 2 * se[i] * se[j] * cor_null_clean[i][j];
+                        }
+                    }
+                    var_mean = (tmp1 + tmp2) / (numTrans * numTrans);
+
+                    for (i = 0; i < numTrans; i++) {
+                        tmp1 = 0;
+                        d[i] = beta[i] - beta_mean;
+                        for (j = 0; j < numTrans; j++) {
+                            tmp1 += se[i] * se[j] * cor_null_clean[i][j];
+                        }
+
+                        vardev[i] = se[i] * se[i] + var_mean - 2 * (tmp1 / numTrans);
+                    }
+
+                    for (i = 0; i < numTrans; i++) {
                         chisq_dev[i] = d[i] * d[i] / vardev[i];
                     }
 
-                    for (i = 0; i < numTrans - 1; i++) {
-                        for (j = 0; j < numTrans - 1; j++) {
-                            vdev(i, j) = se[Max_z_val_index] * se[Max_z_val_index] * \
-                                cor_null_clean[Max_z_val_index][Max_z_val_index] - \
-                                se[Max_z_val_index] * se[j] * cor_null_clean[Max_z_val_index][j] - \
-                                se[i] * se[Max_z_val_index] * cor_null_clean[i][Max_z_val_index] + \
-                                se[i] * se[j] * cor_null_clean[i][j];
+                    for (i = 0; i < numTrans; i++) {
+                        for (j = 0; j < numTrans; j++) {
+                            tmp1 = 0;
+                            tmp2 = 0;
+                            for (k = 0; k < numTrans; k++){
+                                tmp1 += se[i] * se[k] * cor_null_clean[i][k];
+                            }
+                            tmp1 = tmp1 / numTrans;
 
+                            for (k = 0; k < numTrans; k++) {
+                                tmp2 += se[j] * se[k] * cor_null_clean[i][k];
+                            }
+                            tmp2 = tmp2 / numTrans;
+
+                            vdev(i, j) = se[i] * se[j] * cor_null_clean[i][j] - \
+                                tmp1 - tmp2 + var_mean;
                         }
                     }
 
-                    for (i = 0; i < numTrans - 1; i++) {
-                        for (j = 0; j < numTrans - 1; j++){
-                            corr_dev(i, j) = corr_dev(j, i) = vdev(i, j) / sqrt(vdev(i, i) * vdev(j, j));
+                    for (i = 0; i < numTrans; i++) {
+                        for (j = i; j < numTrans; j++) {
+                            corr_dev(i, j) = corr_dev(j, i) = \
+                                vdev(i, j) / sqrt(vdev(i, i) * vdev(j, j));
                         }
                     }
 
@@ -3269,7 +3285,7 @@ typedef struct{
         double pmecs, int nmecs, bool use_top_p)
     {
 
-        printf(">>>>>>>>>>>>>here\n");
+        printf(">here\n");
         setNbThreads(thread_num);
         LOGPRINTF("Using %d thread(s) to conduct analysis ...\n", thread_num);
         eqtlInfo eqtlinfo;
@@ -3572,8 +3588,7 @@ typedef struct{
 //------------------------------------------------------------------------------
         }
 //==============================================================================
-        if(tosmrflag)
-        {
+        if (tosmrflag) {
             uint64_t valNum=0;
             vector<uint64_t> cols;
             cols.resize(2*sqtlinfo._epi_include.size()+1);
@@ -3631,8 +3646,7 @@ typedef struct{
             }
 
         }
-        else
-        {
+        else {
             uint64_t valNum=0;
             vector<uint64_t> cols;
             cols.resize(sqtlinfo._epi_include.size()+1);
