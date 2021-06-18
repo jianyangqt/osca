@@ -2406,9 +2406,9 @@ get_var_mean(vector <double>& se, MatrixXd& cor_null)
     for (i = 0; i < vector_len; i++) {
         part1 += se[i] * se[i];
     }
-    for (i = 0; i < vector_len - 1; i++) {
-        for (j = i + 1; j < vector_len; j++) {
-            part2 += 2 * se[i] * se[j] + cor_null(i, j);
+    for (i = 0; i < (vector_len - 1); i++) {
+        for (j = (i + 1); j < vector_len; j++) {
+            part2 += 2 * se[i] * se[j] * cor_null(i, j);
         }
     }
 
@@ -3206,7 +3206,8 @@ typedef struct{
     }
 
 
-    bool pcc(MatrixXd &PCC, MatrixXd &buffer_beta,MatrixXd &buffer_se, double pmecs, int nmecs)
+    bool pcc(MatrixXd& PCC, MatrixXd& buffer_beta, MatrixXd& buffer_se,
+        double pmecs, int nmecs)
     {
         long snpnum = buffer_beta.rows();
         long cohortnum = buffer_beta.cols();
@@ -3399,7 +3400,6 @@ typedef struct{
 */
             LOGPRINTF(">%s \n", sqtlinfo._epi_gene[jj].c_str());
 
-
             double desti = 1.0 * jj / (sqtlinfo._epi_include.size() - 1);
             if (desti >= cr) {
                 printf("%3.0f%%\r", 100.0 * desti);
@@ -3430,6 +3430,7 @@ typedef struct{
             MatrixXd cor_null(numTrans, numTrans);
             pcc(cor_null,  eqtlb, eqtls, pmecs, nmecs);
 
+/*
             //filter cor_null, eqtls eqtlb
             need_remove.clear();
             for (i = 0; i < cor_null.rows(); i++) {
@@ -3440,7 +3441,6 @@ typedef struct{
                     }
                 }
             }
-
 
             numTrans -= need_remove.size();
             LOGPRINTF("numTrans after filter: %u\n", numTrans);
@@ -3497,7 +3497,7 @@ typedef struct{
             } else {
                 numTrans += need_remove.size();
             }
-
+*/
 
             if(loud)
             {
@@ -3526,21 +3526,25 @@ typedef struct{
             for(int kk = 0; kk < numSNP; kk++)
             {
                 t1 = clock();
-                uint32_t snpid=snpids[jj][kk];
-                string snprs=eqtlinfo._esi_rs[snpid];
-                double snpfreq=eqtlinfo._esi_freq[snpid];
-                if(snpfreq==0 || snpfreq==1) {
-                    if(!warned) {LOGPRINTF("WARNING: MAF found 0 or 1 with SNP(s).\n"); warned=1;}
-                    rowids[jj][kk]=snpid;
-                    betas[jj][kk]=0;
-                    ses[jj][kk]=1;
+                uint32_t snpid = snpids[jj][kk];
+                string snprs = eqtlinfo._esi_rs[snpid];
+                double snpfreq = eqtlinfo._esi_freq[snpid];
+                if(snpfreq == 0 || snpfreq == 1) {
+                    if (!warned) {
+                        LOGPRINTF("WARNING: MAF found 0 or 1 with SNP(s).\n");
+                        warned=1;
+                    }
+                    rowids[jj][kk] = snpid;
+                    betas[jj][kk] = 0;
+                    ses[jj][kk] = 1;
                     continue;
                 }
+
                 vector<double> beta(numTrans), se(numTrans);
-                for(int ll=0;ll<numTrans;ll++)
+                for(int ll = 0; ll < numTrans; ll++)
                 {
-                    beta[ll]=eqtlb(kk,ll);
-                    se[ll]=eqtls(kk,ll);
+                    beta[ll] = eqtlb(kk, ll);
+                    se[ll] = eqtls(kk, ll);
                 }
 
 
@@ -3551,8 +3555,21 @@ typedef struct{
                 MatrixXd corr_dev (varnum, varnum);
                 double beta_mean = 0;
                 double var_mean = 0;
-                double tmp1 = 0;
-                double tmp2 = 0;
+/*
+                cout << "beta: " << endl;
+                for (i = 0; i < beta.size(); i++) {
+                    cout << beta[i] << " ";
+                }
+                cout << endl;
+                cout << "se: " << endl;
+                for (i = 0; i < se.size(); i++) {
+                    cout << se[i] << " ";
+                }
+                cout << endl;
+*/
+                //cout << "cor_null" << endl;
+                //cout << cor_null << endl;
+                //cout << endl;
 
                 if (use_top_p) {
                     d.resize(numTrans);
@@ -3560,18 +3577,19 @@ typedef struct{
                     chisq_dev.resize(numTrans);
                     vdev.resize(numTrans, numTrans);
                     corr_dev.resize(numTrans, numTrans);
-
+                    beta_mean = 0;
                     for (i = 0; i < numTrans; i++) {
                         beta_mean += beta[i];
                     }
-                    beta_mean /= numTrans;
-
+                    beta_mean = beta_mean / numTrans;
+                    var_mean = 0;
                     var_mean = get_var_mean(se, cor_null);
-
+                    cout << "var_mean: " << var_mean << endl;
                     for (i = 0; i < numTrans; i++) {
                         d[i] = beta[i] - beta_mean;
                         vardev[i] = se[i] * se[i] + var_mean - \
                             2 * get_cov_beta_mean(i, se, cor_null);
+                        cout << "vardev: " << vardev[i] << endl;
                     }
 
                     for (i = 0; i < numTrans; i++) {
@@ -3588,17 +3606,17 @@ typedef struct{
                     }
 
                     for (i = 0; i < numTrans; i++) {
-                        for (j = 0; j < numTrans; j++) {
+                        for (j = i; j < numTrans; j++) {
                             corr_dev(i, j) = corr_dev(j, i) = \
-                                vdev(i, j) / sqrt(vdev(i, j) * vdev(j, i));
+                                vdev(i, j) / sqrt(vdev(i, i) * vdev(j, j));
                         }
                     }
 
 
                 } else {
+
                     k = 0;
-                    for(int m1 = 0; m1 < numTrans - 1; m1++)
-                    {
+                    for(int m1 = 0; m1 < numTrans - 1; m1++) {
                         for(int m2 = m1 + 1; m2 < numTrans; m2++){
                             d[k]=beta[m1]-beta[m2];
                             vardev[k] = se[m1] * se[m1] + se[m2] * se[m2] - 2 * \
@@ -3608,7 +3626,7 @@ typedef struct{
                     }
                     for(int m1=0;m1<varnum;m1++)
                         chisq_dev[m1] = d[m1]*d[m1]/vardev[m1];
-                    MatrixXd vdev(varnum,varnum);
+
                     int mi = 0, mj =0;
                     for( int m1=0;m1< numTrans-1;m1++) {
                         for( int m2=m1+1;m2<numTrans;m2++) {
@@ -3626,14 +3644,15 @@ typedef struct{
                         }
                     }
 
-                    MatrixXd corr_dev = vdev;
                     for( int m1=0;m1<varnum;m1++) {
                         for( int m2=m1;m2<varnum;m2++){
                             corr_dev(m1,m2) = corr_dev(m2,m1) = vdev(m1,m2)/sqrt(vdev(m1,m1)*vdev(m2,m2));
                         }
                     }
                 }
-
+                //cout << vdev << endl;
+                //cout << corr_dev << endl;
+                //exit(0);
 //--------------------------------------------------------------------------------
                 VectorXd lambda;
 #pragma omp critical
@@ -3658,6 +3677,7 @@ typedef struct{
                 betas[jj][kk]=beta_hat;
                 ses[jj][kk]=se_hat;
                 t2 = clock();
+
                 //printf("clock used: %lu\n", t2 - t1);
             }
 //------------------------------------------------------------------------------
