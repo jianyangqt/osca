@@ -2452,218 +2452,6 @@ get_cov_beta_mean(int target, vector <double>& se, MatrixXd& cor_null)
         setNbThreads(thread_num);
         LOGPRINTF("Using %d thread(s) to conduct analysis ...\n", thread_num);
 
-        printf("outFileName: %s, efileName: %s, befileName: %s,\n"
-            "bFileName: %s, transposed: %d, efileType: %d, problstName: %s,"
-            "problst2exclde: %s, genelistName: %s, chr: %d, prbname: %s,"
-            "fromprbname: %s, toprbname: %s, prbWind: %d, fromprbkb: %d,"
-            "toprbkb: %d, prbwindFlag: %d, genename: %s, probe2exclde: %s,"
-            "indilstName: %s, indilst2remove: %s, no_fid_flag: %d, valueType: %d,"
-            "beta2m: %d, m2beta: %d, std_thresh: %lf, upperBeta: %lf,"
-            "lowerBeta: %lf, dpvalfName: %s, dp_thresh: %lf, prb_thresh: %lf,"
-            "spl_thresh: %lf, filter_mth: %d, mssratio_prob: %lf, autosome_num: %d,"
-            "maf: %lf, snplstName: %s, snplst2exclde: %s, tsk_ttl: %d,"
-            "tsk_id: %d, covfileName: %s, qcovfileName: %s, tosmrflag: %d,"
-            "nofastlinear: %d, cis_flag: %d, cis_itvl: %d, zeroratio: %lf, call: %lf,"
-            "annofileName: %s, covbodfileName: %s, covefileName: %s, transopse_ecov: %d.\n"
-            ,
-            outFileName, efileName, befileName,
-            bFileName, transposed, efileType, problstName,
-            problst2exclde, genelistName, chr, prbname,
-            fromprbname, toprbname, prbWind, fromprbkb,
-            toprbkb, prbwindFlag, genename, probe2exclde,
-            indilstName, indilst2remove, no_fid_flag, valueType,
-            beta2m, m2beta, std_thresh, upperBeta,
-            lowerBeta, dpvalfName, dp_thresh, prb_thresh,
-            spl_thresh, filter_mth, mssratio_prob, autosome_num,
-            maf, snplstName, snplst2exclde, tsk_ttl,
-            tsk_id, covfileName, qcovfileName, tosmrflag,
-            nofastlinear, cis_flag, cis_itvl, zeroratio, call,
-            annofileName, covbodfileName, covefileName, transopse_ecov
-
-         );
-
-/*
-typedef struct{
-
-    uint32_t _eType;
-    // epi file
-    uint32_t autosome_num;
-    uint64_t _epi_num;
-    vector<int> _epi_chr;
-    vector<string> _epi_prb;
-    vector<int> _epi_gd;
-    vector<int> _epi_bp;
-    vector<string> _epi_gene;
-    vector<char> _epi_orien;
-    vector<int> _epi_include;
-    map<string,int> _epi_map;
-
-    // eii file
-    uint64_t _eii_num;
-    vector<string> _eii_fid;
-    vector<string> _eii_iid;
-    vector<string> _eii_fa_id;
-    vector<string> _eii_mo_id;
-    vector<int> _eii_sex;
-    vector<double> _eii_pheno;
-    uint32_t _eii_pheno_num;
-    vector<string> _eii_cov; //cov major, values belong to the same covariate are adjacent
-    uint32_t _eii_cov_num;
-    vector<double> _eii_qcov;
-    uint32_t _eii_qcov_num;
-    vector<int> _eii_include;
-    map<string, int> _eii_map;
-
-    // eed file
-    uint32_t _valType; // 0 beta, 1 m, 2 other
-    vector< double > _val; //probe major
-    vector< double > _mu; //probe mean
-    vector< double > _var; //probe variance
-
-    MatrixXf _grm_N;
-    MatrixXd _grm;
-    double * _profile;
-    double * _grm_ptr;
-
-    //
-    int _reml_mtd;
-    int _reml_max_iter;
-    int _V_inv_mtd;
-    bool _reml_force_inv;
-    bool _reml_force_converge;
-    bool _reml_no_converge;
-    bool _reml_AI_not_invertible;
-    MatrixXd _P;
-    vector<int> _r_indx;
-    vector<int> _r_indx_drop;
-    vector<string> _var_name;
-    vector<double> _varcmp;
-    vector<string> _hsq_name;
-
-    bool _within_family;
-    vector<int> _fam_brk_pnt;
-    vector< SparseMatrix<double> > _Asp;
-    vector< SparseMatrix<double> > _Asp_prev;
-    double _y_Ssq;
-    vector<double> _fixed_rg_val;
-    bool _reml_fixed_var;
-    VectorXd _b;
-    VectorXd _se;
-
-    //reserved
-    bool _bivar_reml;
-    bool _bivar_no_constrain;
-    bool _ignore_Ce;
-    double _y2_Ssq;
-    vector< vector<int> > _bivar_pos;
-    vector< vector<int> > _bivar_pos_prev;
-
-    double _ncase;
-    double _ncase2;
-    bool _flag_CC;
-    bool _flag_CC2;
-
-    MatrixXd _varcmp_Py; // BLUP solution to the total genetic effects of individuals
-
-} eInfo;
-*/
-
-/*
-typedef struct{
-    // bim file
-    int _autosome_num;
-    vector<int> _chr;
-    vector<string> _snp_name;
-    map<string, int> _snp_name_map;
-    vector<double> _genet_dst;
-    vector<int> _bp;
-    vector<string> _allele1;
-    vector<string> _allele2;
-    vector<string> _ref_A; // reference allele
-    vector<string> _other_A; // the other allele
-    uint64_t _snp_num;
-    vector<double> _rc_rate;
-    vector<int> _include; // initialized in the read_bimfile()
-    VectorXf _maf;
-
-    // fam file
-    vector<string> _fid;
-    vector<string> _pid;
-    map<string, int> _id_map;
-    vector<string> _fa_id;
-    vector<string> _mo_id;
-    vector<int> _sex;
-    vector<double> _pheno;
-    uint32_t _pheno_num;
-    vector<string> _cov; //cov major, values belong to the same covariate are adjacent
-    uint32_t _cov_num;
-    vector<double> _qcov;
-    uint32_t _qcov_num;
-
-    uint64_t _indi_num;
-    vector<int> _keep; // initialized in the read_famfile()
-    MatrixXd _varcmp_Py; // BLUP solution to the total genetic effects of individuals
-
-    // bed file
-    vector< vector<bool> > _snp_1;
-    vector< vector<bool> > _snp_2;
-
-    // imputed data
-    bool _dosage_flag;
-    vector< vector<float> > _geno_dose;
-    vector<double> _impRsq;
-
-    // genotypes
-    MatrixXd _geno;
-
-    vector<double> _mu;
-    vector<double> _mr;
-
-    MatrixXf _grm_N;
-    MatrixXd _grm;
-
-    //
-    //
-    int _reml_mtd;
-    int _reml_max_iter;
-    int _V_inv_mtd;
-    bool _reml_force_inv;
-    bool _reml_force_converge;
-    bool _reml_no_converge;
-    bool _reml_AI_not_invertible;
-    MatrixXd _P;
-    vector<int> _r_indx;
-    vector<int> _r_indx_drop;
-    vector<string> _var_name;
-    vector<double> _varcmp;
-    vector<string> _hsq_name;
-
-    bool _within_family;
-    vector<int> _fam_brk_pnt;
-    vector< SparseMatrix<double> > _Asp;
-    vector< SparseMatrix<double> > _Asp_prev;
-    double _y_Ssq;
-    vector<double> _fixed_rg_val;
-    bool _reml_fixed_var;
-    VectorXd _b;
-    VectorXd _se;
-
-    //reserved
-    bool _bivar_reml;
-    bool _bivar_no_constrain;
-    bool _ignore_Ce;
-    double _y2_Ssq;
-    vector< vector<int> > _bivar_pos;
-    vector< vector<int> > _bivar_pos_prev;
-
-    double _ncase;
-    double _ncase2;
-    bool _flag_CC;
-    bool _flag_CC2;
-
-} bInfo;
-*/
-
         eInfo einfo;
         bInfo bdata;
         eInfo eCov;
@@ -2777,11 +2565,9 @@ typedef struct{
 
             int numTrans = (int)tranids[jj].size();
 
-
             cout << "numTrans: " << numTrans << endl;
             cout << "snpids[jj].size(): " << snpids[jj].size() << endl;
             cout << "_X.cols(): " << _X.cols() << endl;
-
 
             vector<double> tpm(numTrans * nindi);
             VectorXd overall;
@@ -2800,8 +2586,6 @@ typedef struct{
                     trpv[kk][ll] = einfo._val[tranids[jj][kk] * einfo._eii_num + einfo._eii_include[ll]];
 
             }
-
-            cout << "Imp: " << numTrans << " " << einfo._eii_include.size() << endl;
 
             vector< vector<double> > cor_null;
             cor_null.resize(numTrans);
@@ -2889,22 +2673,6 @@ typedef struct{
                 cor_null_clean = cor_null;
                 trpv_clean = trpv;
             }
-/*
-            for (int ii = 0; ii < trpv_clean.size(); ii++){
-                for (int jj = 0; jj < trpv_clean[ii].size(); jj++){
-                    f_out_trpv_clean << trpv_clean[ii][jj] << " ";
-                }
-                f_out_trpv_clean << endl;
-            }
-
-
-            for (int ii = 0; ii < cor_null_clean.size(); ii++){
-                for (int jj = 0; jj < cor_null_clean[ii].size(); jj++){
-                    f_out_cor_null_clean << cor_null_clean[ii][jj] << " ";
-                }
-                f_out_cor_null_clean << endl;
-            }
-*/
 
 //------------------------------------------------------------------------------------------------
             //_X.cols() ==snpids[jj].size()
@@ -3061,7 +2829,6 @@ typedef struct{
                     es.compute(corr_dev, EigenvaluesOnly);
                     lambda=es.eigenvalues();
                     //f_out_lambda << lambda << endl;
-
                 }
 
                 t3 = clock();
@@ -3298,11 +3065,15 @@ typedef struct{
         char* suffix=inputname+strlen(beqtlFileName);
         memcpy(suffix,".epi",5);
         read_smr_epifile(&eqtlinfo, inputname);
-        smr_epi_man(&eqtlinfo, problstName, problst2exclde, genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2exclde);
+        smr_epi_man(&eqtlinfo, problstName, problst2exclde, genelistName,  chr,
+            prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,
+            toprbkb, prbwindFlag,  genename, probe2exclde);
         extract_sqtl_probe(&eqtlinfo,tsk_ttl,  tsk_id);
         memcpy(suffix,".esi",5);
         read_smr_esifile(&eqtlinfo, inputname);
-        smr_esi_man(&eqtlinfo, snplstName, snplst2exclde,chr, snpchr,  snprs,  fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag, cis_flag,  cis_itvl, prbname,snprs2exclde);
+        smr_esi_man(&eqtlinfo, snplstName, snplst2exclde,chr, snpchr,  snprs,
+            fromsnprs,  tosnprs, snpWind, fromsnpkb,  tosnpkb, snpwindFlag,
+            cis_flag,  cis_itvl, prbname,snprs2exclde);
         if(eqtlinfo._include.size()==0)
         {
             LOGPRINTF("Error: no probe included.\n");
@@ -3430,7 +3201,7 @@ typedef struct{
             MatrixXd cor_null(numTrans, numTrans);
             pcc(cor_null,  eqtlb, eqtls, pmecs, nmecs);
 
-/*
+
             //filter cor_null, eqtls eqtlb
             need_remove.clear();
             for (i = 0; i < cor_null.rows(); i++) {
@@ -3497,7 +3268,7 @@ typedef struct{
             } else {
                 numTrans += need_remove.size();
             }
-*/
+
 
             if(loud)
             {
@@ -3650,9 +3421,7 @@ typedef struct{
                         }
                     }
                 }
-                //cout << vdev << endl;
-                //cout << corr_dev << endl;
-                //exit(0);
+
 //--------------------------------------------------------------------------------
                 VectorXd lambda;
 #pragma omp critical
