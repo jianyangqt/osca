@@ -3318,12 +3318,10 @@ get_cov_beta_mean(int target, vector <double>& se, MatrixXd& cor_null)
                     beta_mean = beta_mean / numTrans;
                     var_mean = 0;
                     var_mean = get_var_mean(se, cor_null);
-                    cout << "var_mean: " << var_mean << endl;
                     for (i = 0; i < numTrans; i++) {
                         d[i] = beta[i] - beta_mean;
                         vardev[i] = se[i] * se[i] + var_mean - \
                             2 * get_cov_beta_mean(i, se, cor_null);
-                        cout << "vardev: " << vardev[i] << endl;
                     }
 
                     for (i = 0; i < numTrans; i++) {
