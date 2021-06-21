@@ -2432,7 +2432,6 @@ get_cov_beta_mean(int target, vector <double>& se, MatrixXd& cor_null)
 }
 
 
-//here is function need look for.
     void sQTL(char* outFileName, char* efileName, char* befileName,
         char* bFileName, bool transposed, int efileType, char* problstName,
         char* problst2exclde, char* genelistName, int chr, char* prbname,
@@ -2528,10 +2527,6 @@ get_cov_beta_mean(int target, vector <double>& se, MatrixXd& cor_null)
         int nindi = (int)einfo._eii_include.size();
         double cr=0.0;
 
-
-//===================================================================================
-        clock_t t1, t2, t3, t4;
-
         #pragma omp parallel for private(cr)
         for(int jj = 0; jj < sqtlinfo._epi_include.size(); jj++)
         {
@@ -2567,7 +2562,6 @@ get_cov_beta_mean(int target, vector <double>& se, MatrixXd& cor_null)
 
             cout << "numTrans: " << numTrans << endl;
             cout << "snpids[jj].size(): " << snpids[jj].size() << endl;
-            cout << "_X.cols(): " << _X.cols() << endl;
 
             vector<double> tpm(numTrans * nindi);
             VectorXd overall;
@@ -2583,8 +2577,8 @@ get_cov_beta_mean(int target, vector <double>& se, MatrixXd& cor_null)
             for( int kk = 0; kk < numTrans; kk++)
             {
                 for(int ll = 0; ll < einfo._eii_include.size(); ll++)
-                    trpv[kk][ll] = einfo._val[tranids[jj][kk] * einfo._eii_num + einfo._eii_include[ll]];
-
+                    trpv[kk][ll] = einfo._val[tranids[jj][kk] * einfo._eii_num + \
+                        einfo._eii_include[ll]];
             }
 
             vector< vector<double> > cor_null;
@@ -2621,7 +2615,6 @@ get_cov_beta_mean(int target, vector <double>& se, MatrixXd& cor_null)
                         need_remove.push_back(i);
                         break;
                     }
-
                 }
             }
 
@@ -2640,16 +2633,15 @@ get_cov_beta_mean(int target, vector <double>& se, MatrixXd& cor_null)
                 for (i = 0; i < cor_null.size(); i++){
                     l = 0;
                     it = find(need_remove.begin(), need_remove.end(), i);
-                    if (it != need_remove.end()){
+                    if (it != need_remove.end()) {
                         k++;
-                    } else{
-                        for (j = 0; j < cor_null[i].size(); j++){
+                    } else {
+                        for (j = 0; j < cor_null[i].size(); j++) {
                             it = find(need_remove.begin(), need_remove.end(), j);
-                            if (it != need_remove.end()){
+                            if (it != need_remove.end()) {
                                 l++;
-                            } else{
+                            } else {
                                 cor_null_clean[i - k][j - l] = cor_null[i][j];
-
                             }
                         }
                     }
@@ -2658,31 +2650,29 @@ get_cov_beta_mean(int target, vector <double>& se, MatrixXd& cor_null)
                 for(int kk = 0; kk < numTrans; kk++)
                     cor_null_clean[kk][kk] = 1.0;
 
-                for (i = 0; i < trpv.size(); i++){
+                for (i = 0; i < trpv.size(); i++) {
                     tmp.clear();
                     it = find(need_remove.begin(), need_remove.end(), i);
-                    if (it == need_remove.end()){
+                    if (it == need_remove.end()) {
                         for (j = 0; j < trpv[i].size(); j++){
                             tmp.push_back(trpv[i][j]);
                         }
                         trpv_clean.push_back(tmp);
                     }
                 }
-            } else{
+            } else {
                 numTrans += need_remove.size();
                 cor_null_clean = cor_null;
                 trpv_clean = trpv;
             }
 
-//------------------------------------------------------------------------------------------------
             //_X.cols() ==snpids[jj].size()
-            for(int kk = 0; kk < _X.cols(); kk ++){
-                t1 = clock();
+            for(int kk = 0; kk < _X.cols(); kk ++) {
                 uint32_t snpid = snpids[jj][kk];
                 string snprs = bdata._snp_name[bdata._include[snpid]];
 
                 double snpfreq = bdata._mu[bdata._include[snpid]] / 2;
-                if(snpfreq == 0 || snpfreq == 1){
+                if (snpfreq == 0 || snpfreq == 1) {
                     if(!warned) {LOGPRINTF("WARNING: MAF found 0 or 1 with SNP(s).\n"); warned=1;}
                     rowids[jj][kk] = snpid;
                     betas[jj][kk] = 0;
@@ -2692,7 +2682,7 @@ get_cov_beta_mean(int target, vector <double>& se, MatrixXd& cor_null)
                 vector<double> beta(numTrans), se(numTrans);
                 for(int ll = 0; ll < numTrans; ll++)
                 {
-                    vector<double> y,x,rst;
+                    vector<double> y, x, rst;
                     for(int mm=0; mm < einfo._eii_include.size(); mm++)
                     {
                         double bval=_X(mm,kk), tval=trpv_clean[ll][mm];
@@ -2702,7 +2692,7 @@ get_cov_beta_mean(int target, vector <double>& se, MatrixXd& cor_null)
                             x.push_back(bval);
                         }
                     }
-                    reg(y,x,rst);
+                    reg(y, x, rst);
 
                     beta[ll]=rst[0];
                     se[ll]=rst[1];
@@ -2747,7 +2737,6 @@ get_cov_beta_mean(int target, vector <double>& se, MatrixXd& cor_null)
                         for (j = 0; j < numTrans; j++) {
                             tmp1 += se[i] * se[j] * cor_null_clean[i][j];
                         }
-
                         vardev[i] = se[i] * se[i] + var_mean - 2 * (tmp1 / numTrans);
                     }
 
@@ -2820,8 +2809,6 @@ get_cov_beta_mean(int target, vector <double>& se, MatrixXd& cor_null)
                     }
                 }
 
- //-----------------------------------------------------------------------------
-                t2 = clock();
                 VectorXd lambda;
                 #pragma omp critical
                 {
@@ -2831,8 +2818,6 @@ get_cov_beta_mean(int target, vector <double>& se, MatrixXd& cor_null)
                     //f_out_lambda << lambda << endl;
                 }
 
-                t3 = clock();
-//-----------------------------------------------------------------------------
 
                 double sumChisq_dev = chisq_dev.sum();
                 double pdev = 0.0;
@@ -2850,13 +2835,11 @@ get_cov_beta_mean(int target, vector <double>& se, MatrixXd& cor_null)
                 rowids[jj][kk] = snpid;
                 betas[jj][kk] = beta_hat;
                 ses[jj][kk] = se_hat;
-                t4 = clock();
                 //printf("totall time: %ld, eigen_time: %ld\n", t4 - t1, t3 - t2);
 
             }
-//--------------------------------------------------------------------------------------
         }
-//===================================================================================
+
 
         if(tosmrflag)
         {
@@ -3055,7 +3038,6 @@ get_cov_beta_mean(int target, vector <double>& se, MatrixXd& cor_null)
         double pmecs, int nmecs, bool use_top_p)
     {
 
-        printf(">here\n");
         setNbThreads(thread_num);
         LOGPRINTF("Using %d thread(s) to conduct analysis ...\n", thread_num);
         eqtlInfo eqtlinfo;
@@ -3158,11 +3140,10 @@ get_cov_beta_mean(int target, vector <double>& se, MatrixXd& cor_null)
         bool warned = false;
         int nindi = eqtlinfo._sampleNum;
         double cr=0.0;
-        clock_t t1, t2;
         unsigned int i = 0, j = 0, k = 0, l = 0;
         vector < int > need_remove;
         vector < int >::iterator it;
-//==============================================================================
+
         #pragma omp parallel for private(cr)
         for (int jj = 0; jj < sqtlinfo._epi_include.size(); jj++) {
 /*
@@ -3292,11 +3273,9 @@ get_cov_beta_mean(int target, vector <double>& se, MatrixXd& cor_null)
                 fclose(tmpfile);
             }
 
-//------------------------------------------------------------------------------
             LOGPRINTF("numSNP: %u\n",  numSNP);
             for(int kk = 0; kk < numSNP; kk++)
             {
-                t1 = clock();
                 uint32_t snpid = snpids[jj][kk];
                 string snprs = eqtlinfo._esi_rs[snpid];
                 double snpfreq = eqtlinfo._esi_freq[snpid];
@@ -3318,29 +3297,13 @@ get_cov_beta_mean(int target, vector <double>& se, MatrixXd& cor_null)
                     se[ll] = eqtls(kk, ll);
                 }
 
-
                 int varnum = numTrans * (numTrans - 1) / 2;
                 VectorXd d(varnum), vardev(varnum), chisq_dev(varnum);
-                int i = 0, j = 0, k = 0, l = 0;
+                int i = 0, j = 0, k = 0;
                 MatrixXd vdev (varnum, varnum);
                 MatrixXd corr_dev (varnum, varnum);
                 double beta_mean = 0;
                 double var_mean = 0;
-/*
-                cout << "beta: " << endl;
-                for (i = 0; i < beta.size(); i++) {
-                    cout << beta[i] << " ";
-                }
-                cout << endl;
-                cout << "se: " << endl;
-                for (i = 0; i < se.size(); i++) {
-                    cout << se[i] << " ";
-                }
-                cout << endl;
-*/
-                //cout << "cor_null" << endl;
-                //cout << cor_null << endl;
-                //cout << endl;
 
                 if (use_top_p) {
                     d.resize(numTrans);
@@ -3385,7 +3348,6 @@ get_cov_beta_mean(int target, vector <double>& se, MatrixXd& cor_null)
 
 
                 } else {
-
                     k = 0;
                     for(int m1 = 0; m1 < numTrans - 1; m1++) {
                         for(int m2 = m1 + 1; m2 < numTrans; m2++){
@@ -3422,7 +3384,6 @@ get_cov_beta_mean(int target, vector <double>& se, MatrixXd& cor_null)
                     }
                 }
 
-//--------------------------------------------------------------------------------
                 VectorXd lambda;
 #pragma omp critical
                 {
@@ -3432,7 +3393,6 @@ get_cov_beta_mean(int target, vector <double>& se, MatrixXd& cor_null)
                 }
                 double sumChisq_dev=chisq_dev.sum();
                 double pdev= 0.0;
-//------------------------------------------------------------------------------
 #pragma omp critical
                 pdev=pchisqsum(sumChisq_dev,lambda);
                 double z=0.0;
@@ -3445,13 +3405,11 @@ get_cov_beta_mean(int target, vector <double>& se, MatrixXd& cor_null)
                 rowids[jj][kk]=snpid;
                 betas[jj][kk]=beta_hat;
                 ses[jj][kk]=se_hat;
-                t2 = clock();
 
                 //printf("clock used: %lu\n", t2 - t1);
             }
-//------------------------------------------------------------------------------
         }
-//==============================================================================
+
         if (tosmrflag) {
             uint64_t valNum=0;
             vector<uint64_t> cols;
@@ -3562,7 +3520,5 @@ get_cov_beta_mean(int target, vector <double>& se, MatrixXd& cor_null)
 
         fclose(besd);
         //LOGPRINTF("sQTL summary statistics for %ld probes and %ld SNPs are saved in file %s.\n", einfo._epi_include.size(),bdata._include.size(), besdName.c_str());
-
     }
-
 }
