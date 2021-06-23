@@ -3188,8 +3188,8 @@ get_cov_beta_mean(int target, vector <double>& se, MatrixXd& cor_null)
             //filter cor_null, eqtls eqtlb
             need_remove.clear();
             for (i = 0; i < cor_null.rows(); i++) {
-                for (j = 0; j < cor_null.cols(); j++){
-                    if (abs(cor_null(i, j) - 1) < 1e-15 && (i != j)){
+                for (j = i + 1; j < cor_null.cols(); j++){
+                    if (abs(cor_null(i, j) - 1) < 1e-15) {
                         need_remove.push_back(i);
                         break;
                     }
