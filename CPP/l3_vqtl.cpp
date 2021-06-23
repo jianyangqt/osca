@@ -2663,6 +2663,8 @@ get_cov_beta_mean(int target, vector <double>& se, MatrixXd& cor_null)
             } else {
                 numTrans += need_remove.size();
                 cor_null_clean = cor_null;
+                for(int kk = 0; kk < numTrans; kk++)
+                    cor_null_clean[kk][kk] = 1.0;
                 trpv_clean = trpv;
             }
 
@@ -3218,8 +3220,8 @@ get_cov_beta_mean(int target, vector <double>& se, MatrixXd& cor_null)
                     }
                 }
 
-                k = 0;
                 for (i = 0; i < eqtlb.rows(); i++) {
+                    k = 0;
                     for (j = 0; j < eqtlb.cols(); j++) {
                         it = find(need_remove.begin(), need_remove.end(), j);
                         if (it != need_remove.end()) {
@@ -3230,8 +3232,8 @@ get_cov_beta_mean(int target, vector <double>& se, MatrixXd& cor_null)
                     }
                 }
 
-                k = 0;
                 for (i = 0; i < eqtls.rows(); i++) {
+                    k = 0;
                     for (j = 0; j < eqtls.cols(); j++) {
                         it = find(need_remove.begin(), need_remove.end(), j);
                         if (it != need_remove.end()) {
