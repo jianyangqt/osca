@@ -4,7 +4,7 @@
 #   
 #   Supported platforms: Unix / Linux
 # ---------------------------------------------------------------------
-EIGEN_PATH = /usr/local/include
+EIGEN_PATH = /home/fanghl/.local/opt/eigen_v3.3.7_d20210704
 MKL_INCLUDE = /home/fanghl/.local/opt/mkl_v2021.2.0_d20210524/include
 MKL_LIB = /home/fanghl/.local/opt/mkl_v2021.2.0_d20210524/lib/intel64
 

@@ -83,7 +83,7 @@ namespace VQTL {
         int autosome_num, double maf, char * snplstName, char * snplst2exclde, \
         int tsk_ttl, int tsk_id, char * covfileName, char * qcovfileName, bool tosmrflag, \
         bool nofastlinear, bool cis_flag, int cis_itvl, double zeroratio, double call, \
-        char * annofileName, char * covbodfileName, char* covefileName, bool transopse_ecov, bool use_top_p);
+        char * annofileName, char * covbodfileName, char* covefileName, bool transopse_ecov, bool use_top_p, bool trans_flag, int trans_itvl);
 
     void ssQTL(char* outFileName, char* beqtlFileName, char* problstName,char* problst2exclde, \
         char * genelistName, int chr, int prbchr, char * prbname, char * fromprbname, \

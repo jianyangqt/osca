@@ -1021,6 +1021,8 @@ namespace VQTL {
         }
 
     }
+
+
     int cis_eQTL_num(eInfo* einfo, bInfo* bdata, int cis_itvl, vector<int> &cis_num)
     {
         int maxr=0;
@@ -1044,6 +1046,8 @@ namespace VQTL {
         }
         return maxr;
     }
+
+
     int cis_eQTL_num_2(eInfo* einfo, eqtlInfo* eqtlinfo, int cis_itvl, vector< vector<int>> &tranids, vector< vector<int> > &snpids, vector<int> &cis_num)
     {
         //bp as start and gd as end
@@ -1089,6 +1093,8 @@ namespace VQTL {
         }
         return maxr;
     }
+
+
     void make_bs(eqtlInfo* eqtlinfo, vector<int> &prids, vector<int> &snpids, MatrixXd &eqtlb, MatrixXd &eqtls, vector<float> &freqs)
     {
         freqs.resize(snpids.size());
@@ -1147,6 +1153,8 @@ namespace VQTL {
             }
         if(loud) fclose(tmpfile);
     }
+
+
     int cis_eQTL_num_2(eInfo* einfo, bInfo* bdata, int cis_itvl, vector< vector<uint32_t> > &snpids, vector<int> &cis_num)
     {
         //bp as start and gd as end
@@ -1176,6 +1184,40 @@ namespace VQTL {
         }
         return maxr;
     }
+
+    int trans_eQTL_num(eInfo* einfo, bInfo* bdata, int trans_itvl, vector< vector<uint32_t> > &snpids, vector<int> &trans_num)
+    {
+        //bp as start and gd as end
+        int maxr=0;
+        trans_num.resize(einfo -> _epi_include.size());
+        snpids.resize(einfo -> _epi_include.size());
+        for(int i = 0; i < einfo -> _epi_include.size(); i++) {
+            int prbchr = einfo -> _epi_chr[einfo -> _epi_include[i]];
+            int prbstart = einfo -> _epi_bp[einfo -> _epi_include[i]];
+            int prbend = einfo -> _epi_gd[einfo -> _epi_include[i]];
+            int trans_left = (prbstart - trans_itvl * 1000 > 0)? (prbstart - trans_itvl * 1000): 0;
+            int trans_right = prbend + trans_itvl * 1000;
+            int r = 0;
+            for(int kk = 0; kk < bdata -> _include.size(); kk++) {
+                int snpchr = bdata -> _chr[bdata -> _include[kk]];
+                int snpbp = bdata -> _bp[bdata -> _include[kk]];
+                if(snpchr == prbchr && (snpbp <= trans_left || snpbp >= trans_right)) {
+                    snpids[i].push_back(kk);
+                    r++;
+                } else if (snpchr != prbchr) {
+                    snpids[i].push_back(kk);
+                    r++;
+                }
+            }
+            trans_num[i] = r;
+            if(r > maxr) {
+                maxr = r;
+            }
+        }
+        return maxr;
+    }
+
+
     long est_cis_eQTL_num(eInfo* einfo, bInfo* bdata, int cis_itvl)
     {
         srand((int)time(0));
@@ -2305,7 +2347,7 @@ namespace VQTL {
         LOGPRINTF("%ld genes are retained after gene check with annaotation information and eQTL summary statistics.\n",tranids.size());
     }
 
-    void gene_check(eInfo* sqtlinfo,vector< vector<int>> &tranids, char* annofileName, bInfo* bdata,eInfo* einfo)
+    void gene_check(eInfo* sqtlinfo,vector< vector<int>> &tranids, char* annofileName, bInfo* bdata,eInfo* einfo, bool cis_flag, bool trans_flag)
     {
         eqtlInfo tmpinfo;
         read_annofile(&tmpinfo, annofileName);
@@ -2342,7 +2384,7 @@ namespace VQTL {
         }
         vector<int> inids;
         int tmpc=0;
-        for(int i=0;i<idx.size();i++)
+        for(int i = 0; i < idx.size(); i++)
             if(idx[i].size()>1)
             {
                 iter = tmpinfo._probe_name_map.find(gene[i]);
@@ -2351,8 +2393,20 @@ namespace VQTL {
                     int tid=iter->second;
                     int tchr = tmpinfo._epi_chr[tid];
                     iter1 = bchr_map.find(tchr);
-                    if(iter1 != bchr_map.end())
-                    {
+                    if(cis_flag && !trans_flag) {
+                        if (iter1 != bchr_map.end()) {
+                            //printf("inter cis mode\n");
+                            sqtlinfo->_epi_prb.push_back(tmpinfo._epi_prbID[tid]);
+                            sqtlinfo->_epi_chr.push_back(tchr);
+                            sqtlinfo->_epi_gd.push_back(tmpinfo._epi_gd[tid]);
+                            sqtlinfo->_epi_gene.push_back(tmpinfo._epi_gene[tid]);
+                            sqtlinfo->_epi_orien.push_back(tmpinfo._epi_orien[tid]);
+                            sqtlinfo->_epi_bp.push_back(tmpinfo._epi_bp[tid]);
+                            sqtlinfo->_epi_include.push_back(tmpc++);
+                            inids.push_back(i);
+                        }
+                    } else if (trans_flag && !cis_flag) {
+                        //printf("inter trans mode\n");
                         sqtlinfo->_epi_prb.push_back(tmpinfo._epi_prbID[tid]);
                         sqtlinfo->_epi_chr.push_back(tchr);
                         sqtlinfo->_epi_gd.push_back(tmpinfo._epi_gd[tid]);
@@ -2361,6 +2415,9 @@ namespace VQTL {
                         sqtlinfo->_epi_bp.push_back(tmpinfo._epi_bp[tid]);
                         sqtlinfo->_epi_include.push_back(tmpc++);
                         inids.push_back(i);
+
+                    } else {
+                        fprintf(stderr, "cis or trans must choosed and choose one\n");
                     }
                 }
             }
@@ -2373,6 +2430,7 @@ namespace VQTL {
         }
         LOGPRINTF("%ld genes are retained after gene check with annaotation information, genotype information, and gene expression information.\n",tranids.size());
     }
+
     void rankr(VectorXd &a, VectorXd &b)
     {
         b.resize(a.size());
@@ -2445,7 +2503,7 @@ get_cov_beta_mean(int target, vector <double>& se, MatrixXd& cor_null)
         int tsk_id, char* covfileName, char* qcovfileName, bool tosmrflag,
         bool nofastlinear, bool cis_flag, int cis_itvl, double zeroratio, double call,
         char* annofileName, char* covbodfileName, char* covefileName,
-        bool transopse_ecov, bool use_top_p)
+        bool transopse_ecov, bool use_top_p, bool trans_flag, int trans_itvl)
     {
 
         setNbThreads(thread_num);
@@ -2483,7 +2541,7 @@ get_cov_beta_mean(int target, vector <double>& se, MatrixXd& cor_null)
 
         eInfo sqtlinfo;
         vector< vector<int>> tranids;  //smaller einfo._epi_include
-        gene_check( &sqtlinfo,tranids, annofileName, &bdata,&einfo);
+        gene_check( &sqtlinfo,tranids, annofileName, &bdata, &einfo, cis_flag, trans_flag);
 
         LOGPRINTF("\nPerforming sQTL analysis ...\n");
         if(outFileName!=NULL){
@@ -2512,16 +2570,36 @@ get_cov_beta_mean(int target, vector <double>& se, MatrixXd& cor_null)
         vector< vector<uint32_t> > rowids(sqtlinfo._epi_include.size());
         vector< vector<float> > betas(sqtlinfo._epi_include.size());
         vector< vector<float> > ses(sqtlinfo._epi_include.size());
-        vector<int> cis_num;
         vector< vector<uint32_t> > snpids; //to save _include id not _include value
-        cis_eQTL_num_2(&sqtlinfo,&bdata,cis_itvl,snpids, cis_num);
+        if (cis_flag) {
+            vector<int> cis_num;
+            cis_eQTL_num_2(&sqtlinfo, &bdata, cis_itvl, snpids, cis_num);
 
-        for(int ii=0;ii<sqtlinfo._epi_include.size();ii++)
-        {
-            rowids[ii].resize(cis_num[ii]);
-            betas[ii].resize(cis_num[ii]);
-            ses[ii].resize(cis_num[ii]);
+            for(int ii=0;ii<sqtlinfo._epi_include.size();ii++)
+            {
+                rowids[ii].resize(cis_num[ii]);
+                betas[ii].resize(cis_num[ii]);
+                ses[ii].resize(cis_num[ii]);
+            }
+        } else if (trans_flag) {
+            vector <int> trans_num;
+            trans_eQTL_num(&sqtlinfo, &bdata, trans_itvl, snpids, trans_num);
+            for (int i = 0; i < sqtlinfo._epi_include.size(); i++) {
+                rowids[i].resize(trans_num[i]);
+                betas[i].resize(trans_num[i]);
+                ses[i].resize(trans_num[i]);
+
+            }
         }
+
+        /*
+        FILE * f_out = fopen("dtobs", "w");
+        for (int i = 0; i < rowids.size(); i++) {
+            fprintf(f_out, "%d\n", rowids[i].size());
+        }
+        fclose(f_out);
+        exit(0);
+        */
 
         bool warned = false;
         int nindi = (int)einfo._eii_include.size();

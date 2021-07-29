@@ -250,6 +250,8 @@ void option(int option_num, char * option_str[])
     char* snp2rm=NULL;
     bool cis_flag=false;
     int cis_itvl=2000;
+    bool trans_flag = false;
+    int trans_itvl = 5000;
     char* besdflstName = NULL;
     bool combineFlg =false;
     bool metaflg = false;
@@ -1630,7 +1632,19 @@ void option(int option_num, char * option_str[])
         }
         if (0 == strcmp(option_str[i], "--use-top")){
             use_top_p = true;
-            LOGPRINTF("--use-top ture\n");
+            LOGPRINTF("--use-top\n");
+        }
+
+        if (0 == strcmp(option_str[i], "--trans")) {
+            trans_flag = true;
+            LOGPRINTF("--trans\n");
+
+        }
+
+        if (0 == strcmp(option_str[i], "--trans-wind")) {
+            trans_itvl = atoi(option_str[++i]);
+            trans_flag = true;
+            LOGPRINTF("--trans-wind %u Kb\n", trans_itvl);
         }
     }
 
@@ -1866,7 +1880,6 @@ void option(int option_num, char * option_str[])
             }
         else{
 
-            //the entry point of function which need debugs.
             sQTL(outfileName, efileName, befileName, bFileName, transposedin,
                 efileType, problstName, problst2exclde, genelistName, chr, prbname,
                 fromprbname, toprbname, prbWind, fromprbkb, toprbkb, prbwindFlag,
@@ -1877,7 +1890,7 @@ void option(int option_num, char * option_str[])
                 snplstName, snplst2exclde, tsk_ttl, tsk_id, covfileName,
                 qcovfileName, to_smr_flag, nofastlinear, cis_flag, cis_itvl,
                 zero_ratio_prob, call, bedfileName, bcovfileName, ecovfileName,
-                transopse_ecov, use_top_p);
+                transopse_ecov, use_top_p, trans_flag, trans_itvl);
         }
     }
     else if(queryBesd)
