@@ -2505,6 +2505,10 @@ get_cov_beta_mean(int target, vector <double>& se, MatrixXd& cor_null)
         char* annofileName, char* covbodfileName, char* covefileName,
         bool transopse_ecov, bool use_top_p, bool trans_flag, int trans_itvl)
     {
+        //by default, will set cis_flag = true
+        if (!cis_flag && !trans_flag) {
+            cis_flag = true;
+        }
 
         setNbThreads(thread_num);
         LOGPRINTF("Using %d thread(s) to conduct analysis ...\n", thread_num);
