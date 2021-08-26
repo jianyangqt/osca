@@ -2488,7 +2488,112 @@ get_cov_beta_mean(int target, vector <double>& se, MatrixXd& cor_null)
     dt_out = dt_out / vector_len;
     return dt_out;
 }
+/*
+    for every snp of a probe, there are severl transctripts(isoform),
+    print snprs(snp name), probe name,  isoform name, beta of this isoform, se of
+    this isoform.
+    isoform name, beta, se will repeat number of isoform times.
+    --Benjamin Fang
+*/
+#include <stdlib.h>
+static void
+output_beta_se(const double pdev, string snprs, string prbid, vector< double > beta,
+    vector < double > se, vector< int > tranids_prb, eInfo & einfo,
+    FILE * beta_se_of_trans, const double p_cutoff)
+{
 
+    struct ORDER_LIST {
+        double beta;
+        double se;
+        int tranids_prb;
+        struct ORDER_LIST * prev;
+        struct ORDER_LIST * next;
+    };
+    if (pdev >= p_cutoff)
+        return;
+
+    int len = beta.size();
+    if (len != se.size() || len != tranids_prb.size()) {
+        fprintf(stderr, "error, length of beta se and tranids should equal, snp %s passed\n", snprs);
+        return;
+    }
+
+    int i = 0, j = 0;
+    struct ORDER_LIST * head = NULL, * new_ele = NULL, * ptr = NULL, * tmp = NULL;
+    for (i = 0; i < len; i++) {
+        new_ele = (struct ORDER_LIST *)malloc(sizeof(struct ORDER_LIST));
+        new_ele -> beta = beta[i];
+        new_ele -> se = se[i];
+        new_ele -> tranids_prb = tranids_prb[i];
+        new_ele -> prev = NULL;
+        new_ele -> next = NULL;
+        if (head) {
+            ptr -> next = new_ele;
+            new_ele -> prev = ptr;
+            ptr = new_ele;
+        } else {
+            head = ptr = new_ele;
+        }
+    }
+    struct ORDER_LIST * order_head = NULL;
+    order_head = head;
+    head = head -> next;
+    head -> prev = NULL;
+    order_head -> next = NULL;
+    char finder_marker = 0;
+    while(head) {
+        //printf("%lf\n", head -> beta);
+        finder_marker = 0;
+        tmp = head -> next;
+        head -> prev = NULL;
+        head -> next = NULL;
+        ptr = order_head;
+        while (true) {
+            if (head -> beta >= ptr -> beta) {
+                if (ptr -> prev) {
+                    ptr -> prev -> next = head;
+                    head -> prev = ptr -> prev;
+                } else {
+                    order_head = head;
+                }
+                head -> next = ptr;
+                ptr -> prev = head;
+                finder_marker = 1;
+                break;
+            }
+            if (ptr -> next)
+                ptr = ptr -> next;
+            else
+                break;
+        }
+        if (!finder_marker) {
+            ptr -> next = head;
+            head -> prev = ptr;
+        }
+        head = tmp;
+    }
+    fprintf(beta_se_of_trans, "%s\t%s", snprs.c_str(), prbid.c_str());
+    if (len <= 10) {
+        while(order_head) {
+            fprintf(beta_se_of_trans, "\t%s\t%lf\t%lf", (einfo._epi_prb[order_head -> tranids_prb]).c_str(), order_head -> beta, order_head -> se);
+            order_head = order_head -> next;
+        }
+        fprintf(beta_se_of_trans, "\n");
+    } else {
+        i = 0;
+        j = len - 5;
+        while(order_head) {
+            if (i < 5 || i >= j) {
+                fprintf(beta_se_of_trans, "\t%s\t%lf\t%lf", (einfo._epi_prb[order_head -> tranids_prb]).c_str(), order_head -> beta, order_head -> se);
+            }
+            order_head = order_head -> next;
+        }
+        fprintf(beta_se_of_trans, "\n");
+
+    }
+
+    return;
+}
 
     void sQTL(char* outFileName, char* efileName, char* befileName,
         char* bFileName, bool transposed, int efileType, char* problstName,
@@ -2609,6 +2714,12 @@ get_cov_beta_mean(int target, vector <double>& se, MatrixXd& cor_null)
         int nindi = (int)einfo._eii_include.size();
         double cr=0.0;
 
+        FILE * beta_se_of_trans = fopen("beta_se_of_trans.csv", "w");
+        if (!beta_se_of_trans) {
+            fprintf(stderr, "open %s failed.\n", "beta_se_of_trans.csv");
+            exit(1);
+        }
+
         #pragma omp parallel for private(cr)
         for(int jj = 0; jj < sqtlinfo._epi_include.size(); jj++)
         {
@@ -2633,6 +2744,7 @@ get_cov_beta_mean(int target, vector <double>& se, MatrixXd& cor_null)
             }
 
             string prbid = sqtlinfo._epi_prb[sqtlinfo._epi_include[jj]];
+            vector< int > tranids_prb = tranids[sqtlinfo._epi_include[jj]];
             if(snpids[jj].size() == 0){
                 continue;
             }
@@ -2902,16 +3014,15 @@ get_cov_beta_mean(int target, vector <double>& se, MatrixXd& cor_null)
                     //f_out_lambda << lambda << endl;
                 }
 
-
-                double sumChisq_dev = chisq_dev.sum();
-                double pdev = 0.0;
-                #pragma omp critical
-                //cout << "sumChisq_dev: " << sumChisq_dev << endl;
-                pdev = pchisqsum(sumChisq_dev,lambda);
-                //cout << "pdev: " << pdev << endl;
                 double z = 0.0;
                 #pragma omp critical
-                z = sqrt(qchisq(pdev,1));
+                {
+                    double sumChisq_dev = chisq_dev.sum();
+                    double pdev = 0.0;
+                    pdev = pchisqsum(sumChisq_dev,lambda);
+                    output_beta_se(pdev, snprs, prbid, beta, se, tranids_prb, einfo, beta_se_of_trans, 1e-2);
+                    z = sqrt(qchisq(pdev,1));
+                }
 
                 double beta_hat = z / sqrt(2 * snpfreq * (1 - snpfreq) * (nindi + z * z));
                 double se_hat = 1 / sqrt(2 * snpfreq * (1 - snpfreq) * (nindi + z * z));
@@ -2923,7 +3034,7 @@ get_cov_beta_mean(int target, vector <double>& se, MatrixXd& cor_null)
 
             }
         }
-
+        fclose(beta_se_of_trans);
 
         if(tosmrflag)
         {
