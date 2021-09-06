@@ -262,6 +262,7 @@ void option(int option_num, char * option_str[])
     bool gc_flag = false;
 
     int meta_mtd = 0; //0 for traditional meta, 1 for MeCS
+    bool trans_meta = false;
     double pmecs = 0.01;
     int nmecs = 100; //the number of common SNPs to calculation the correlation in MeCS
     int mecs_mth = 0; // 1 for est_cor, 0 for pcc
@@ -1646,6 +1647,11 @@ void option(int option_num, char * option_str[])
             trans_flag = true;
             LOGPRINTF("--trans-wind %u Kb\n", trans_itvl);
         }
+
+        if (0 == strcmp(option_str[i], "--trans-meta")) {
+            trans_meta = true;
+            LOGPRINTF("set trans_meta to true.\n");
+        }
     }
 
 #ifndef __APPLE__
@@ -1906,7 +1912,7 @@ void option(int option_num, char * option_str[])
                 prbchr, prbname, fromprbname, toprbname, prbWind, fromprbkb,
                 toprbkb, prbwindFlag, genename, snplstName, snplst2exclde,
                 snpchr, snprs, fromsnprs, tosnprs, snpWind, fromsnpkb, tosnpkb,
-                snpwindFlag, probe2rm, snp2rm);
+                snpwindFlag, probe2rm, snp2rm, trans_meta);
         else if(gwasflstName != NULL || ewasflstName != NULL)
             meta_gwas(gwasflstName, ewasflstName, outfileName, meta_mtd, pmecs,
                 mecs_mth, corMatFName, snplstName, problstName, zflag,
