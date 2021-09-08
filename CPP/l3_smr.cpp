@@ -1487,6 +1487,8 @@ namespace SMR {
         vector<string> nega_prbs;
         vector<string> snpdeficent;
         double cr=0.0;
+        //FILE * probe_snp_log = fopen("probe_snp_log", "w");
+
         for(int i=0;i<metaPrbNum;i++)
         {
             progress(i, cr, (int)metaPrbNum);
@@ -1496,6 +1498,7 @@ namespace SMR {
             int probebp=probeinfo[i].bp;
             int probechr=probeinfo[i].probechr;
             long cohortnum=0;
+            //fprintf(probe_snp_log, ">%s\n", probeinfo[i].probeId);
             for(int j=0;j<besds.size();j++)
             {
                 int pid=probeinfo[i].ptr[j];
@@ -1503,6 +1506,7 @@ namespace SMR {
                 row_ids.clear();
                 if(pid>=0)
                 {
+                    //fprintf(probe_snp_log, "$%d|%d\n", j, pid);
                     if(format[j]==SMR_SPARSE_3F || format[j]==SMR_SPARSE_3 || format[j]==OSCA_SPARSE_1 )
                     {
                         extract_prb_sparse(fptrs[j], (uint64_t)pid, nprb[j],row_ids, betases);
@@ -1521,8 +1525,10 @@ namespace SMR {
                         {
                             //align each cohort to the buffer. we don't have -9 of se from sparse.
                             int idx=lookup[j][row_ids[k]];
+
                             if(idx>=0)
                             {
+                                fprintf(probe_snp_log, "%d\t", idx);
                                 int snpchr=snpinfo[idx].snpchr;
                                 int snpbp=snpinfo[idx].bp;
                                 if(meta_mth && cis_flag) {
@@ -1562,11 +1568,14 @@ namespace SMR {
                         } else {
                             LOGPRINTF("Extract the eQTLs of probe %s in the file %s.\n",probeinfo[i].probeId,besds[j].c_str());
                         }
+
                         for(int k=0;k<nsnp[j];k++)
                         {
                             int idx=lookup[j][k];
+
                             if(idx>=0)
                             {
+                                //fprintf(probe_snp_log, "%d\t", idx);
                                 int snpchr=snpinfo[idx].snpchr;
                                 int snpbp=snpinfo[idx].bp;
                                 if(meta_mth && cis_flag)
@@ -1599,10 +1608,12 @@ namespace SMR {
                          */
                     }
                     cohortnum++;
+                    //fprintf(probe_snp_log, "\n");
                 }
                 else {
                     //LOGPRINTF("probe %s is not in the file %s.\n",probeinfo[i].probeId,besds[j].c_str());
                 }
+
             }
 
             //****test**
@@ -1702,6 +1713,7 @@ namespace SMR {
                 cols[i+1<<1]=(real_num<<1)+cols[i<<1];
             }
         }
+        fclose(probe_snp_log);
 
         if(label==1)
         {
