@@ -1528,7 +1528,6 @@ namespace SMR {
 
                             if(idx>=0)
                             {
-                                fprintf(probe_snp_log, "%d\t", idx);
                                 int snpchr=snpinfo[idx].snpchr;
                                 int snpbp=snpinfo[idx].bp;
                                 if(meta_mth && cis_flag) {
@@ -1713,7 +1712,6 @@ namespace SMR {
                 cols[i+1<<1]=(real_num<<1)+cols[i<<1];
             }
         }
-        fclose(probe_snp_log);
 
         if(label==1)
         {
