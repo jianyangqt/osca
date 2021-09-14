@@ -231,15 +231,16 @@ namespace SMR {
             memcpy(suffix,".epi",5);
             read_smr_epifile(&etmp, inputname);
             smr_epi_man(&etmp, problstName, problst2exclde, genelistName,  chr, prbchr,  prbname,  fromprbname,  toprbname, prbWind, fromprbkb,  toprbkb, prbwindFlag,  genename, probe2exclde);
-            nprb.push_back(etmp._probNum);
-            for (int j = 0; j<etmp._probNum; j++)
+            //etmp._include is vector which is probe after extract or filter. fanghl
+            nprb.push_back(etmp._epi_prbID.size());
+            for (int j = 0; j<etmp._include.size(); j++)
             {
-                string crsbpstr=etmp._epi_prbID[j]+":"+atos(etmp._epi_bp[j]);
-                prb_map.insert(pair<string, int>(etmp._epi_prbID[j].c_str(), counter));
+                string crsbpstr=etmp._epi_prbID[etmp._include[j]]+":"+atos(etmp._epi_bp[etmp._include[j]]);
+                prb_map.insert(pair<string, int>(etmp._epi_prbID[etmp._include[j]].c_str(), counter));
                 prbbp_map.insert(pair<string, int>(crsbpstr.c_str(), counter));
                 if(prb_map.size() != prbbp_map.size())
                 {
-                    LOGPRINTF("ERROR: inconsistent position for the probe %s  in different .epi files. Please check.\n", etmp._epi_prbID[j].c_str()) ;
+                    LOGPRINTF("ERROR: inconsistent position for the probe %s  in different .epi files. Please check.\n", etmp._epi_prbID[etmp._include[j]].c_str()) ;
                     TERMINATE();
                 }
 
@@ -247,18 +248,18 @@ namespace SMR {
                 {
                     smr_probeinfo probinfotmp;
                     counter=prb_map.size();
-                    probinfotmp.probechr=etmp._epi_chr[j];
-                    strcpy2(&probinfotmp.probeId, etmp._epi_prbID[j]);
-                    probinfotmp.bp=etmp._epi_bp[j];
-                    probinfotmp.gd=etmp._epi_gd[j];
-                    strcpy2(&probinfotmp.genename, etmp._epi_gene[j]);
-                    probinfotmp.orien=etmp._epi_orien[j];
+                    probinfotmp.probechr=etmp._epi_chr[etmp._include[j]];
+                    strcpy2(&probinfotmp.probeId, etmp._epi_prbID[etmp._include[j]]);
+                    probinfotmp.bp=etmp._epi_bp[etmp._include[j]];
+                    probinfotmp.gd=etmp._epi_gd[etmp._include[j]];
+                    strcpy2(&probinfotmp.genename, etmp._epi_gene[etmp._include[j]]);
+                    probinfotmp.orien=etmp._epi_orien[etmp._include[j]];
                     probinfotmp.bfilepath=NULL;
                     probinfotmp.esdpath=NULL;
                     probinfotmp.ptr=new int[besds.size()];
                     for(int k=0;k<besds.size();k++){
                         if(i==k){
-                            probinfotmp.ptr[k]=j;
+                            probinfotmp.ptr[k]=etmp._include[j];
                         } else {
                             probinfotmp.ptr[k]=-9;
                         }
@@ -266,10 +267,10 @@ namespace SMR {
                     probeinfo.push_back(probinfotmp);
 
                 } else {
-                    iter=prb_map.find(etmp._epi_prbID[j]);
+                    iter=prb_map.find(etmp._epi_prbID[etmp._include[j]]);
                     if(iter!=prb_map.end())
                     {
-                        probeinfo[iter->second].ptr[i]=j; //probeinfo with prb_map
+                        probeinfo[iter->second].ptr[i]=etmp._include[j]; //probeinfo with prb_map
                     }
                     else
                     {
