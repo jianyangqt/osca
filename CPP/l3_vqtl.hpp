@@ -93,7 +93,7 @@ namespace VQTL {
         char * fromsnprs, char * tosnprs, int snpWind, int fromsnpkb, int tosnpkb, \
         bool snpwindFlag, char * snprs2exclde, int tsk_ttl, int tsk_id, \
         bool tosmrflag, bool nofastlinear, bool cis_flag,int cis_itvl, \
-        char * annofileName, double pmecs, int nmecs, bool use_top_p);
+        char * annofileName, double pmecs, int nmecs, bool use_top_p, bool trans_flag, int trans_itvl);
 
 }
 #endif /* l3_vqtl_hpp */

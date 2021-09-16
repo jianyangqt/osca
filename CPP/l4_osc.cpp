@@ -1882,7 +1882,8 @@ void option(int option_num, char * option_str[])
                 problst2exclde, autosome_num, maf, snplstName, snplst2exclde,
                 snpchr, snprs, fromsnprs, tosnprs, snpWind, fromsnpkb, tosnpkb,
                 snpwindFlag, snp2rm, tsk_ttl, tsk_id, to_smr_flag, nofastlinear,
-                cis_flag, cis_itvl, bedfileName, pmecs, nmecs, use_top_p);
+                cis_flag, cis_itvl, bedfileName, pmecs, nmecs, use_top_p,
+                trans_flag, trans_itvl);
             }
         else{
 
