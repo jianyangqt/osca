@@ -1254,10 +1254,7 @@ namespace VQTL {
             for(int kk = 0; kk < bdata -> _include.size(); kk++) {
                 int snpchr = bdata -> _chr[bdata -> _include[kk]];
                 int snpbp = bdata -> _bp[bdata -> _include[kk]];
-                if(snpchr == prbchr && (snpbp <= trans_left || snpbp >= trans_right)) {
-                    snpids[i].push_back(kk);
-                    r++;
-                } else if (snpchr != prbchr) {
+                if(snpchr != prbchr || snpbp <= trans_left || snpbp >= trans_right) {
                     snpids[i].push_back(kk);
                     r++;
                 }
@@ -2663,6 +2660,10 @@ output_beta_se(const double pdev, string snprs, string prbid, vector< double > b
         char* annofileName, char* covbodfileName, char* covefileName,
         bool transopse_ecov, bool use_top_p, bool trans_flag, int trans_itvl)
     {
+        if (cis_flag && trans_flag) {
+            fprintf(stderr, "The cis_flag and trans_flag can not be true at same time.");
+            TERMINATE();
+        }
         //by default, will set cis_flag = true
         if (!cis_flag && !trans_flag) {
             cis_flag = true;
