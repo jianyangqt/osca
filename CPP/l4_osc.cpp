@@ -1650,7 +1650,7 @@ void option(int option_num, char * option_str[])
 
         if (0 == strcmp(option_str[i], "--trans-meta")) {
             trans_meta = true;
-            LOGPRINTF("set trans_meta to true.\n");
+            LOGPRINTF("--trans-meta\n");
         }
     }
 
