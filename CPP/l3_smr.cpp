@@ -1655,7 +1655,7 @@ namespace SMR {
                 if(meta_mth){
                     //LOGPRINTF("Performing %s analysis of probe %s...\n",analysisType.c_str(), probeinfo[i].probeId);
                     vector<int> noninvertible, negativedeno;
-                    LOGPRINTF("Extracted probe %s from %d besd files. now, perform mecs_pre_prob calcualtion.", probeinfo[i].probeId, cohortnum);
+                    LOGPRINTF("Extracted probe %s from %d besd files. now, perform mecs_pre_prob calcualtion.\n", probeinfo[i].probeId, cohortnum);
                     bool mecsflag = mecs_per_prob( buffer_beta, buffer_se, metaSNPnum, cohortnum, pthresh,noninvertible,negativedeno, nmecs);
                     if(!mecsflag) snpdeficent.push_back(probeinfo[i].probeId);
                     else {
