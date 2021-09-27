@@ -857,7 +857,7 @@ namespace SMR {
                 double se=buffer_se[k*snpnum+j];
                 double beta=buffer_beta[k*snpnum+j];
                 buffer_se[k*snpnum+j]=-9;
-                if(abs(se+9)>1e-6){
+                if(abs(se+9) > 1e-6 && se < 1e10){
                     ses.push_back(se);
                     betas.push_back(beta);
                     keep.push_back(k);
