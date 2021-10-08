@@ -3443,6 +3443,12 @@ output_beta_se(const double pdev, string snprs, string prbid, vector< double > b
             }
 
             MatrixXd eqtlb(numSNP, numTrans), eqtls(numSNP, numTrans);
+            for (int i = 0; i < numSNP; i++) {
+                for (int j = 0; j < numTrans; j++) {
+                    eqtlb(i, j) = -9;
+                    eqtls(i, j) = -9;
+                }
+            }
             vector < float > eqtlfreq(numSNP);
             make_bs(&eqtlinfo, tranids[jj], snpids[jj], eqtlb, eqtls, eqtlfreq);
 
@@ -3560,14 +3566,47 @@ output_beta_se(const double pdev, string snprs, string prbid, vector< double > b
                     continue;
                 }
 
-                vector<double> beta(numTrans), se(numTrans);
+                vector<double> beta, se;
+                vector <int> beta_se_rm;
+                double beta_tmp, se_tmp;
                 for(int ll = 0; ll < numTrans; ll++)
                 {
-                    beta[ll] = eqtlb(kk, ll);
-                    se[ll] = eqtls(kk, ll);
+                    beta_tmp = eqtlb(kk, ll);
+                    se_tmp = eqtls(kk, ll);
+                    if (abs(se_tmp + 9) < 1e-15){
+                        beta_se_rm.push_back(ll);
+                    } else {
+                        beta.push_back(beta_tmp);
+                        se.push_back(se_tmp);
+                    }
                 }
-
-                int varnum = numTrans * (numTrans - 1) / 2;
+                int numTrans_snp = 0;
+                numTrans_snp = numTrans - beta_se_rm.size();
+                //cout << beta_se_rm.size() << endl;
+                //cout << numTrans_snp << endl;
+                MatrixXd cor_null_snp(numTrans_snp, numTrans_snp);
+                if (beta_se_rm.size() > 0) {
+                    k = 0;
+                    for (int i = 0; i < cor_null.rows(); i++) {
+                        l = 0;
+                        it = find(beta_se_rm.begin(), beta_se_rm.end(), i);
+                        if (it != beta_se_rm.end()) {
+                            k++;
+                        } else {
+                            for (int j = 0; j < cor_null.cols(); j++) {
+                                it = find(beta_se_rm.begin(), beta_se_rm.end(), j);
+                                if (it != beta_se_rm.end()) {
+                                    l++;
+                                } else {
+                                    cor_null_snp(i - k, j - l) = cor_null(i, j);
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    cor_null_snp = cor_null;
+                }
+                int varnum = numTrans_snp * (numTrans_snp - 1) / 2;
                 VectorXd d(varnum), vardev(varnum), chisq_dev(varnum);
                 int i = 0, j = 0, k = 0;
                 MatrixXd vdev (varnum, varnum);
@@ -3576,39 +3615,39 @@ output_beta_se(const double pdev, string snprs, string prbid, vector< double > b
                 double var_mean = 0;
 
                 if (use_top_p) {
-                    d.resize(numTrans);
-                    vardev.resize(numTrans);
-                    chisq_dev.resize(numTrans);
-                    vdev.resize(numTrans, numTrans);
-                    corr_dev.resize(numTrans, numTrans);
+                    d.resize(numTrans_snp);
+                    vardev.resize(numTrans_snp);
+                    chisq_dev.resize(numTrans_snp);
+                    vdev.resize(numTrans_snp, numTrans_snp);
+                    corr_dev.resize(numTrans_snp, numTrans_snp);
                     beta_mean = 0;
-                    for (i = 0; i < numTrans; i++) {
+                    for (i = 0; i < numTrans_snp; i++) {
                         beta_mean += beta[i];
                     }
-                    beta_mean = beta_mean / numTrans;
+                    beta_mean = beta_mean / numTrans_snp;
                     var_mean = 0;
-                    var_mean = get_var_mean(se, cor_null);
-                    for (i = 0; i < numTrans; i++) {
+                    var_mean = get_var_mean(se, cor_null_snp);
+                    for (i = 0; i < numTrans_snp; i++) {
                         d[i] = beta[i] - beta_mean;
                         vardev[i] = se[i] * se[i] + var_mean - \
-                            2 * get_cov_beta_mean(i, se, cor_null);
+                            2 * get_cov_beta_mean(i, se, cor_null_snp);
                     }
 
-                    for (i = 0; i < numTrans; i++) {
+                    for (i = 0; i < numTrans_snp; i++) {
                         chisq_dev[i] = d[i] * d[i] / vardev[i];
                     }
 
-                    for (i = 0; i < numTrans; i++) {
-                        for (j = 0; j < numTrans; j++) {
-                            vdev(i, j) = se[i] * se[j] * cor_null(i, j) - \
-                                get_cov_beta_mean(i, se, cor_null) - \
-                                get_cov_beta_mean(j, se, cor_null) + \
+                    for (i = 0; i < numTrans_snp; i++) {
+                        for (j = 0; j < numTrans_snp; j++) {
+                            vdev(i, j) = se[i] * se[j] * cor_null_snp(i, j) - \
+                                get_cov_beta_mean(i, se, cor_null_snp) - \
+                                get_cov_beta_mean(j, se, cor_null_snp) + \
                                 var_mean;
                         }
                     }
 
-                    for (i = 0; i < numTrans; i++) {
-                        for (j = i; j < numTrans; j++) {
+                    for (i = 0; i < numTrans_snp; i++) {
+                        for (j = i; j < numTrans_snp; j++) {
                             corr_dev(i, j) = corr_dev(j, i) = \
                                 vdev(i, j) / sqrt(vdev(i, i) * vdev(j, j));
                         }
@@ -3617,11 +3656,11 @@ output_beta_se(const double pdev, string snprs, string prbid, vector< double > b
 
                 } else {
                     k = 0;
-                    for(int m1 = 0; m1 < numTrans - 1; m1++) {
-                        for(int m2 = m1 + 1; m2 < numTrans; m2++){
+                    for(int m1 = 0; m1 < numTrans_snp - 1; m1++) {
+                        for(int m2 = m1 + 1; m2 < numTrans_snp; m2++){
                             d[k]=beta[m1]-beta[m2];
                             vardev[k] = se[m1] * se[m1] + se[m2] * se[m2] - 2 * \
-                                cor_null(m1, m2) * se[m1] * se[m2];
+                                cor_null_snp(m1, m2) * se[m1] * se[m2];
                             k++;
                         }
                     }
@@ -3629,15 +3668,15 @@ output_beta_se(const double pdev, string snprs, string prbid, vector< double > b
                         chisq_dev[m1] = d[m1]*d[m1]/vardev[m1];
 
                     int mi = 0, mj =0;
-                    for( int m1=0;m1< numTrans-1;m1++) {
-                        for( int m2=m1+1;m2<numTrans;m2++) {
+                    for( int m1=0;m1< numTrans_snp-1;m1++) {
+                        for( int m2=m1+1;m2<numTrans_snp;m2++) {
                             mj=0;
-                            for(int m3=0; m3< numTrans-1; m3++){
-                                for(int m4=m3+1;m4<numTrans;m4++) {
-                                    vdev(mi,mj) = se[m1] * se[m3] * cor_null(m1,m3) - \
-                                        se[m1] * se[m4] * cor_null(m1,m4) - \
-                                        se[m2] * se[m3] * cor_null(m2,m3) + \
-                                        se[m2] * se[m4] * cor_null(m2,m4);
+                            for(int m3=0; m3< numTrans_snp-1; m3++){
+                                for(int m4=m3+1;m4<numTrans_snp;m4++) {
+                                    vdev(mi,mj) = se[m1] * se[m3] * cor_null_snp(m1,m3) - \
+                                        se[m1] * se[m4] * cor_null_snp(m1,m4) - \
+                                        se[m2] * se[m3] * cor_null_snp(m2,m3) + \
+                                        se[m2] * se[m4] * cor_null_snp(m2,m4);
                                     mj++;
                                 }
                             }
