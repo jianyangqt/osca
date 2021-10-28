@@ -22,28 +22,40 @@ int main(int argc, char * argv[])
     cout << "* MIT License" << endl;
     cout << "*******************************************************************" << endl;
 
-    string logfname="";
-    for(int i=0;i<argc;i++)
-    {
-        if(0==strcmp(argv[i],"--out"))
-            logfname = string(argv[++i]);
-        if(0==strcmp(argv[i],"--task-num")) logfname += "_"+string(argv[++i]);
-        if(0==strcmp(argv[i],"--task-id")) logfname += "_"+string(argv[++i]);
+    string logfname = "";
+    string outname = "";
+    string task_num = "";
+    string task_id = "";
+    for (int i = 0; i <argc; i++) {
+        if (0 == strcmp(argv[i], "--out"))
+            outname = string(argv[++i]);
+        if (0 == strcmp(argv[i], "--task-num"))
+            task_num = string(argv[++i]);
+        if (0 == strcmp(argv[i], "--task-id"))
+            task_id = string(argv[++i]);
     }
 
-    if(logfname=="") logfname="osca.log";
-    else logfname += ".log";
-    //here is a bug when --out --task-num --task-id have different cmd line order.
-    //printf(">%s\n", logfname.c_str());
+    if(outname == "") {
+        logfname="osca.log";
+    }
+    else {
+        if (task_num == "") {
+            logfname = outname + "_" + "1" + "_" + "1" + ".log";
+        } else {
+            if (task_id == "") {
+                logfname = outname + "_" + task_num + "_" + "1" + ".log";
+            } else {
+                logfname = outname + "_" + task_num + "_" + task_id + ".log";
+            }
+        }
+    }
 
-    logfile=fopen(logfname.c_str(),"w");
+    logfile = fopen(logfname.c_str(),"w");
     if (!logfile) {
         printf("Error: Failed to open log file %s.\n", logfname.c_str());
         exit(EXIT_FAILURE);
     }
     printf("Logging to %s.\n", logfname.c_str());
-
-
     FLAGS_VALID_CK(argc, argv);
 
     long int time_used = 0, start = time(NULL);
