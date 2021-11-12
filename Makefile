@@ -18,7 +18,7 @@ LIBS= -lz -lgomp -lmkl_core -lpthread -lmkl_gnu_thread -lmkl_gf_lp64
 objs = $(patsubst %.cpp,%.o,$(wildcard CPP/*.cpp))
 
 .PHONY: all
-all: osca osca_static
+all: osca
 
 osca: $(objs)
 	$(CXX) $(CXXFLAGS) $(objs) $(LDFLAGS) $(LIBS) -o $@
