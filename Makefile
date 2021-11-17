@@ -13,9 +13,9 @@ DEBUG :=
 
 CXX = g++
 ifdef DEBUG
-CXXFLAGS = -Wall -O3 -fopenmp
-else
 CXXFLAGS = -Wall -g3 -Og -fopenmp
+else
+CXXFLAGS = -Wall -O3 -fopenmp
 endif
 CPPFLAGS =  -I$(EIGEN_PATH) -I$(MKL_INCLUDE)
 LDFLAGS = -L$(MKL_LIB)
