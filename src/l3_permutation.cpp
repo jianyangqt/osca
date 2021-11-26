@@ -364,8 +364,8 @@ namespace PERMU
         pemp = ((double) perm_p_less_p + 1.0) / ((double) permu_times + 1.0);
         pbml = pbeta(best_p, beta_ml1, beta_ml2, 1, 0);
         double * dt_out = (double *)malloc(sizeof(double) * 4);
-        printf("permu_pval_less_than_best_nom%u, permu_time: %u\n", perm_p_less_p, permu_times);
-        printf("beat_mm1: %le, beta_mm2: %le\n", beta_ml1, beta_mm2);
+        //printf("permu_pval_less_than_best_nom%u, permu_time: %u\n", perm_p_less_p, permu_times);
+        //printf("beat_mm1: %le, beta_mm2: %le\n", beta_ml1, beta_mm2);
         dt_out[0] = pemp;
         dt_out[1] = pbml;
         dt_out[2] = beta_ml1;
@@ -515,11 +515,12 @@ namespace PERMU
             string prbid = sqtlinfo._epi_prb[prb_idx];
             
             //printf("%s\n", gene_name.c_str());
+            /*
             if (gene_name != "UFD1" && gene_name != "MOV10L1")
             {
                 continue;
             }
-
+            */
             int prb_chr = sqtlinfo._epi_chr[prb_idx];
             char prb_ori = sqtlinfo._epi_orien[prb_idx];
             grow = (output_data *)malloc(sizeof(output_data));
@@ -538,6 +539,7 @@ namespace PERMU
             grow -> snp_contained = snp_num;
             if (snpids[jj].size() == 0)
             {
+                //need more code, fhl
                 continue;
             }
 
