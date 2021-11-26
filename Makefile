@@ -8,6 +8,8 @@
 EIGEN_PATH := /usr/include
 MKL_INCLUDE := /usr/include
 MKL_LIB := /usr/lib64/intel64
+RMath_INCLUDE := /usr/include
+RMath_LIB := /usr/lib64/lib
 
 DEBUG :=
 
@@ -17,10 +19,10 @@ CXXFLAGS = -Wall -g3 -Og -fopenmp
 else
 CXXFLAGS = -Wall -O3 -fopenmp
 endif
-CPPFLAGS =  -I$(EIGEN_PATH) -I$(MKL_INCLUDE)
-LDFLAGS = -L$(MKL_LIB)
-LIBS = -lz -lgomp -lmkl_core -lpthread -lmkl_gnu_thread -lmkl_gf_lp64
-objs = $(patsubst %.cpp,%.o,$(wildcard CPP/*.cpp))
+CPPFLAGS =  -I$(EIGEN_PATH) -I$(MKL_INCLUDE) -I$(RMath_LIB)
+LDFLAGS = -L$(MKL_LIB) -L$(RMath_LIB)
+LIBS = -lz -lgomp -lmkl_core -lpthread -lmkl_gnu_thread -lmkl_gf_lp64 -lRmath -lgsl -lgslcblas
+objs = $(patsubst %.cpp,%.o,$(wildcard src/*.cpp))
 
 .PHONY: all
 all: osca
@@ -37,6 +39,6 @@ $(objs): %.o: %.cpp
 
 .PHONY: clean
 clean:
-	rm -f CPP/*.o
+	rm -f src/*.o
 	rm -f osca
 	rm -f osca_static
