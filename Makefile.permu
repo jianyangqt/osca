@@ -1,0 +1,14 @@
+CXX = g++
+CXXFLAGS = -Wall -g -Og
+CPPFLAGS = -I/home/fanghl/.local/opt/eigen_v3.3.7_d20210704 -I/home/fanghl/.local/opt/mkl_v2021.2.0_d20210524/include -I/home/fanghl/.local/opt/Rmath_vR_3.6.3_d202111123/include
+LDFLAGS = -L/home/fanghl/.local/opt/mkl_v2021.2.0_d20210524/lib/intel64 -L/home/fanghl/.local/opt/Rmath_vR_3.6.3_d202111123/lib
+LIBS = -lz -lgomp -lmkl_core -lpthread -lmkl_gnu_thread -lmkl_gf_lp64 -lgsl -lgslcblas -lRmath
+
+objs = CPP/l3_permutation.o CPP/l2_besd.o CPP/l2_efile.o CPP/l2_bfile.o CPP/l2_reml.o CPP/l1_op_geno.o CPP/l1_stat.o CPP/l0_stat.o CPP/dcdflib.o CPP/l0_com.o \
+	CPP/l3_vqtl.o CPP/l0_io.o CPP/l0_mem.o CPP/cis_learn_beta.o
+
+permu: $(objs)
+	$(CXX) $(CXXFLAGS) $(objs) $(LDFLAGS) $(LIBS) -o $@
+
+$(objs):%.o:%.cpp
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -o $@ -c $<
