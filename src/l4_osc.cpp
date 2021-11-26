@@ -1672,7 +1672,7 @@ void option(int option_num, char * option_str[])
         }
         if (0 == strcmp(option_str[i], "--permutation")) {
             permutation = true;
-            LOGPRINTF("--permutation");
+            LOGPRINTF("--permutation\n");
         }
         if (0 == strcmp(option_str[i], "--permu-times")) {
             permutation = true;
@@ -1682,7 +1682,7 @@ void option(int option_num, char * option_str[])
 
         if (0 == strcmp(option_str[i], "--not-use-top")) {
             not_uset_top = true;
-            LOGPRINTF("--not-use-top");
+            LOGPRINTF("--not-use-top\n");
         }
     }
 
