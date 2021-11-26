@@ -324,12 +324,14 @@ namespace PERMU
         uint32_t i = 0, j = 0;
         uint32_t permu_times = p_permuted.size() - 1;
         double best_p = p_permuted[0];
+        vector <double> best_permuted_pv;
         double sum_perm_p = 0.0, mean_perm_p = 0.0, varient_perm_p = 0.0;
         double pbml = 0, pemp = 0;
         double beta_ml1 = 0.0, beta_ml2 = 0.0;
         double beta_mm1 = 0.0, beta_mm2 = 0.0;
         for (i = 1; i < permu_times + 1; i++) {
             sum_perm_p += p_permuted[i];
+            best_permuted_pv.push_back(p_permuted[i]);
         }
         mean_perm_p = sum_perm_p / permu_times;
         for (i = 1; i < permu_times + 1; i++) {
@@ -342,7 +344,7 @@ namespace PERMU
             beta_ml1 = beta_mm1;
             beta_ml2 = beta_mm2;
             try {
-
+                learnBetaParameters(best_permuted_pv, beta_ml1, beta_ml2);
             } catch (const std::exception & e) {
                 fprintf(stderr, "Maximum Likelihood estimation failed, use Moment Matching instead!\n");
                 beta_ml1 = beta_mm1;
@@ -354,14 +356,16 @@ namespace PERMU
 
         uint32_t perm_p_less_p = 0;
         for (i = 1; i < permu_times + 1; i++) {
-            if (abs(p_permuted[i]) < abs(best_p)) {
+            if (abs(p_permuted[i]) =< abs(best_p)) {
                 perm_p_less_p++;
             }
         }
 
-        pemp = (perm_p_less_p + 1) / (permu_times + 1);
+        pemp = ((double) perm_p_less_p + 1.0) / ((double) permu_times + 1.0);
         pbml = pbeta(best_p, beta_ml1, beta_ml2, 1, 0);
         double * dt_out = (double *)malloc(sizeof(double) * 4);
+        printf("permu_pval_less_than_best_nom%u, permu_time: %u\n", perm_p_less_p, permu_times);
+        printf("beat_mm1: %le, beta_mm2: %le\n", beta_ml1, beta_mm2);
         dt_out[0] = pemp;
         dt_out[1] = pbml;
         dt_out[2] = beta_ml1;
@@ -387,12 +391,14 @@ namespace PERMU
                 tmp -> probe_id, tmp -> chrom, tmp -> probe_pos,
                 tmp -> gene_name, tmp -> orientation, tmp -> snp_contained,
                 tmp -> top_snp_id, tmp -> top_snp_chrom, tmp -> top_snp_pos, tmp -> p_nominal,
-                tmp -> beta_ml1, tmp -> beta_ml2, tmp -> pemp, tmp -> pbml);
+                tmp -> beta_ml1, tmp -> beta_ml2, tmp -> pemp, tmp -> pbml
+                );
+                tmp = tmp -> next;
         }
         fclose(fout);
         tmp = dataout;
         while (dataout) {
-            tmp = dataout;
+            tmp = dataout -> next;
             free(dataout);
             dataout = tmp;
         }
@@ -490,8 +496,8 @@ namespace PERMU
 
         bool warned = false;
         int nindi = (int)einfo._eii_include.size();
-        double cr = 0.0;
-        output_data * head = NULL, * tail = NULL, * grow = NULL; 
+        output_data * head = NULL, * tail = NULL, * grow = NULL;
+        uint32_t probe_num_ok = sqtlinfo._epi_include.size();
 
 #pragma omp parallel for private(cr)
         for (int jj = 0; jj < sqtlinfo._epi_include.size(); jj++)
@@ -505,7 +511,7 @@ namespace PERMU
             {
                 continue;
             }
-            printf("HERER\n");
+
             int prb_chr = sqtlinfo._epi_chr[prb_idx];
             char prb_ori = sqtlinfo._epi_orien[prb_idx];
             grow = (output_data *)malloc(sizeof(output_data));
@@ -516,22 +522,9 @@ namespace PERMU
             grow -> chrom = prb_chr;
             grow -> orientation = prb_ori;
 
-            LOGPRINTF("\n>Processing gene:%s, probeid:%s\n", gene_name.c_str(), prbid.c_str());
+            LOGPRINTF("\n>Processing gene:%s, probeid:%s (%d/%d)\n", 
+                gene_name.c_str(), prbid.c_str(), jj + 1, probe_num_ok);
 
-            double desti = 1.0 * jj / (sqtlinfo._epi_include.size() - 1);
-            if (desti >= cr)
-            {
-                printf("%3.0f%%\r", 100.0 * desti);
-                fflush(stdout);
-                if (cr == 0)
-                    cr += 0.05;
-                else if (cr == 0.05)
-                    cr += 0.2;
-                else if (cr == 0.25)
-                    cr += 0.5;
-                else
-                    cr += 0.25;
-            }
             // snpids should indexed by jj not prb_idx.
             uint32_t snp_num = snpids[jj].size();
             grow -> snp_contained = snp_num;
@@ -894,7 +887,6 @@ namespace PERMU
                 head = tail = grow;
             }
         }
-
         print_res(head, fout);
         fprintf(stdout, "Done, result was saved to %s\n", outFileName);
     }
