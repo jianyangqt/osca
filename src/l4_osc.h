@@ -14,6 +14,7 @@
 #include "l3_ewas.hpp"
 #include "l3_efile.h"
 #include "l3_gwas.hpp"
+#include "l3_permutation.hpp"
 
 void option(int option_num, char* option_str[]);
 
@@ -62,7 +63,7 @@ static inline void FLAGS_VALID_CK(int option_num, char* option_str[])
         "--moment2-beta","--tpm","--stepwise-logistic","--stepwise-forward","--covar-bod",
         "--covar-efile","--covar-tefile","--nmecs","--reverse-assoc","--fdr","--cor-r2",
         "--make-bld","--save-r2","--r2-thresh","--moment-force", "--use-top", "--trans",
-        "--trans-wind", "--trans-meta"
+        "--trans-wind", "--trans-meta", "--permutation", "--permu-times"
     };
 
     vector<string> flags(flgs, flgs + sizeof(flgs)/sizeof(flgs[0]));

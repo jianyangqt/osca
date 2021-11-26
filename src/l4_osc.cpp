@@ -11,6 +11,7 @@
 using namespace EFILE;
 using namespace VQTL;
 using namespace BFILE;
+using namespace PERMU;
 
 int main(int argc, char * argv[])
 {
@@ -88,7 +89,7 @@ int main(int argc, char * argv[])
 
 void option(int option_num, char * option_str[])
 {
-
+    char * outfileName = NULL;
     char* efileName = NULL;
     char* befileName = NULL;
     char* befileName2 = NULL;
@@ -333,6 +334,11 @@ void option(int option_num, char * option_str[])
     bool reverseAssoc = false;
     bool fdrflag = false;
     bool use_top_p = false;
+    //permutation options
+    bool permutation = false;
+    uint32_t permu_times = 100;
+    bool not_uset_top = false;
+
     for(int i=0;i<option_num;i++)
     {
         if(0==strcmp(option_str[i],"--efile")){
@@ -1664,6 +1670,20 @@ void option(int option_num, char * option_str[])
             trans_meta = true;
             LOGPRINTF("--trans-meta\n");
         }
+        if (0 == strcmp(option_str[i], "--permutation")) {
+            permutation = true;
+            LOGPRINTF("--permutation");
+        }
+        if (0 == strcmp(option_str[i], "--permu-times")) {
+            permutation = true;
+            permu_times = atoi(option_str[++i]);
+            LOGPRINTF("--permu-times %u\n", permu_times);
+        }
+
+        if (0 == strcmp(option_str[i], "--not-use-top")) {
+            not_uset_top = true;
+            LOGPRINTF("--not-use-top");
+        }
     }
 
 #ifndef __APPLE__
@@ -1943,7 +1963,22 @@ void option(int option_num, char * option_str[])
             snpwindFlag, prbwindFlag, cis_flag, cis_itvl, probe2rm, snp2rm,
             save_dense_flag, to_smr_flag, besd_shrink_flag, stdprb, freqFName,
             varFName);
-    else if(gc_flag)
+    else if(gc_flag) {
         gc_ewas(outfileName, ewasfileName);
+
+    } else if (permutation) {
+        permu_sqtl(outfileName, efileName, befileName, bFileName, transposedin,
+             efileType, problstName, problst2exclde, genelistName, chr, prbname,
+             fromprbname, toprbname, prbWind, fromprbkb, toprbkb, prbwindFlag,
+             genename, problst2exclde, indilstName, indilst2remove, no_fid_flag,
+             valueType, beta2m, m2beta, std_thresh, upperBeta, lowerBeta,
+             dpvalfName, thresh_det_pval, thresh_prpt_prb, thresh_prpt_spl,
+             filter_det_pval_mth, missing_ratio_prob, autosome_num, maf,
+             snplstName, snplst2exclde, tsk_ttl, tsk_id, covfileName,
+             qcovfileName, nofastlinear, cis_flag, cis_itvl,
+             zero_ratio_prob, call, bedfileName, bcovfileName, ecovfileName,
+             transopse_ecov, use_top_p, not_uset_top, trans_flag, trans_itvl,
+             permu_times);
+    }
 
 }

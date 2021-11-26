@@ -47,7 +47,8 @@ namespace PERMU
         int tsk_ttl, int tsk_id, char * covfileName, char * qcovfileName,
         bool nofastlinear, bool cis_flag, int cis_itvl, double zeroratio, double call,
         char * annofileName, char * covbodfileName, char* covefileName, bool transopse_ecov, 
-        bool use_top_p, bool trans_flag, int trans_itvl, uint32_t permute_times);
+        bool use_top_p, bool not_use_top, bool trans_flag, int trans_itvl,
+        uint32_t permu_times);
 
 }
 #endif

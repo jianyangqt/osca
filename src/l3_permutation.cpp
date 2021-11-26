@@ -421,8 +421,16 @@ namespace PERMU
               int tsk_id, char *covfileName, char *qcovfileName,
               bool nofastlinear, bool cis_flag, int cis_itvl, double zeroratio, double call,
               char *annofileName, char *covbodfileName, char *covefileName,
-              bool transopse_ecov, bool use_top_p, bool trans_flag, int trans_itvl, uint32_t permu_times)
+              bool transopse_ecov, bool use_top_p, bool not_user_top,
+              bool trans_flag, int trans_itvl, uint32_t permu_times)
     {
+        if (!use_top_p && !not_user_top) {
+            use_top_p = true;
+        } else if (use_top_p && not_user_top) {
+            fprintf(stderr, "use_top and not_use_top can not both be true.\n");
+            fprintf(stderr, "Set use_top_p to true.\n");
+            not_user_top = false;
+        }
         if (cis_flag && trans_flag)
         {
             fprintf(stderr, "The cis_flag and trans_flag can not be true at same time.");
@@ -910,7 +918,7 @@ main(int argc, char * argv[])
         NULL, NULL, NULL, 1000, -9, -9, false, NULL, NULL, NULL, NULL, false,
         2, false, false, 0, 1, 0, NULL, 0.05, 0.01, 0.01, 0, 1, 22, 0.01, NULL,
         NULL, 1, 1, NULL, "eigenvec.txt", false, true, 2000, 0.8, 0.85,
-        "anno.txt", NULL, NULL, false, true, false, 5000, 100);
+        "anno.txt", NULL, NULL, false, false, true, false, 5000, 100);
 
 }
 #endif
