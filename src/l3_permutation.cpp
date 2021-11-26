@@ -356,7 +356,7 @@ namespace PERMU
 
         uint32_t perm_p_less_p = 0;
         for (i = 1; i < permu_times + 1; i++) {
-            if (abs(p_permuted[i]) =< abs(best_p)) {
+            if (abs(p_permuted[i]) <= abs(best_p)) {
                 perm_p_less_p++;
             }
         }
@@ -499,7 +499,7 @@ namespace PERMU
         output_data * head = NULL, * tail = NULL, * grow = NULL;
         uint32_t probe_num_ok = sqtlinfo._epi_include.size();
 
-#pragma omp parallel for private(cr)
+#pragma omp parallel for
         for (int jj = 0; jj < sqtlinfo._epi_include.size(); jj++)
         {   
             uint32_t prb_idx = sqtlinfo._epi_include[jj];
@@ -893,7 +893,7 @@ namespace PERMU
 }
 
 
-#define DEBUG_MAIN
+//#define DEBUG_MAIN
 #ifdef DEBUG_MAIN
 using namespace PERMU;
 int
