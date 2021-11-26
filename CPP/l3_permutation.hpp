@@ -13,6 +13,25 @@ using namespace BFILE;
 using namespace EFILE;
 using namespace SMR;
 using namespace VQTL;
+
+typedef struct OUTDT {
+    char probe_id[1024];
+    uint32_t probe_pos;
+    char gene_name[1024];
+    char chrom;
+    char orientation;
+    uint32_t snp_contained;
+    char top_snp_id[1024];
+    char top_snp_chrom;
+    uint32_t top_snp_pos;
+    double p_nominal;
+    double beta_ml1;
+    double beta_ml2;
+    double pemp;
+    double pbml;
+    struct OUTDT * next;
+} output_data;
+
 namespace PERMU 
 {
     void 
@@ -25,10 +44,10 @@ namespace PERMU
         double upperBeta, double lowerBeta, char * dpvalfName, double dp_thresh,
         double prb_thresh, double spl_thresh, int filter_mth, double mssratio_prob,
         int autosome_num, double maf, char * snplstName, char * snplst2exclde,
-        int tsk_ttl, int tsk_id, char * covfileName, char * qcovfileName, bool tosmrflag,
+        int tsk_ttl, int tsk_id, char * covfileName, char * qcovfileName,
         bool nofastlinear, bool cis_flag, int cis_itvl, double zeroratio, double call,
         char * annofileName, char * covbodfileName, char* covefileName, bool transopse_ecov, 
-        bool use_top_p, bool trans_flag, int trans_itvl);
+        bool use_top_p, bool trans_flag, int trans_itvl, uint32_t permute_times);
 
 }
 #endif

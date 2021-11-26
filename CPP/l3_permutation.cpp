@@ -361,12 +361,44 @@ namespace PERMU
 
         pemp = (perm_p_less_p + 1) / (permu_times + 1);
         pbml = pbeta(best_p, beta_ml1, beta_ml2, 1, 0);
-        double * dt_out = (double *)malloc(sizeof(double) * 2);
+        double * dt_out = (double *)malloc(sizeof(double) * 4);
         dt_out[0] = pemp;
         dt_out[1] = pbml;
+        dt_out[2] = beta_ml1;
+        dt_out[3] = beta_ml2;
         return dt_out;
     }
 
+
+    static void
+    print_res(output_data * dataout, FILE * fout)
+    {
+        fprintf(fout,
+            "#probe_id\tprobe_chrom\tprobe_pos\tgene_name\toritation\tsnp_contained"
+            "\tbest_snp_id\tbest_snp_chrom\tbest_spn_pos\tp_nominal"
+            "\tbeta_ml1\tbeta_ml2\tp_emp\tp_bml\n");
+        output_data * tmp;
+        tmp = dataout;
+        while (tmp) {
+            fprintf(fout, 
+                "%s\t%d\t%u\t%s\t%c\t%u"
+                "\t%s\t%d\t%u\t%le"
+                "\t%le\t%le\t%le\t%le\n", 
+                tmp -> probe_id, tmp -> chrom, tmp -> probe_pos,
+                tmp -> gene_name, tmp -> orientation, tmp -> snp_contained,
+                tmp -> top_snp_id, tmp -> top_snp_chrom, tmp -> top_snp_pos, tmp -> p_nominal,
+                tmp -> beta_ml1, tmp -> beta_ml2, tmp -> pemp, tmp -> pbml);
+        }
+        fclose(fout);
+        tmp = dataout;
+        while (dataout) {
+            tmp = dataout;
+            free(dataout);
+            dataout = tmp;
+        }
+
+        return;
+    }
 
 
     void
@@ -380,10 +412,10 @@ namespace PERMU
               double lowerBeta, char *dpvalfName, double dp_thresh, double prb_thresh,
               double spl_thresh, int filter_mth, double mssratio_prob, int autosome_num,
               double maf, char *snplstName, char *snplst2exclde, int tsk_ttl,
-              int tsk_id, char *covfileName, char *qcovfileName, bool tosmrflag,
+              int tsk_id, char *covfileName, char *qcovfileName,
               bool nofastlinear, bool cis_flag, int cis_itvl, double zeroratio, double call,
               char *annofileName, char *covbodfileName, char *covefileName,
-              bool transopse_ecov, bool use_top_p, bool trans_flag, int trans_itvl)
+              bool transopse_ecov, bool use_top_p, bool trans_flag, int trans_itvl, uint32_t permu_times)
     {
         if (cis_flag && trans_flag)
         {
@@ -430,71 +462,36 @@ namespace PERMU
                 outFileName = outputname;
             }
         }
-
+        FILE * fout = fopen(outFileName, "w");
+        if (!fout) {
+            fputs("Open outFile failed\n", stderr);
+            exit(1);
+        }
         eInfo sqtlinfo;
         vector<vector<int>> tranids; //smaller einfo._epi_include
         gene_check(&sqtlinfo, tranids, annofileName, &bdata, &einfo, cis_flag, trans_flag);
 
-        LOGPRINTF("\nPerforming sQTL analysis ...\n");
-        if (outFileName != NULL)
-        {
-            write_smr_esi(outFileName, &bdata);
-            write_smr_epi(outFileName, &sqtlinfo, true);
-        }
-        FILE * besd = NULL;
-        string besdName = string(outFileName) + ".besd";
-        if (fopen_checked(&besd, besdName.c_str(), "wb"))
-            TERMINATE();
-        uint32_t filetype = OSCA_SPARSE_1;
-        if (tosmrflag)
-            filetype = SMR_SPARSE_3;
+        //LOGPRINTF("\nPerforming sQTL analysis ...\n");
 
-        vector<int> ten_ints(RESERVEDUNITS);
-        ten_ints[0] = filetype;
-        ten_ints[1] = (int)bdata._keep.size();
-        ten_ints[2] = (int)bdata._include.size();
-        ten_ints[3] = (int)sqtlinfo._epi_include.size();
-        for (int i = 4; i < RESERVEDUNITS; i++)
-            ten_ints[i] = -9;
-        if (fwrite_checked(&ten_ints[0], RESERVEDUNITS * sizeof(int), besd))
-        {
-            LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
-            TERMINATE();
-        }
         if (covfileName != NULL || qcovfileName != NULL)
             adjprobe(&einfo);
 
-        vector<vector<uint32_t>> rowids(sqtlinfo._epi_include.size());
-        vector<vector<float>> betas(sqtlinfo._epi_include.size());
-        vector<vector<float>> ses(sqtlinfo._epi_include.size());
         vector<vector<uint32_t>> snpids; //to save _include id not _include value
         if (cis_flag)
         {
             vector<int> cis_num;
             cis_eQTL_num_2(&sqtlinfo, &bdata, cis_itvl, snpids, cis_num);
-
-            for (int ii = 0; ii < sqtlinfo._epi_include.size(); ii++)
-            {
-                rowids[ii].resize(cis_num[ii]);
-                betas[ii].resize(cis_num[ii]);
-                ses[ii].resize(cis_num[ii]);
-            }
         }
         else if (trans_flag)
         {
             vector<int> trans_num;
             trans_eQTL_num(&sqtlinfo, &bdata, trans_itvl, snpids, trans_num);
-            for (int i = 0; i < sqtlinfo._epi_include.size(); i++)
-            {
-                rowids[i].resize(trans_num[i]);
-                betas[i].resize(trans_num[i]);
-                ses[i].resize(trans_num[i]);
-            }
         }
 
         bool warned = false;
         int nindi = (int)einfo._eii_include.size();
         double cr = 0.0;
+        output_data * head = NULL, * tail = NULL, * grow = NULL; 
 
 #pragma omp parallel for private(cr)
         for (int jj = 0; jj < sqtlinfo._epi_include.size(); jj++)
@@ -502,13 +499,24 @@ namespace PERMU
             uint32_t prb_idx = sqtlinfo._epi_include[jj];
             string gene_name = sqtlinfo._epi_gene[prb_idx];
             string prbid = sqtlinfo._epi_prb[prb_idx];
-            if (gene_name != "BID")
+            
+            //printf("%s\n", gene_name.c_str());
+            if (gene_name != "UFD1" && gene_name != "MOV10L1")
             {
                 continue;
             }
+            printf("HERER\n");
             int prb_chr = sqtlinfo._epi_chr[prb_idx];
             char prb_ori = sqtlinfo._epi_orien[prb_idx];
-            LOGPRINTF(">Processing gene:%s, probeid:%s\n", gene_name.c_str(), prbid.c_str());
+            grow = (output_data *)malloc(sizeof(output_data));
+            grow -> next = NULL;
+            strncpy(grow -> probe_id, prbid.c_str(), 1023);
+            grow -> probe_pos = sqtlinfo._epi_bp[prb_idx];
+            strncpy(grow -> gene_name, gene_name.c_str(), 1023);
+            grow -> chrom = prb_chr;
+            grow -> orientation = prb_ori;
+
+            LOGPRINTF("\n>Processing gene:%s, probeid:%s\n", gene_name.c_str(), prbid.c_str());
 
             double desti = 1.0 * jj / (sqtlinfo._epi_include.size() - 1);
             if (desti >= cr)
@@ -524,59 +532,55 @@ namespace PERMU
                 else
                     cr += 0.25;
             }
- 
-            vector<int> tranids_prb = tranids[prb_idx]];
+            // snpids should indexed by jj not prb_idx.
+            uint32_t snp_num = snpids[jj].size();
+            grow -> snp_contained = snp_num;
             if (snpids[jj].size() == 0)
             {
                 continue;
             }
 
             MatrixXd _X;
-            make_XMat(&bdata, snpids[sqtlinfo._epi_include[jj]], _X);
+            make_XMat(&bdata, snpids[jj], _X);
 
-            int numTrans = (int)tranids[sqtlinfo._epi_include[jj]].size();
-            vector<int> iso_idx = tranids[sqtlinfo._epi_include[jj]];
-            LOGPRINTF("    This gene contain %d transcritps/isoform, and ", numTrans);
-            cout << "numTrans: " << numTrans << endl;
-            cout << "snpids[jj].size(): " << snpids[sqtlinfo._epi_include[jj]].size() << endl;
+            int numTrans = (int)tranids[jj].size();
+            LOGPRINTF("    This gene contain %d transcritps/isoform, and have %d SNPs\n",
+                numTrans, snpids[jj].size());
 
-            vector<double> tpm(numTrans * nindi);
-            VectorXd overall;
-            vector<int> missidx;
-            map<int, int> missidx_map;
-            map<int, int>::iterator iter;
-            map<string, int>::iterator citer;
             vector<vector<double>> trpv;
 
             trpv.resize(numTrans);
             for (int kk = 0; kk < numTrans; kk++)
-                trpv[kk].resize(einfo._eii_include.size());
+                trpv[kk].resize(nindi);
             for (int kk = 0; kk < numTrans; kk++)
             {
-                for (int ll = 0; ll < einfo._eii_include.size(); ll++)
+                for (int ll = 0; ll < nindi; ll++)
                     trpv[kk][ll] = einfo._val[tranids[jj][kk] * einfo._eii_num +
                                               einfo._eii_include[ll]];
             }
-            /*
-            for (int kk = 0; kk < numTrans; kk++)
-            {
-                for (int ll = 0; ll < einfo._eii_include.size(); ll++)
-                    printf("%le ", trpv[kk][ll]);
-            }
 
-            exit(0);
-            */
+            grow -> p_nominal = 1.0;
+            (grow -> top_snp_id)[0] = '\0';
+            grow -> top_snp_pos = 0;
             // do permutation loop
-            uint32_t permu_time = 100;
+            //uint32_t permu_times = 100;
             vector <double> p_permuted;
-            p_permuted.resize(permu_time + 1);
-            for (int perm_count = 0; perm_count < permu_time + 1; perm_count++) {
+            p_permuted.resize(permu_times + 1);
+            for (int perm_count = 0; perm_count < permu_times + 1; perm_count++) {
                 p_permuted[perm_count] = 1.0;
             }
-            for (int perm_count = 0; perm_count < permu_time + 1; perm_count++ )
+            printf("    Start Permutation...\n");
+            printf("    Permutation Count:          ");
+            int print_cnt = 0;
+            for (int perm_count = 0; perm_count < permu_times + 1; perm_count++ )
             {
-                permute_trpv(trpv, nindi, perm_count);
+                for (print_cnt = 0; print_cnt < 10; print_cnt++) {
+                    printf("\b");
+                }
+                printf("%-10d", perm_count);
+                fflush(stdout);
 
+                permute_trpv(trpv, nindi, perm_count);
                 vector<vector<double>> cor_null;
                 cor_null.resize(numTrans);
                 for (int kk = 0; kk < numTrans; kk++)
@@ -601,7 +605,6 @@ namespace PERMU
 
                 //modified by fanghl
                 //remove row and columns which contain value is 1
-
                 vector<int> need_remove;
                 int i = 0, j = 0, k = 0, l = 0;
                 vector<int>::iterator it;
@@ -618,22 +621,8 @@ namespace PERMU
                     }
                 }
 
-                vector<int> iso_idx_tmp;
-                if (need_remove.size() > 0)
-                {
-                    for (int i = 0; i < iso_idx.size(); i++)
-                    {
-                        it = find(need_remove.begin(), need_remove.end(), i);
-                        if (it == need_remove.end())
-                        {
-                            iso_idx_tmp.push_back(iso_idx[i]);
-                        }
-                    }
-                    iso_idx = iso_idx_tmp;
-                }
-
                 numTrans -= need_remove.size();
-                cout << "numTrans after filter: " << numTrans << endl;
+                //LOGPRINTF("    %d transcripts left after filter.", numTrans);
                 vector<vector<double>> cor_null_clean;
                 vector<vector<double>> trpv_clean;
                 vector<double> tmp;
@@ -710,9 +699,6 @@ namespace PERMU
                             LOGPRINTF("WARNING: MAF found 0 or 1 with SNP(s).\n");
                             warned = 1;
                         }
-                        rowids[jj][kk] = snpid;
-                        betas[jj][kk] = 0;
-                        ses[jj][kk] = 1;
                         continue;
                     }
                     vector<double> beta(numTrans), se(numTrans);
@@ -869,7 +855,7 @@ namespace PERMU
                     }
 
                     VectorXd lambda;
-    #pragma omp critical
+                    #pragma omp critical
                     {
                         SelfAdjointEigenSolver<MatrixXd> es;
                         es.compute(corr_dev, EigenvaluesOnly);
@@ -877,144 +863,46 @@ namespace PERMU
                     }
 
                     double z = 0.0;
-    #pragma omp critical
+                    #pragma omp critical
                     {
                         double sumChisq_dev = chisq_dev.sum();
                         double pdev = 0.0;
                         pdev = pchisqsum(sumChisq_dev, lambda);
                         p_permuted[perm_count] = (p_permuted[perm_count] > pdev)? pdev: p_permuted[perm_count];
-                        //output_beta_se(pdev, snprs, prbid, beta, se, tranids_prb, einfo, beta_se_of_trans, 1e-2);
-                        z = sqrt(qchisq(pdev, 1));
+                        if (perm_count == 0) {
+                            if (grow -> p_nominal > pdev) {
+                                grow -> p_nominal = pdev;
+                                strcpy(grow -> top_snp_id, snprs.c_str());
+                                grow -> top_snp_pos = bdata._bp[snpid];
+                                grow -> top_snp_chrom = bdata._chr[snpid];
+                            }
+                        }
                     }
-                
-                    double beta_hat = z / sqrt(2 * snpfreq * (1 - snpfreq) * (nindi + z * z));
-                    double se_hat = 1 / sqrt(2 * snpfreq * (1 - snpfreq) * (nindi + z * z));
 
-                    rowids[jj][kk] = snpid;
-                    betas[jj][kk] = beta_hat;
-                    ses[jj][kk] = se_hat;
                 }
             }
-            for (int i = 0; i < permu_time + 1; i++) {
-                printf("%le ", p_permuted[i]);
-            }
-            printf("\n");
-            double * pemp_pbml = ajust_pval_permu(p_permuted);
-        }
+            double * pemp_pbml_betaml1_betaml2 = ajust_pval_permu(p_permuted);
+            grow -> pemp = pemp_pbml_betaml1_betaml2[0];
+            grow -> pbml = pemp_pbml_betaml1_betaml2[1];
+            grow -> beta_ml1 = pemp_pbml_betaml1_betaml2[2];
+            grow -> beta_ml2 = pemp_pbml_betaml1_betaml2[3];
 
-        if (tosmrflag)
-        {
-            uint64_t valNum = 0;
-            vector<uint64_t> cols;
-            cols.resize(2 * sqtlinfo._epi_include.size() + 1);
-            cols[0] = 0;
-            for (int jj = 0; jj < betas.size(); jj++)
-            {
-                long co = betas[jj].size();
-                valNum += co;
-                cols[2 * jj + 1] = cols[2 * jj] + co;
-                valNum += co;
-                cols[2 * (jj + 1)] = cols[2 * jj + 1] + co;
-            }
-            if (fwrite_checked(&valNum, sizeof(uint64_t), besd))
-            {
-                LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
-                TERMINATE();
-            }
-
-            if (fwrite_checked(&cols[0], cols.size() * sizeof(uint64_t), besd))
-            {
-                LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
-                TERMINATE();
-            }
-            for (int jj = 0; jj < rowids.size(); jj++)
-            {
-                if (rowids[jj].size())
-                {
-                    if (fwrite_checked(&rowids[jj][0], rowids[jj].size() * sizeof(uint32_t), besd))
-                    {
-                        LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
-                        TERMINATE();
-                    }
-                    if (fwrite_checked(&rowids[jj][0], rowids[jj].size() * sizeof(uint32_t), besd))
-                    {
-                        LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
-                        TERMINATE();
-                    }
-                }
-            }
-            for (int jj = 0; jj < betas.size(); jj++)
-            {
-                if (betas[jj].size())
-                {
-                    if (fwrite_checked(&betas[jj][0], betas[jj].size() * sizeof(float), besd))
-                    {
-                        LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
-                        TERMINATE();
-                    }
-                    if (fwrite_checked(&ses[jj][0], ses[jj].size() * sizeof(float), besd))
-                    {
-                        LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
-                        TERMINATE();
-                    }
-                }
-            }
-        }
-        else
-        {
-            uint64_t valNum = 0;
-            vector<uint64_t> cols;
-            cols.resize(sqtlinfo._epi_include.size() + 1);
-            cols[0] = 0;
-            for (int jj = 0; jj < betas.size(); jj++)
-            {
-                long co = 2 * betas[jj].size();
-                valNum += co;
-                cols[jj + 1] = cols[jj] + co;
-            }
-            if (fwrite_checked(&valNum, sizeof(uint64_t), besd))
-            {
-                LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
-                TERMINATE();
-            }
-
-            if (fwrite_checked(&cols[0], cols.size() * sizeof(uint64_t), besd))
-            {
-                LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
-                TERMINATE();
-            }
-            for (int jj = 0; jj < rowids.size(); jj++)
-            {
-                if (rowids[jj].size())
-                    if (fwrite_checked(&rowids[jj][0], rowids[jj].size() * sizeof(uint32_t), besd))
-                    {
-                        LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
-                        TERMINATE();
-                    }
-            }
-            for (int jj = 0; jj < betas.size(); jj++)
-            {
-                if (betas[jj].size())
-                {
-                    if (fwrite_checked(&betas[jj][0], betas[jj].size() * sizeof(float), besd))
-                    {
-                        LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
-                        TERMINATE();
-                    }
-                    if (fwrite_checked(&ses[jj][0], ses[jj].size() * sizeof(float), besd))
-                    {
-                        LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
-                        TERMINATE();
-                    }
-                }
+            if (head) {
+                tail -> next = grow;
+                tail = grow;
+            } else {
+                head = tail = grow;
             }
         }
 
-        fclose(besd);
-        LOGPRINTF("sQTL summary statistics for %ld probes and %ld SNPs are saved in file %s.\n", einfo._epi_include.size(), bdata._include.size(), besdName.c_str());
+        print_res(head, fout);
+        fprintf(stdout, "Done, result was saved to %s\n", outFileName);
     }
 }
 
+
+#define DEBUG_MAIN
+#ifdef DEBUG_MAIN
 using namespace PERMU;
 int
 main(int argc, char * argv[])
@@ -1026,17 +914,11 @@ main(int argc, char * argv[])
     memset(wkspace_ua, 0, mb * 1048576 * sizeof(char));
     uint64_t llxx = getMemSize_Plink();
     mem_left = getAllocMB_Plink(llxx);
-    if (llxx)
-    {
-        //sprintf(logbuf, "%llu MB RAM detected; reserving %lld MB for main workspace.\n", llxx, mem_left);
-        //logprintb();
-    }
-
     permu_sqtl("out1", NULL, "rint", "chr22", false, 0, NULL, NULL, NULL, -9,
         NULL, NULL, NULL, 1000, -9, -9, false, NULL, NULL, NULL, NULL, false,
         2, false, false, 0, 1, 0, NULL, 0.05, 0.01, 0.01, 0, 1, 22, 0.01, NULL,
-        NULL, 1, 1, NULL, "eigenvec.txt", true, false, true, 2000, 0.8, 0.85,
-        "anno.txt", NULL, NULL, false, true, false, 5000);
-
+        NULL, 1, 1, NULL, "eigenvec.txt", false, true, 2000, 0.8, 0.85,
+        "anno.txt", NULL, NULL, false, true, false, 5000, 100);
 
 }
+#endif
