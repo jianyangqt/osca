@@ -1907,7 +1907,7 @@ void option(int option_num, char * option_str[])
             qcovfileName, to_smr_flag, cis_flag, cis_itvl, grm_file, grm_bin_flag,
             no_constrain, reml_mtd, MaxIter, nopreadj_covar);
     else if(sqtl) {
-        if(beqtlFileName){
+        if (beqtlFileName) {
             ssQTL(outfileName, beqtlFileName, problstName, problst2exclde,
                 genelistName, chr, prbchr, prbname, fromprbname, toprbname,
                 prbWind, fromprbkb, toprbkb, prbwindFlag, genename,
@@ -1916,8 +1916,24 @@ void option(int option_num, char * option_str[])
                 snpwindFlag, snp2rm, tsk_ttl, tsk_id, to_smr_flag, nofastlinear,
                 cis_flag, cis_itvl, bedfileName, pmecs, nmecs, use_top_p,
                 trans_flag, trans_itvl);
-            }
-        else{
+        }
+        else if (permutation)
+        {
+            permu_sqtl(outfileName, efileName, befileName, bFileName, transposedin,
+                       efileType, problstName, problst2exclde, genelistName, chr, prbname,
+                       fromprbname, toprbname, prbWind, fromprbkb, toprbkb, prbwindFlag,
+                       genename, problst2exclde, indilstName, indilst2remove, no_fid_flag,
+                       valueType, beta2m, m2beta, std_thresh, upperBeta, lowerBeta,
+                       dpvalfName, thresh_det_pval, thresh_prpt_prb, thresh_prpt_spl,
+                       filter_det_pval_mth, missing_ratio_prob, autosome_num, maf,
+                       snplstName, snplst2exclde, tsk_ttl, tsk_id, covfileName,
+                       qcovfileName, nofastlinear, cis_flag, cis_itvl,
+                       zero_ratio_prob, call, bedfileName, bcovfileName, ecovfileName,
+                       transopse_ecov, use_top_p, not_uset_top, trans_flag, trans_itvl,
+                       permu_times);
+        }
+        else
+        {
 
             sQTL(outfileName, efileName, befileName, bFileName, transposedin,
                 efileType, problstName, problst2exclde, genelistName, chr, prbname,
@@ -1966,19 +1982,6 @@ void option(int option_num, char * option_str[])
     else if(gc_flag) {
         gc_ewas(outfileName, ewasfileName);
 
-    } else if (permutation) {
-        permu_sqtl(outfileName, efileName, befileName, bFileName, transposedin,
-             efileType, problstName, problst2exclde, genelistName, chr, prbname,
-             fromprbname, toprbname, prbWind, fromprbkb, toprbkb, prbwindFlag,
-             genename, problst2exclde, indilstName, indilst2remove, no_fid_flag,
-             valueType, beta2m, m2beta, std_thresh, upperBeta, lowerBeta,
-             dpvalfName, thresh_det_pval, thresh_prpt_prb, thresh_prpt_spl,
-             filter_det_pval_mth, missing_ratio_prob, autosome_num, maf,
-             snplstName, snplst2exclde, tsk_ttl, tsk_id, covfileName,
-             qcovfileName, nofastlinear, cis_flag, cis_itvl,
-             zero_ratio_prob, call, bedfileName, bcovfileName, ecovfileName,
-             transopse_ecov, use_top_p, not_uset_top, trans_flag, trans_itvl,
-             permu_times);
-    }
+    } 
 
 }
