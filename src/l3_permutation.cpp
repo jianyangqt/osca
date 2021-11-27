@@ -306,7 +306,7 @@ namespace PERMU
         tmp_row.resize(nindi);
         for (i = 0; i < trpv.size(); i++) {
             for (j = 0; j < nindi; j++) {
-                //printf("%le\n", trpv[i][j]);
+                //printf("%le\n", trpv[i][random_seq[j]]);
                 tmp_row[j] = trpv[i][random_seq[j]]; 
             }
             tmp.push_back(tmp_row);
@@ -539,7 +539,7 @@ namespace PERMU
             grow -> snp_contained = snp_num;
             if (snpids[jj].size() == 0)
             {
-                //need more code, fhl
+                free(grow);
                 continue;
             }
 
@@ -572,16 +572,22 @@ namespace PERMU
             for (int perm_count = 0; perm_count < permu_times + 1; perm_count++) {
                 p_permuted[perm_count] = 1.0;
             }
-            printf("    Start Permutation...\n");
-            printf("    Permutation Count:          ");
+            if (thread_num == 1) {
+                printf("    Start Permutation...\n");
+                printf("    Permutation Count:          ");
+            }
+         
             int print_cnt = 0;
             for (int perm_count = 0; perm_count < permu_times + 1; perm_count++ )
-            {
-                for (print_cnt = 0; print_cnt < 10; print_cnt++) {
-                    printf("\b");
+            {   
+                if (thread_num == 1) {
+                    for (print_cnt = 0; print_cnt < 10; print_cnt++)
+                    {
+                        printf("\b");
+                    }
+                    printf("%-10d", perm_count);
+                    fflush(stdout);
                 }
-                printf("%-10d", perm_count);
-                fflush(stdout);
 
                 permute_trpv(trpv, nindi, perm_count);
                 vector<vector<double>> cor_null;
