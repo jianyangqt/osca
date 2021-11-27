@@ -540,12 +540,13 @@ namespace PERMU
                     gene_name.c_str(), prbid.c_str(), jj + 1, probe_num_ok);
                 LOGPRINTF("    This gene contain %d transcritps/isoform, and have %d SNPs\n",
                         numTrans, snpids[jj].size());
-                if (snpids[jj].size() == 0)
-                {   
-                    fprintf(stderr, "gene %s was passed, because not snp contained.\n", gene_name);
-                    free(grow);
-                    continue;
-                }
+               
+            }
+            if (snpids[jj].size() == 0)
+            {
+                fprintf(stderr, "gene %s was passed, because not snp contained.\n", gene_name);
+                free(grow);
+                continue;
             }
             MatrixXd _X;
             make_XMat(&bdata, snpids[jj], _X);
