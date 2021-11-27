@@ -89,7 +89,7 @@ int main(int argc, char * argv[])
 
 void option(int option_num, char * option_str[])
 {
-    char * outfileName = NULL;
+    // some varible defined in l0_com file;
     char* efileName = NULL;
     char* befileName = NULL;
     char* befileName2 = NULL;
@@ -1083,11 +1083,7 @@ void option(int option_num, char * option_str[])
                 LOGPRINTF ("Error: --task-id should be over 1.\n");
                 TERMINATE();
             }
-            if(tsk_id > tsk_ttl )
-            {
-                LOGPRINTF ("Error: --task-id should not be larger than --task-total.\n");
-                TERMINATE();
-            }
+            
         }
         if (strcmp(option_str[i], "--vqtl") == 0) {
             vqtl = true;
@@ -1686,6 +1682,17 @@ void option(int option_num, char * option_str[])
         }
     }
 
+
+    char tmpch[5] = "osca";
+    if (outfileName == NULL)
+        outfileName = tmpch;
+    
+    if (tsk_id > tsk_ttl) {
+        fprintf(stderr, "Warning, task partion number less than task id\n");
+        fprintf(stderr, "reset task num, let it equal to task id.\n");
+        tsk_ttl == tsk_id;
+    }
+
 #ifndef __APPLE__
 #if defined _WIN64 || defined _WIN32
     omp_set_num_threads(thread_num);
@@ -1698,9 +1705,6 @@ void option(int option_num, char * option_str[])
 #endif
 #endif
 
-    char tmpch[5]="osca";
-    if(outfileName == NULL)
-        outfileName=tmpch;
 
     if(merge_beed_flag)
         merge_beed( outfileName, befileFlstName, problstName, problst2exclde, \
