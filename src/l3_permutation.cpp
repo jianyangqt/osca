@@ -377,6 +377,7 @@ namespace PERMU
     static void
     print_res(output_data * dataout, FILE * fout)
     {
+        fprintf(stdout, "Writing result file...\n");
         fprintf(fout,
             "#probe_id\tprobe_chrom\tprobe_pos\tgene_name\toritation\tsnp_contained"
             "\tbest_snp_id\tbest_snp_chrom\tbest_spn_pos\tp_nominal"
@@ -504,10 +505,11 @@ namespace PERMU
 
         bool warned = false;
         int nindi = (int)einfo._eii_include.size();
-        output_data * head = NULL, * tail = NULL, * grow = NULL;
+        output_data * head = NULL, * tail = NULL;
         uint32_t probe_num_ok = sqtlinfo._epi_include.size();
+        int probe_couter = 0;
 
-#pragma omp parallel for
+        #pragma omp parallel for
         for (int jj = 0; jj < sqtlinfo._epi_include.size(); jj++)
         {   
             uint32_t prb_idx = sqtlinfo._epi_include[jj];
@@ -523,7 +525,7 @@ namespace PERMU
             */
             int prb_chr = sqtlinfo._epi_chr[prb_idx];
             char prb_ori = sqtlinfo._epi_orien[prb_idx];
-            grow = (output_data *)malloc(sizeof(output_data));
+            output_data * grow = (output_data *)malloc(sizeof(output_data));
             grow -> next = NULL;
             strncpy(grow -> probe_id, prbid.c_str(), 1023);
             grow -> probe_pos = sqtlinfo._epi_bp[prb_idx];
@@ -537,7 +539,7 @@ namespace PERMU
             #pragma omp critical
             {
                 LOGPRINTF("\n\033[0;32m>\033[0mProcessing gene:%s, probeid:%s (%d/%d)\n", 
-                    gene_name.c_str(), prbid.c_str(), jj + 1, probe_num_ok);
+                    gene_name.c_str(), prbid.c_str(), ++probe_couter, probe_num_ok);
                 LOGPRINTF("    This gene contain %d transcritps/isoform, and have %d SNPs\n",
                         numTrans, snpids[jj].size());
                
@@ -557,9 +559,10 @@ namespace PERMU
                 trpv[kk].resize(nindi);
             for (int kk = 0; kk < numTrans; kk++)
             {
-                for (int ll = 0; ll < nindi; ll++)
-                    trpv[kk][ll] = einfo._val[tranids[jj][kk] * einfo._eii_num +
-                                              einfo._eii_include[ll]];
+                for (int ll = 0; ll < nindi; ll++) {
+                    trpv[kk][ll] = einfo._val[tranids[jj][kk] * einfo._eii_num \
+                        + einfo._eii_include[ll]];
+                }
             }
 
             grow -> p_nominal = 1.0;
@@ -895,12 +898,15 @@ namespace PERMU
             grow -> pbml = pemp_pbml_betaml1_betaml2[1];
             grow -> beta_ml1 = pemp_pbml_betaml1_betaml2[2];
             grow -> beta_ml2 = pemp_pbml_betaml1_betaml2[3];
-
-            if (head) {
-                tail -> next = grow;
-                tail = grow;
-            } else {
-                head = tail = grow;
+            
+            #pragma omp critical
+            {
+                if (head) {
+                    tail -> next = grow;
+                    tail = grow;
+                } else {
+                    head = tail = grow;
+                }
             }
         }
         print_res(head, fout);
