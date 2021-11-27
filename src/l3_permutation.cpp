@@ -531,7 +531,7 @@ namespace PERMU
             grow -> chrom = prb_chr;
             grow -> orientation = prb_ori;
 
-            LOGPRINTF("\n>Processing gene:%s, probeid:%s (%d/%d)\n", 
+            LOGPRINTF("\n\033[0;32m>\033[0mProcessing gene:%s, probeid:%s (%d/%d)\n", 
                 gene_name.c_str(), prbid.c_str(), jj + 1, probe_num_ok);
 
             // snpids should indexed by jj not prb_idx.
