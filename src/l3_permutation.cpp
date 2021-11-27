@@ -443,7 +443,7 @@ namespace PERMU
         }
 
         setNbThreads(thread_num);
-        LOGPRINTF("Using %d thread(s) to conduct analysis ...\n", thread_num);
+        LOGPRINTF("\nUsing %d thread(s) to conduct analysis ...\n", thread_num);
 
         eInfo einfo;
         bInfo bdata;
@@ -530,26 +530,25 @@ namespace PERMU
             strncpy(grow -> gene_name, gene_name.c_str(), 1023);
             grow -> chrom = prb_chr;
             grow -> orientation = prb_ori;
-
-            LOGPRINTF("\n\033[0;32m>\033[0mProcessing gene:%s, probeid:%s (%d/%d)\n", 
-                gene_name.c_str(), prbid.c_str(), jj + 1, probe_num_ok);
-
             // snpids should indexed by jj not prb_idx.
+            int numTrans = (int)tranids[jj].size();
             uint32_t snp_num = snpids[jj].size();
-            grow -> snp_contained = snp_num;
-            if (snpids[jj].size() == 0)
+            grow->snp_contained = snp_num;
+            #pragma omp critical
             {
-                free(grow);
-                continue;
+                LOGPRINTF("\n\033[0;32m>\033[0mProcessing gene:%s, probeid:%s (%d/%d)\n", 
+                    gene_name.c_str(), prbid.c_str(), jj + 1, probe_num_ok);
+                LOGPRINTF("    This gene contain %d transcritps/isoform, and have %d SNPs\n",
+                        numTrans, snpids[jj].size());
+                if (snpids[jj].size() == 0)
+                {   
+                    fprintf(stderr, "gene %s was passed, because not snp contained.\n", gene_name);
+                    free(grow);
+                    continue;
+                }
             }
-
             MatrixXd _X;
             make_XMat(&bdata, snpids[jj], _X);
-
-            int numTrans = (int)tranids[jj].size();
-            LOGPRINTF("    This gene contain %d transcritps/isoform, and have %d SNPs\n",
-                numTrans, snpids[jj].size());
-
             vector<vector<double>> trpv;
 
             trpv.resize(numTrans);
