@@ -379,7 +379,7 @@ namespace PERMU
     {
         fprintf(stdout, "Writing result file...\n");
         fprintf(fout,
-            "#probe_id\tprobe_chrom\tprobe_pos\tgene_name\toritation\tsnp_contained"
+            "#probe_id\tchrom\tprobe_pos\tgene_name\toritation\tsnp_contained"
             "\tbest_snp_id\tbest_snp_chrom\tbest_spn_pos\tp_nominal"
             "\tbeta_ml1\tbeta_ml2\tp_emp\tp_bml\n");
         output_data * tmp;
@@ -472,7 +472,7 @@ namespace PERMU
         {
             if (outFileName != NULL)
             {
-                string tmp = string(outFileName) + "_" + atos(tsk_ttl) + "_" + atos(tsk_id);
+                string tmp = string(outFileName) + "_" + atos(tsk_ttl) + "_" + atos(tsk_id) + "permutation.txt"; 
                 strcpy(outputname, tmp.c_str());
                 outFileName = outputname;
             }
