@@ -541,12 +541,12 @@ namespace PERMU
                 LOGPRINTF("\n\033[0;32m>\033[0mProcessing gene:%s, probeid:%s (%d/%d)\n", 
                     gene_name.c_str(), prbid.c_str(), ++probe_couter, probe_num_ok);
                 LOGPRINTF("    This gene contain %d transcritps/isoform, and have %d SNPs\n",
-                        numTrans, snpids[jj].size());
+                        numTrans, snp_num);
                
             }
-            if (snpids[jj].size() == 0)
+            if (snp_num == 0)
             {
-                fprintf(stderr, "gene %s was passed, because not snp contained.\n", gene_name);
+                printf("gene %s was passed, because not snp contained.\n", gene_name);
                 free(grow);
                 continue;
             }
