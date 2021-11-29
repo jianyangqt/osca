@@ -2683,7 +2683,7 @@ output_beta_se(const double pdev, string snprs, string prbid, vector< double > b
         char* annofileName, char* covbodfileName, char* covefileName,
         bool transopse_ecov, bool use_top_p, bool trans_flag, int trans_itvl)
     {
-        LOGPRINTF("\033[0;32mInter sQTL analysis...\033[0\n");
+        LOGPRINTF("\n\033[0;32mInter sQTL analysis...\033[0m\n");
         if (cis_flag && trans_flag) {
             fprintf(stderr, "The cis_flag and trans_flag can not be true at same time.");
             TERMINATE();
@@ -2793,7 +2793,16 @@ output_beta_se(const double pdev, string snprs, string prbid, vector< double > b
         double cr=0.0;
         FILE * fmid_data = NULL;
         if (1) {
-            fmid_data = fopen("snp_data.txt", "w");
+            char snp_data_file[1024] = "";
+            if (strlen(outFileName) > 1000) {
+                fprintf(stderr, "file name too long, using snp_data.txt instead\n");
+                strcpy(snp_data_file, "snp_data.txt");
+            } else {
+                strcpy(snp_data_file, outFileName);
+                strcat(snp_data_file, "_snp_data.txt");
+            }
+            
+            fmid_data = fopen(snp_data_file, "w");
             if (!fmid_data) {
                 fprintf(stderr, "open snp_data.txt failed.\n");
                 exit(1);
@@ -3153,8 +3162,8 @@ output_beta_se(const double pdev, string snprs, string prbid, vector< double > b
                             snp_p_tmp *= snp_p_tmp;
                             snp_pval = pchisq(snp_p_tmp, 1);
                             fprintf(fmid_data, 
-                                "\t%le\t%le\t%le",
-                                beta[i], se[i], snp_pval);
+                                "\t%s\t%le\t%le\t%le",
+                                einfo._epi_prb[transcripts_idx[i]].c_str(), beta[i], se[i], snp_pval);
                         }
                         fprintf(fmid_data, "\n");
                     }
@@ -3488,14 +3497,21 @@ output_beta_se(const double pdev, string snprs, string prbid, vector< double > b
         vector < int >::iterator it;
         FILE * fmid_data = NULL;
         if (1) {
-            fmid_data = fopen("snp_data.txt", "w");
+            char snp_data_out_file[1024] = "";
+            if (strlen(outFileName) < 1000) {
+                strcpy(snp_data_out_file, outFileName);
+                strcat(snp_data_out_file, "_snp_data.txt");
+            } else {
+                fprintf(stderr, "outFileName too long, using snp_data.txt instead.\n");
+                strcpy(snp_data_out_file, "snp_data.txt");
+            }
+            fmid_data = fopen(snp_data_out_file, "w");
             if (!fmid_data) {
                 fprintf(stderr, "open snp_data.txt failed.\n");
                 exit(1);
             }
             fprintf(fmid_data, "#SNP\tchr_snp\tBP_snp\tA1\tA2\tFreq\t"
-                "Probe\tProbe_chr\tgene\torientation\tbeta\tse\p_val\t"
-                "Isoform_information\n"
+                "Probe\tProbe_chr\tgene\torientation\tbeta\tse\tp_val\n"
             );
         } 
 
