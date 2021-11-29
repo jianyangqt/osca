@@ -2325,7 +2325,7 @@ namespace VQTL {
         }
         eqtlinfo->_probNum =line_idx;
         fclose(epifile);
-        LOGPRINTF("%llu probes to be included from  %s .\n", eqtlinfo->_probNum, bedFileName);
+        LOGPRINTF("%lu probes to be included from  %s .\n", eqtlinfo->_probNum, bedFileName);
     }
 
     void gene_check(eInfo* sqtlinfo,vector< vector<int>> &tranids, char* annofileName,eqtlInfo* eqtlinfo)
@@ -2645,6 +2645,29 @@ output_beta_se(const double pdev, string snprs, string prbid, vector< double > b
     return;
 }
 
+    static void
+    convert_chrom_num_to_string(int chr_num, char * chr_string)
+    {
+        // This function convert a number to string, 23 will be convert to X,
+        // 24 --> Y, 25 --> Mt, other except 1-22, will be convert to NA
+
+        if (chr_num == 23) {
+            strcpy(chr_string, "X");
+        } else if (chr_num == 24) {
+            strcpy(chr_string, "Y");
+        } else if (chr_num == 25) {
+            strcpy(chr_string, "Mt");
+        } else if (chr_num < 1 || chr_num > 25) {
+            fprintf(stderr, "Chromsome %d not recgnized, will convert it to NA", chr_num);
+            strcpy(chr_string, "NA");
+        } else {
+            sprintf(chr_string, "%d", chr_num);
+        }
+
+        return;
+    }
+
+
     void sQTL(char* outFileName, char* efileName, char* befileName,
         char* bFileName, bool transposed, int efileType, char* problstName,
         char* problst2exclde, char* genelistName, int chr, char* prbname,
@@ -2660,6 +2683,7 @@ output_beta_se(const double pdev, string snprs, string prbid, vector< double > b
         char* annofileName, char* covbodfileName, char* covefileName,
         bool transopse_ecov, bool use_top_p, bool trans_flag, int trans_itvl)
     {
+        LOGPRINTF("\033[0;32mInter sQTL analysis...\033[0\n");
         if (cis_flag && trans_flag) {
             fprintf(stderr, "The cis_flag and trans_flag can not be true at same time.");
             TERMINATE();
@@ -2774,22 +2798,37 @@ output_beta_se(const double pdev, string snprs, string prbid, vector< double > b
                 fprintf(stderr, "open snp_data.txt failed.\n");
                 exit(1);
             }
-        }
-        FILE * beta_se_of_trans = fopen("beta_se_of_trans.csv", "w");
-        if (!beta_se_of_trans) {
-            fprintf(stderr, "open %s failed.\n", "beta_se_of_trans.csv");
-            exit(1);
+            fprintf(fmid_data,
+                "#SNP\tChr\tBP\tA1\tA2\tFreq\t"
+                "Probe\tProbe_chr\tgene\tOritation\tb\tse\tp\n"
+                );
         }
         
+        int probe_num_ok = sqtlinfo._epi_include.size();        
+        int probe_counter = 0;
         #pragma omp parallel for private(cr)
         for(int jj = 0; jj < sqtlinfo._epi_include.size(); jj++)
         {
+            
+            string prbid = sqtlinfo._epi_prb[sqtlinfo._epi_include[jj]];
             string gene_name = sqtlinfo._epi_gene[sqtlinfo._epi_include[jj]];
-            string prb_name = sqtlinfo._epi_prb[sqtlinfo._epi_include[jj]];
             int prb_chr = sqtlinfo._epi_chr[sqtlinfo._epi_include[jj]];
+            char chrom_probe[8];
+            convert_chrom_num_to_string(prb_chr, chrom_probe);
             char prb_ori = sqtlinfo._epi_orien[sqtlinfo._epi_include[jj]];
+            int numTrans = (int)tranids[jj].size();
+            vector <int> transcripts_idx = tranids[jj];
+            uint32_t snp_num = snpids[jj].size();
+            vector <uint32_t> snp_idx = snpids[jj];
 
-            LOGPRINTF("> %s \n", gene_name.c_str());
+            #pragma omp critical
+            {
+                LOGPRINTF("\n\033[0;32m>\033[0mProcessing gene:%s, probeid:%s (%d/%d)\n",
+                          gene_name.c_str(), prbid.c_str(), ++probe_counter, probe_num_ok);
+                LOGPRINTF("    This gene contain %d transcritps/isoform, and have %d SNPs\n",
+                          numTrans, snp_num);
+            }
+
             double desti = 1.0 * jj / (sqtlinfo._epi_include.size() - 1);
             if(desti >= cr)
             {
@@ -2804,21 +2843,14 @@ output_beta_se(const double pdev, string snprs, string prbid, vector< double > b
                 else
                     cr += 0.25;
             }
-
-            string prbid = sqtlinfo._epi_prb[sqtlinfo._epi_include[jj]];
-            vector< int > tranids_prb = tranids[sqtlinfo._epi_include[jj]];
-            if(snpids[jj].size() == 0){
+            
+            if(snp_num == 0){
+                printf("gene %s was passed, because no snp contained.\n", gene_name.c_str());
                 continue;
             }
 
             MatrixXd _X;
-            make_XMat(&bdata,snpids[jj], _X);
-
-            int numTrans = (int)tranids[jj].size();
-            vector<int> iso_idx = tranids[jj];
-
-            cout << "numTrans: " << numTrans << endl;
-            cout << "snpids[jj].size(): " << snpids[jj].size() << endl;
+            make_XMat(&bdata, snpids[jj], _X);
 
             vector<double> tpm(numTrans * nindi);
             VectorXd overall;
@@ -2876,21 +2908,18 @@ output_beta_se(const double pdev, string snprs, string prbid, vector< double > b
                 }
             }
 
-            vector <int> iso_idx_tmp;
+            vector <int> transcripts_idx_tmp;
             if (need_remove.size() > 0) {
-                for (int i = 0; i < iso_idx.size(); i++) {
+                for (int i = 0; i < transcripts_idx.size(); i++) {
                     it = find(need_remove.begin(), need_remove.end(), i);
                     if (it == need_remove.end()) {
-                        iso_idx_tmp.push_back(iso_idx[i]);
+                        transcripts_idx_tmp.push_back(transcripts_idx[i]);
                     }
                 }
-                iso_idx = iso_idx_tmp;
+                transcripts_idx = transcripts_idx_tmp;
             }
 
-
-
             numTrans -= need_remove.size();
-            cout << "numTrans after filter: " << numTrans << endl;
             vector < vector <double> > cor_null_clean;
             vector < vector < double > > trpv_clean;
             vector < double > tmp;
@@ -2940,9 +2969,12 @@ output_beta_se(const double pdev, string snprs, string prbid, vector< double > b
 
             //_X.cols() ==snpids[jj].size()
             for(int kk = 0; kk < _X.cols(); kk ++) {
-                uint32_t snpid = snpids[jj][kk];
+                uint32_t snpid = snp_idx[kk];
                 string snprs = bdata._snp_name[bdata._include[snpid]];
-
+                char snp_chr = bdata._chr[bdata._include[snpid]];
+                uint32_t snp_pos = bdata._bp[bdata._include[snpid]];
+                string snp_a1 = bdata._allele1[bdata._include[snpid]];
+                string snp_a2 = bdata._allele2[bdata._include[snpid]];
                 double snpfreq = bdata._mu[bdata._include[snpid]] / 2;
                 if (snpfreq == 0 || snpfreq == 1) {
                     if(!warned) {LOGPRINTF("WARNING: MAF found 0 or 1 with SNP(s).\n"); warned=1;}
@@ -3087,28 +3119,50 @@ output_beta_se(const double pdev, string snprs, string prbid, vector< double > b
                     SelfAdjointEigenSolver<MatrixXd> es;
                     es.compute(corr_dev, EigenvaluesOnly);
                     lambda=es.eigenvalues();
-                }
 
-                double z = 0.0;
-                #pragma omp critical
-                {
+                    double z = 0.0;
+
                     double sumChisq_dev = chisq_dev.sum();
                     double pdev = 0.0;
                     pdev = pchisqsum(sumChisq_dev,lambda);
-                    output_beta_se(pdev, snprs, prbid, beta, se, tranids_prb, einfo, beta_se_of_trans, 1e-2);
                     z = sqrt(qchisq(pdev,1));
+
+                    double beta_hat = z / sqrt(2 * snpfreq * (1 - snpfreq) * (nindi + z * z));
+                    double se_hat = 1 / sqrt(2 * snpfreq * (1 - snpfreq) * (nindi + z * z));
+
+                    rowids[jj][kk] = snpid;
+                    betas[jj][kk] = beta_hat;
+                    ses[jj][kk] = se_hat;
+
+                    if (1) {
+                        char chrom_snp[8] = "";
+                        double snp_pval = 0;
+                        double snp_p_tmp = 0;
+                        convert_chrom_num_to_string(snp_chr, chrom_snp);
+
+                        fprintf(fmid_data,
+                                "%s\t%s\t%u\t%s\t%s\t%le\t"
+                                "%s\t%s\t%s\t%c\t%le\t%le\t%le",
+                                snprs.c_str(), chrom_snp, snp_pos, snp_a1.c_str(),
+                                snp_a2.c_str(), snpfreq,
+                                prbid.c_str(), chrom_probe, gene_name.c_str(), prb_ori,
+                                beta_hat, se_hat, pdev
+                                );
+                        for (int i = 0; i < numTrans; i++) {
+                            snp_p_tmp = beta[i] / se[i];
+                            snp_p_tmp *= snp_p_tmp;
+                            snp_pval = pchisq(snp_p_tmp, 1);
+                            fprintf(fmid_data, 
+                                "\t%le\t%le\t%le",
+                                beta[i], se[i], snp_pval);
+                        }
+                        fprintf(fmid_data, "\n");
+                    }
                 }
-
-                double beta_hat = z / sqrt(2 * snpfreq * (1 - snpfreq) * (nindi + z * z));
-                double se_hat = 1 / sqrt(2 * snpfreq * (1 - snpfreq) * (nindi + z * z));
-
-                rowids[jj][kk] = snpid;
-                betas[jj][kk] = beta_hat;
-                ses[jj][kk] = se_hat;
 
             }
         }
-        fclose(beta_se_of_trans);
+        fclose(fmid_data);
 
         if(tosmrflag)
         {
@@ -3766,14 +3820,15 @@ output_beta_se(const double pdev, string snprs, string prbid, vector< double > b
                     double pdev= 0.0;
                     pdev=pchisqsum(sumChisq_dev,lambda);
                     double z=0.0;
-                    z=sqrt(qchisq(pdev,1));
 
+                    z=sqrt(qchisq(pdev,1));
                     double beta_hat=z/sqrt(2*snpfreq*(1-snpfreq)*(nindi+z*z));
                     double se_hat=1/sqrt(2*snpfreq*(1-snpfreq)*(nindi+z*z));
 
                     rowids[jj][kk]=snpid;
                     betas[jj][kk]=beta_hat;
                     ses[jj][kk]=se_hat;
+
                     if (fmid_data) {
                         fprintf(fmid_data, 
                             "%s\t%d\t%lu\t%s\t%s\t%le\t"       //snp, chr_snp, bp_snp, a1, a2, Freq
@@ -3796,7 +3851,7 @@ output_beta_se(const double pdev, string snprs, string prbid, vector< double > b
 
                         if (numTrans_snp != iso_idx.size())
                         {
-                            fprintf(stderr, "Waring, isoform num should equle to numTrans_snp, %s\t%s\t%u\t%u\t%u\n",
+                            fprintf(stderr, "Waring, isoform num should equle to numTrans_snp, %s\t%s\t%s\t%u\t%u\n",
                                     snprs.c_str(), prbid.c_str(),
                                     prb_name.c_str(), numTrans, numTrans_snp, iso_idx.size());
                         }
