@@ -507,7 +507,7 @@ namespace PERMU
         int nindi = (int)einfo._eii_include.size();
         output_data * head = NULL, * tail = NULL;
         uint32_t probe_num_ok = sqtlinfo._epi_include.size();
-        int probe_couter = 0;
+        int probe_counter = 0;
 
         #pragma omp parallel for
         for (int jj = 0; jj < sqtlinfo._epi_include.size(); jj++)
@@ -539,7 +539,7 @@ namespace PERMU
             #pragma omp critical
             {
                 LOGPRINTF("\n\033[0;32m>\033[0mProcessing gene:%s, probeid:%s (%d/%d)\n", 
-                    gene_name.c_str(), prbid.c_str(), ++probe_couter, probe_num_ok);
+                    gene_name.c_str(), prbid.c_str(), ++probe_counter, probe_num_ok);
                 LOGPRINTF("    This gene contain %d transcritps/isoform, and have %d SNPs\n",
                         numTrans, snp_num);
                
