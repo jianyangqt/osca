@@ -15,7 +15,7 @@ DEBUG :=
 
 CXX = g++
 ifdef DEBUG
-CXXFLAGS = -Wall -g3 -Og -fopenmp
+CXXFLAGS = -Wall -g -O0 -fopenmp
 else
 CXXFLAGS = -Wall -O2 -fopenmp
 endif
