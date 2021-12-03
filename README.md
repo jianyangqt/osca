@@ -7,7 +7,7 @@ OSCA (OmicS-data-based Complex trait Analysis) is a software tool for the analys
 - Eigen
 
 - MKL(Math Kernel Library)
-MKL is distributed within intel oneAPI or you can get it at https://github.com/oneapi-src/oneMKL.
+    MKL is distributed within intel oneAPI or you can get it at https://github.com/oneapi-src/oneMKL.
 
 - Rmath library
 
@@ -17,30 +17,22 @@ MKL is distributed within intel oneAPI or you can get it at https://github.com/o
 Eigen just contain head files, and do not need compile to install it. Here, we use version 3.3.7 when we compile osca.
 
 - MKL
-You can read document and download MKL at this webpage: https://www.intel.com/content/www/us/en/developer/tools/oneapi/toolkits.html#base-kit.  
+    You can read document and download MKL at this webpage: https://www.intel.com/content/www/us/en/developer/tools/oneapi/toolkits.html#base-kit.  
 
 - Rmath library
-
     I using version 3.6 as example to install this library.
 
     * download R  
-    
     `wget https://cloud.r-project.org/src/base/R-3/R-3.6.3.tar.gz`
-    
     `tar -zxf R-3.6.3.tar.gz`
-    
     `cd R-3.6.3`
     
     * configure
-    
     `./configure --prefix="PATH where you what put this lib"`
     
     * compile and install
-    
     `cd src/nmath/standalone`
-    
     `make`
-    
     `make install`
     
     Then the head files and library files would show up under prefix path.
@@ -48,11 +40,9 @@ You can read document and download MKL at this webpage: https://www.intel.com/co
 ## Compile  
 
 Samplely, if all requirement is install under **/usr** just run following command, the **osca** would be compiled.
-
 ```
 make  
 ```
-
 This would search head file under `/usr/include` and search library 
 under `/usr/lib64`.  
 
