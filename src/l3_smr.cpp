@@ -292,7 +292,7 @@ namespace SMR {
         map<string, int>::iterator iter;
         nsnp.clear();
         char inputname[FNAMESIZE];
-        LOGPRINTF("\nPerforming Allele checking. This step could be a little long....\n");
+        LOGPRINTF("\nPerforming Allele checking. This step could be a little long....\n");
         for (int i = 0; i < besds.size(); i++)
         {
             eqtlInfo etmp;
@@ -887,17 +887,26 @@ namespace SMR {
                 W=W.array()*Corr_work.array();
                 bool determinant_zero=false;
                 inverse_V(W,determinant_zero);
-                if(determinant_zero) noninvertible.push_back(j);
-                double deno=W.sum();
-                if(deno<=0) {
-                    negativedeno.push_back(j);
-                } else {
-                    VectorXd colsum=W.colwise().sum();
-                    double numerator=0.0;
-                    for(int k=0;k<betas.size();k++) numerator+=colsum(k)*betas[k];
-                    buffer_beta[j]=numerator/deno;
-                    buffer_se[j]=1/sqrt(deno);
+                #pragma omp critical
+                {
+                    if (determinant_zero)
+                        noninvertible.push_back(j);
+                    double deno = W.sum();
+                    if (deno <= 0)
+                    {
+                        negativedeno.push_back(j);
+                    }
+                    else
+                    {
+                        VectorXd colsum = W.colwise().sum();
+                        double numerator = 0.0;
+                        for (int k = 0; k < betas.size(); k++)
+                            numerator += colsum(k) * betas[k];
+                        buffer_beta[j] = numerator / deno;
+                        buffer_se[j] = 1 / sqrt(deno);
+                    }
                 }
+                
 
             }
         }
@@ -1296,7 +1305,7 @@ namespace SMR {
 
         read_msglist(besdlistFileName, besds,"eQTL summary file names");
         if(besds.size()<=1) {
-            LOGPRINTF("Less than 2 BESD files list in %s.\n",besdlistFileName);
+            LOGPRINTF("Less than 2 BESD files list in %s.\n",besdlistFileName);
             TERMINATE();
         }
         LOGPRINTF("%ld eQTL summary file names are included.\n",besds.size());
