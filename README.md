@@ -23,17 +23,17 @@ Eigen just contain head files, and do not need compile to install it. Here, we u
     I using version 3.6 as example to install this library.
 
     * download R  
-    `wget https://cloud.r-project.org/src/base/R-3/R-3.6.3.tar.gz`
-    `tar -zxf R-3.6.3.tar.gz`
-    `cd R-3.6.3`
+    `wget https://cloud.r-project.org/src/base/R-3/R-3.6.3.tar.gz`  
+    `tar -zxf R-3.6.3.tar.gz`  
+    `cd R-3.6.3`  
     
-    * configure
-    `./configure --prefix="PATH where you what put this lib"`
+    * configure  
+    `./configure --prefix="PATH where you what put this lib"`  
     
-    * compile and install
-    `cd src/nmath/standalone`
-    `make`
-    `make install`
+    * compile and install  
+    `cd src/nmath/standalone`  
+    `make`  
+    `make install`  
     
     Then the head files and library files would show up under prefix path.
 
