@@ -7,7 +7,7 @@ OSCA (OmicS-data-based Complex trait Analysis) is a software tool for the analys
 - Eigen
 
 - MKL(Math Kernel Library)
-    MKL is distributed within intel oneAPI.
+    MKL is distributed within intel oneAPI, you can get this by install intel oneAPI or install [oneMKL](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl-download.html) conponent.
 
 - Rmath library
 
