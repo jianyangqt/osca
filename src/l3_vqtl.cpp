@@ -1867,7 +1867,6 @@ namespace VQTL {
                 snp_ok_num = snp_idx_per_probe.size();
                 num_beta_se += snp_ok_num * 2;
                 rowids.push_back(snp_idx_per_probe);
-                rowids.push_back(snp_idx_per_probe);
                 beta_se_offset_head += snp_ok_num;
                 beta_se_offset.push_back(beta_se_offset_head);
                 beta_se_offset_head += snp_ok_num;
@@ -1945,7 +1944,7 @@ namespace VQTL {
                 }
             }
 
-            if (fwrite_checked(&num_beta_se, 1, besd))
+            if (fwrite_checked(&num_beta_se, 1 * sizeof(uint64_t), besd))
             {
                 LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
                 TERMINATE();
@@ -1957,8 +1956,13 @@ namespace VQTL {
                 TERMINATE();
             }
 
-            for (uint32_t probe_cnt = 0; probe_cnt < probe_num * 2; probe_cnt++)
+            for (uint32_t probe_cnt = 0; probe_cnt < probe_num; probe_cnt++)
             {
+                if (fwrite_checked(&rowids[probe_cnt][0], sizeof(uint32_t) * rowids[probe_cnt].size(), besd))
+                {
+                    LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
+                    TERMINATE();
+                }
                 if (fwrite_checked(&rowids[probe_cnt][0], sizeof(uint32_t) * rowids[probe_cnt].size(), besd))
                 {
                     LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
@@ -1968,12 +1972,12 @@ namespace VQTL {
 
             for (uint32_t probe_cnt = 0; probe_cnt < probe_num; probe_cnt++)
             {
-                if (fwrite_checked(&betas[probe_cnt][0], sizeof(float) * rowids[probe_cnt * 2].size(), besd))
+                if (fwrite_checked(&betas[probe_cnt][0], sizeof(float) * betas[probe_cnt].size(), besd))
                 {
                     LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
                     TERMINATE();
                 }
-                if (fwrite_checked(&ses[probe_cnt][0], sizeof(float) * rowids[probe_cnt * 2].size(), besd))
+                if (fwrite_checked(&ses[probe_cnt][0], sizeof(float) * ses[probe_cnt].size(), besd))
                 {
                     LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
                     TERMINATE();
