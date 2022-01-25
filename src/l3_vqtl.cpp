@@ -1827,7 +1827,158 @@ namespace VQTL {
         }
         else if(filetype==SMR_SPARSE_3)
         {
-            LOGPRINTF("Would be released soon!\n")
+            LOGPRINTF("Enter OSCA eQTL SMR_SPARSE_3\n");
+            int probe_num = einfo._epi_include.size();
+            vector < vector <uint32_t> > rowids;
+            vector < vector <float> > betas, ses;
+            vector < uint64_t > beta_se_offset;
+            beta_se_offset.push_back(0);
+            uint64_t beta_se_offset_head = 0;
+
+            uint32_t snp_num = bdata._include.size();
+            uint64_t num_beta_se = 0;
+            vector <uint32_t> snp_idx_per_probe;
+            uint32_t probe_chr = 0;
+            uint32_t probe_bp = 0;
+            uint32_t probe_bp_start = 0;
+            uint32_t probe_bp_end = 0;
+            uint32_t snp_chr = 0;
+            uint32_t snp_pos = 0;
+            uint32_t snp_ok_num = 0;
+            for (int jj = 0; jj < probe_num; jj++)
+            {
+                printf("%3.0f%%\r", 100.0 * jj / einfo._epi_include.size());
+                fflush(stdout);
+
+                probe_chr = einfo._epi_chr[einfo._epi_include[jj]];
+                probe_bp = einfo._epi_bp[einfo._epi_include[jj]];
+                probe_bp_start = (probe_bp - cis_itvl * 1000) > 0? probe_bp - cis_itvl * 1000: 1;
+                probe_bp_end = probe_bp + cis_itvl * 1000;
+                
+                snp_idx_per_probe.clear();
+                for (uint32_t snp_i = 0; snp_i < snp_num; snp_i++) {
+                    snp_chr = bdata._chr[bdata._include[snp_i]];
+                    snp_pos = bdata._bp[bdata._include[snp_i]];
+                    if (snp_chr == probe_chr && snp_pos >= probe_bp_start && snp_pos <= probe_bp_end) {
+                        snp_idx_per_probe.push_back(snp_i);
+                    }
+
+                }
+                snp_ok_num = snp_idx_per_probe.size();
+                num_beta_se += snp_ok_num * 2;
+                rowids.push_back(snp_idx_per_probe);
+                rowids.push_back(snp_idx_per_probe);
+                beta_se_offset_head += snp_ok_num;
+                beta_se_offset.push_back(beta_se_offset_head);
+                beta_se_offset_head += snp_ok_num;
+                beta_se_offset.push_back(beta_se_offset_head);
+
+                VectorXd y(einfo._eii_include.size());
+                if (!nofastlinear)
+                    for (int ll = 0; ll < einfo._eii_include.size(); ll++)
+                        y(ll) = einfo._val[einfo._epi_include[jj] * einfo._eii_num + einfo._eii_include[ll]];
+                vector<float> beta, se;
+
+                
+                MatrixXd _X;
+                if (!nofastlinear)
+                {
+                    make_XMat(&bdata, snp_idx_per_probe, _X, true);
+                    // clock_t begin_time = clock();
+                    fast_getResidual(_X, _Cov, XtX_i);
+                    // LOGPRINTF(" cost: %f ms.\n",float( clock () - begin_time ) /  1000);
+                    for (int kk = 0; kk < _X.cols(); kk++)
+                    {
+                        VectorXd x = _X.col(kk);
+                        rst.clear();
+                        adjusted_reg(y, x, rst, _X_c - 1);
+                        beta.push_back(rst[0]);
+                        se.push_back(rst[1]);
+                    }
+                    betas.push_back(beta);
+                    ses.push_back(se);
+                }
+                else
+                {
+                    make_XMat(&bdata, snp_idx_per_probe, _X);
+                    for (int kk = 0; kk < _X.cols(); kk++)
+                    {
+                        double nonmiss = 0.0;
+                        int miss = 0;
+                        MatrixXd X(_Cov.rows(), _Cov.cols() + 1);
+                        X.block(0, 0, _Cov.rows(), _Cov.cols()) = _Cov;
+                        long x_idx = X.cols() - 1;
+                        VectorXd y(einfo._eii_include.size());
+
+                        for (int ll = 0; ll < einfo._eii_include.size(); ll++)
+                        {
+                            if (einfo._eii_fid[einfo._eii_include[ll]] != bdata._fid[bdata._keep[ll]])
+                                printf("ERROR: Alignment failed. Please report this bug to Futao < futao.zhang@imb.uq.edu.au >. Thanks.\n");
+                            double val = einfo._val[einfo._epi_include[jj] * einfo._eii_num + einfo._eii_include[ll]]; // einfo._eii_include[ll] should equals ll. because of update_eii all the time after reading beed file.
+                            double bval = _X(ll, kk);
+                            if (val < 1e9 && bval < 1e5)
+                            {
+                                y(ll - miss) = val;
+                                X(ll - miss, x_idx) = bval;
+                                nonmiss += 1.0;
+                            }
+                            else
+                            {
+                                removeRow(X, ll - miss);
+                                miss++;
+                            }
+                        }
+                        if (miss > 0)
+                            y.conservativeResize(einfo._eii_include.size() - miss);
+                        rst.clear();
+                        lin2(y, X, rst);
+                        if (rst.size() != 3)
+                        {
+                            LOGPRINTF("ERROR: bugs in function of linear regression found. Please report this.\n");
+                            TERMINATE();
+                        }
+                        beta.push_back(rst[0]);
+                        se.push_back(rst[1]);
+                    }
+                    betas.push_back(beta);
+                    ses.push_back(se);
+                }
+            }
+
+            if (fwrite_checked(&num_beta_se, 1, besd))
+            {
+                LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
+                TERMINATE();
+            }
+
+            if (fwrite_checked(&beta_se_offset[0], beta_se_offset.size() * sizeof(uint64_t), besd))
+            {
+                LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
+                TERMINATE();
+            }
+
+            for (uint32_t probe_cnt = 0; probe_cnt < probe_num * 2; probe_cnt++)
+            {
+                if (fwrite_checked(&rowids[probe_cnt][0], sizeof(uint32_t) * rowids[probe_cnt].size(), besd))
+                {
+                    LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
+                    TERMINATE();
+                }
+            }
+
+            for (uint32_t probe_cnt = 0; probe_cnt < probe_num; probe_cnt++)
+            {
+                if (fwrite_checked(&betas[probe_cnt][0], sizeof(float) * rowids[probe_cnt * 2].size(), besd))
+                {
+                    LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
+                    TERMINATE();
+                }
+                if (fwrite_checked(&ses[probe_cnt][0], sizeof(float) * rowids[probe_cnt * 2].size(), besd))
+                {
+                    LOGPRINTF("ERROR: in writing binary file %s .\n", besdName.c_str());
+                    TERMINATE();
+                }
+            }
         }
         fclose(besd);
         LOGPRINTF("eQTL summary statistics for %ld probes and %ld SNPs are saved in file %s.\n", einfo._epi_include.size(),bdata._include.size(), besdName.c_str());
