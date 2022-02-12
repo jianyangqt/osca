@@ -2956,10 +2956,10 @@ output_beta_se(const double pdev, string snprs, string prbid, vector< double > b
             char snp_data_file[1024] = "";
             if (strlen(outFileName) > 1000) {
                 fprintf(stderr, "file name too long, using snp_data.txt instead\n");
-                strcpy(snp_data_file, "snp_data.txt");
+                strcpy(snp_data_file, "isoform_eQTL_effect.txt");
             } else {
                 strcpy(snp_data_file, outFileName);
-                strcat(snp_data_file, "_snp_data.txt");
+                strcat(snp_data_file, "_isoform_eQTL_effect.txt");
             }
             
             fmid_data = fopen(snp_data_file, "w");
@@ -3660,10 +3660,10 @@ output_beta_se(const double pdev, string snprs, string prbid, vector< double > b
             char snp_data_out_file[1024] = "";
             if (strlen(outFileName) < 1000) {
                 strcpy(snp_data_out_file, outFileName);
-                strcat(snp_data_out_file, "_snp_data.txt");
+                strcat(snp_data_out_file, "_isoform_eQTL_effect.txt");
             } else {
                 fprintf(stderr, "outFileName too long, using snp_data.txt instead.\n");
-                strcpy(snp_data_out_file, "snp_data.txt");
+                strcpy(snp_data_out_file, "isoform_eQTL_effect.txt");
             }
             fmid_data = fopen(snp_data_out_file, "w");
             if (!fmid_data) {
