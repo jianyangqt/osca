@@ -2693,12 +2693,16 @@ get_cov_beta_mean(int target, vector <double>& se, MatrixXd& cor_null)
     dt_out = dt_out / vector_len;
     return dt_out;
 }
+
+
 /*
     for every snp of a probe, there are severl transctripts(isoform),
     print snprs(snp name), probe name,  isoform name, beta of this isoform, se of
     this isoform.
     isoform name, beta, se will repeat number of isoform times.
     --Benjamin Fang
+
+    This founction was abandoned by fanghl. 20220212
 */
 #include <stdlib.h>
 static void
@@ -2799,6 +2803,7 @@ output_beta_se(const double pdev, string snprs, string prbid, vector< double > b
 
     return;
 }
+
 
     static void
     convert_chrom_num_to_string(int chr_num, char * chr_string)
