@@ -338,7 +338,7 @@ void option(int option_num, char * option_str[])
     bool permutation = false;
     uint32_t permu_times = 100;
     bool not_uset_top = false;
-
+    bool no_isoform_eqtl = false;
     for(int i=0;i<option_num;i++)
     {
         if(0==strcmp(option_str[i],"--efile")){
@@ -1680,6 +1680,12 @@ void option(int option_num, char * option_str[])
             not_uset_top = true;
             LOGPRINTF("--not-use-top\n");
         }
+
+        if (0 == strcmp(option_str[i], "--no-isoform-eQTL")) {
+            no_isoform_eqtl = true;
+            LOGPRINTF("--no-isofrom-eQTL\n");
+        }
+
     }
 
 
@@ -1919,7 +1925,7 @@ void option(int option_num, char * option_str[])
                 snpchr, snprs, fromsnprs, tosnprs, snpWind, fromsnpkb, tosnpkb,
                 snpwindFlag, snp2rm, tsk_ttl, tsk_id, to_smr_flag, nofastlinear,
                 cis_flag, cis_itvl, bedfileName, pmecs, nmecs, use_top_p,
-                trans_flag, trans_itvl);
+                trans_flag, trans_itvl, no_isoform_eqtl);
         }
         else if (permutation)
         {
@@ -1949,7 +1955,7 @@ void option(int option_num, char * option_str[])
                 snplstName, snplst2exclde, tsk_ttl, tsk_id, covfileName,
                 qcovfileName, to_smr_flag, nofastlinear, cis_flag, cis_itvl,
                 zero_ratio_prob, call, bedfileName, bcovfileName, ecovfileName,
-                transopse_ecov, use_top_p, trans_flag, trans_itvl);
+                transopse_ecov, use_top_p, trans_flag, trans_itvl, no_isoform_eqtl);
         }
     }
     else if(queryBesd)

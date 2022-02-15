@@ -2841,7 +2841,7 @@ output_beta_se(const double pdev, string snprs, string prbid, vector< double > b
         int tsk_id, char* covfileName, char* qcovfileName, bool tosmrflag,
         bool nofastlinear, bool cis_flag, int cis_itvl, double zeroratio, double call,
         char* annofileName, char* covbodfileName, char* covefileName,
-        bool transopse_ecov, bool use_top_p, bool trans_flag, int trans_itvl)
+        bool transopse_ecov, bool use_top_p, bool trans_flag, int trans_itvl, bool no_isoform_eqtl)
     {
         LOGPRINTF("\n\033[0;32mInter sQTL analysis...\033[0m\n");
         if (cis_flag && trans_flag) {
@@ -2952,7 +2952,7 @@ output_beta_se(const double pdev, string snprs, string prbid, vector< double > b
         int nindi = (int)einfo._eii_include.size();
         double cr=0.0;
         FILE * fmid_data = NULL;
-        if (1) {
+        if (!no_isoform_eqtl) {
             char snp_data_file[1024] = "";
             if (strlen(outFileName) > 1000) {
                 fprintf(stderr, "file name too long, using snp_data.txt instead\n");
@@ -3303,7 +3303,7 @@ output_beta_se(const double pdev, string snprs, string prbid, vector< double > b
                     betas[jj][kk] = beta_hat;
                     ses[jj][kk] = se_hat;
 
-                    if (1) {
+                    if (fmid_data) {
                         char chrom_snp[8] = "";
                         double snp_pval = 0;
                         double snp_p_tmp = 0;
@@ -3331,7 +3331,9 @@ output_beta_se(const double pdev, string snprs, string prbid, vector< double > b
 
             }
         }
-        fclose(fmid_data);
+        if (fmid_data) {
+            fclose(fmid_data);
+        }
 
         if(tosmrflag)
         {
@@ -3527,7 +3529,7 @@ output_beta_se(const double pdev, string snprs, string prbid, vector< double > b
         char * tosnprs, int snpWind, int fromsnpkb, int tosnpkb, bool snpwindFlag, \
         char * snprs2exclde, int tsk_ttl, int tsk_id, bool tosmrflag, \
         bool nofastlinear, bool cis_flag, int cis_itvl,  char * annofileName, \
-        double pmecs, int nmecs, bool use_top_p, bool trans_flag, int trans_itvl)
+        double pmecs, int nmecs, bool use_top_p, bool trans_flag, int trans_itvl, bool no_isoform_eqtl)
     {
 
         setNbThreads(thread_num);
@@ -3656,7 +3658,7 @@ output_beta_se(const double pdev, string snprs, string prbid, vector< double > b
         vector < int > need_remove;
         vector < int >::iterator it;
         FILE * fmid_data = NULL;
-        if (1) {
+        if (!no_isoform_eqtl) {
             char snp_data_out_file[1024] = "";
             if (strlen(outFileName) < 1000) {
                 strcpy(snp_data_out_file, outFileName);
