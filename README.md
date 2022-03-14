@@ -4,6 +4,10 @@ OSCA (OmicS-data-based Complex trait Analysis) is a software tool for the analys
 
 ## Requirement
 
+- zlib >= 2.1
+
+- gsl >= 2.6
+
 - Eigen
 
 - MKL(Math Kernel Library)
@@ -39,6 +43,7 @@ Eigen just contain head files, and do not need compile to install it. Here, we u
 
 ## Compile  
 
+* Method 1, using Makefile
 Samplely, if all requirement is install under **/usr** just run following command, the **osca** would be compiled.
 ```
 make  
@@ -65,6 +70,18 @@ Using `DEBUG=ON` to switch on debug mode.
 After compile, a file named **osca** would appared under same directory of Makefile, and
 if you compile static version, the execuable file, named **osca_static**, would show 
 up too. 
+
+
+* Method 2, using cmake
+
+    ```
+        git clone https://github.com/benjaminfang/osca.git
+        cd osca
+        mkdir build
+        cd build
+        cmake ..
+        make
+    ```
 
 ## USAGE
 
