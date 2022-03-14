@@ -21,7 +21,7 @@ CXXFLAGS = -Wall -O2 -fopenmp
 endif
 CPPFLAGS =  -I$(EIGEN_PATH) -I$(MKL_INCLUDE) -I$(Rmath_INCLUDE)
 LDFLAGS = -L$(MKL_LIB) -L$(Rmath_LIB)
-LIBS = -lz -lgomp -lmkl_core -lpthread -lmkl_gnu_thread -lmkl_gf_lp64 -lRmath -lgsl -lgslcblas
+LIBS = -lz -lgomp -lmkl_core -lpthread -lmkl_gnu_thread -lmkl_intel_lp64 -lRmath -lgsl -lgslcblas
 objs = $(patsubst %.cpp,%.o,$(wildcard src/*.cpp))
 
 .PHONY: all
