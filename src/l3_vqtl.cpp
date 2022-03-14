@@ -2723,7 +2723,7 @@ output_beta_se(const double pdev, string snprs, string prbid, vector< double > b
 
     int len = beta.size();
     if (len != se.size() || len != tranids_prb.size()) {
-        fprintf(stderr, "error, length of beta se and tranids should equal, snp %s passed\n", snprs);
+        fprintf(stderr, "error, length of beta se and tranids should equal, snp %s passed\n", snprs.c_str());
         return;
     }
 

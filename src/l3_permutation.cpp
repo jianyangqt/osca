@@ -546,7 +546,7 @@ namespace PERMU
             }
             if (snp_num == 0)
             {
-                printf("gene %s was passed, because not snp contained.\n", gene_name);
+                printf("gene %s was passed, because not snp contained.\n", gene_name.c_str());
                 free(grow);
                 continue;
             }
