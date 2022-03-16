@@ -337,7 +337,7 @@ void option(int option_num, char * option_str[])
     //permutation options
     bool permutation = false;
     uint32_t permu_times = 100;
-    bool not_uset_top = false;
+    bool not_use_top = false;
     bool no_isoform_eqtl = false;
     for(int i=0;i<option_num;i++)
     {
@@ -1677,7 +1677,7 @@ void option(int option_num, char * option_str[])
         }
 
         if (0 == strcmp(option_str[i], "--not-use-top")) {
-            not_uset_top = true;
+            not_use_top = true;
             LOGPRINTF("--not-use-top\n");
         }
 
@@ -1939,7 +1939,7 @@ void option(int option_num, char * option_str[])
                        snplstName, snplst2exclde, tsk_ttl, tsk_id, covfileName,
                        qcovfileName, nofastlinear, cis_flag, cis_itvl,
                        zero_ratio_prob, call, bedfileName, bcovfileName, ecovfileName,
-                       transopse_ecov, use_top_p, not_uset_top, trans_flag, trans_itvl,
+                       transopse_ecov, use_top_p, not_use_top, trans_flag, trans_itvl,
                        permu_times);
         }
         else

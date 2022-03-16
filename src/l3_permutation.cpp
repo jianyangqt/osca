@@ -422,15 +422,15 @@ namespace PERMU
               int tsk_id, char *covfileName, char *qcovfileName,
               bool nofastlinear, bool cis_flag, int cis_itvl, double zeroratio, double call,
               char *annofileName, char *covbodfileName, char *covefileName,
-              bool transopse_ecov, bool use_top_p, bool not_user_top,
+              bool transopse_ecov, bool use_top_p, bool not_use_top,
               bool trans_flag, int trans_itvl, uint32_t permu_times)
     {
-        if (!use_top_p && !not_user_top) {
+        if (!use_top_p && !not_use_top) {
             use_top_p = true;
-        } else if (use_top_p && not_user_top) {
+        } else if (use_top_p && not_use_top) {
             fprintf(stderr, "use_top and not_use_top can not both be true.\n");
             fprintf(stderr, "Set use_top_p to true.\n");
-            not_user_top = false;
+            not_use_top = false;
         }
         if (cis_flag && trans_flag)
         {
