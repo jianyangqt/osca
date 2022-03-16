@@ -2841,7 +2841,7 @@ output_beta_se(const double pdev, string snprs, string prbid, vector< double > b
         int tsk_id, char* covfileName, char* qcovfileName, bool tosmrflag,
         bool nofastlinear, bool cis_flag, int cis_itvl, double zeroratio, double call,
         char* annofileName, char* covbodfileName, char* covefileName,
-        bool transopse_ecov, bool use_top_p, bool trans_flag, int trans_itvl, bool no_isoform_eqtl)
+        bool transopse_ecov, bool use_top_p, bool trans_flag, int trans_itvl, bool no_isoform_eqtl, bool not_use_top)
     {
         LOGPRINTF("\n\033[0;32mInter sQTL analysis...\033[0m\n");
         if (cis_flag && trans_flag) {
@@ -2852,7 +2852,11 @@ output_beta_se(const double pdev, string snprs, string prbid, vector< double > b
         if (!cis_flag && !trans_flag) {
             cis_flag = true;
         }
-
+        if (!use_top_p && !not_use_top) {
+            use_top_p = true;
+        } else if (use_top_p && not_use_top) {
+            not_use_top = false;
+        }
         setNbThreads(thread_num);
         LOGPRINTF("Using %d thread(s) to conduct analysis ...\n", thread_num);
 
@@ -3529,7 +3533,7 @@ output_beta_se(const double pdev, string snprs, string prbid, vector< double > b
         char * tosnprs, int snpWind, int fromsnpkb, int tosnpkb, bool snpwindFlag, \
         char * snprs2exclde, int tsk_ttl, int tsk_id, bool tosmrflag, \
         bool nofastlinear, bool cis_flag, int cis_itvl,  char * annofileName, \
-        double pmecs, int nmecs, bool use_top_p, bool trans_flag, int trans_itvl, bool no_isoform_eqtl)
+        double pmecs, int nmecs, bool use_top_p, bool trans_flag, int trans_itvl, bool no_isoform_eqtl, bool not_use_top)
     {
 
         setNbThreads(thread_num);
@@ -3540,6 +3544,11 @@ output_beta_se(const double pdev, string snprs, string prbid, vector< double > b
         }
         if (!cis_flag && !trans_flag) {
             cis_flag = true;
+        }
+        if (!use_top_p && !not_use_top) {
+            use_top_p = true;
+        } else if (use_top_p && not_use_top) {
+            not_use_top = false;
         }
         eqtlInfo eqtlinfo;
         LOGPRINTF("\nReading eQTL summary data...\n");

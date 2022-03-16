@@ -84,7 +84,7 @@ namespace VQTL {
         int tsk_ttl, int tsk_id, char * covfileName, char * qcovfileName, bool tosmrflag, \
         bool nofastlinear, bool cis_flag, int cis_itvl, double zeroratio, double call, \
         char * annofileName, char * covbodfileName, char* covefileName, bool transopse_ecov, \
-        bool use_top_p, bool trans_flag, int trans_itvl, bool no_isoform_eqtl);
+        bool use_top_p, bool trans_flag, int trans_itvl, bool no_isoform_eqtl, bool not_use_top);
 
     void ssQTL(char* outFileName, char* beqtlFileName, char* problstName,char* problst2exclde, \
         char * genelistName, int chr, int prbchr, char * prbname, char * fromprbname, \
@@ -95,7 +95,7 @@ namespace VQTL {
         bool snpwindFlag, char * snprs2exclde, int tsk_ttl, int tsk_id, \
         bool tosmrflag, bool nofastlinear, bool cis_flag,int cis_itvl, \
         char * annofileName, double pmecs, int nmecs, bool use_top_p, bool trans_flag, \
-        int trans_itvl, bool no_isoform_eqtl);
+        int trans_itvl, bool no_isoform_eqtl, bool not_use_top);
 
 }
 #endif /* l3_vqtl_hpp */

@@ -1925,7 +1925,7 @@ void option(int option_num, char * option_str[])
                 snpchr, snprs, fromsnprs, tosnprs, snpWind, fromsnpkb, tosnpkb,
                 snpwindFlag, snp2rm, tsk_ttl, tsk_id, to_smr_flag, nofastlinear,
                 cis_flag, cis_itvl, bedfileName, pmecs, nmecs, use_top_p,
-                trans_flag, trans_itvl, no_isoform_eqtl);
+                trans_flag, trans_itvl, no_isoform_eqtl, not_use_top);
         }
         else if (permutation)
         {
@@ -1955,7 +1955,7 @@ void option(int option_num, char * option_str[])
                 snplstName, snplst2exclde, tsk_ttl, tsk_id, covfileName,
                 qcovfileName, to_smr_flag, nofastlinear, cis_flag, cis_itvl,
                 zero_ratio_prob, call, bedfileName, bcovfileName, ecovfileName,
-                transopse_ecov, use_top_p, trans_flag, trans_itvl, no_isoform_eqtl);
+                transopse_ecov, use_top_p, trans_flag, trans_itvl, no_isoform_eqtl, not_use_top);
         }
     }
     else if(queryBesd)
