@@ -1,79 +1,44 @@
-
 # -----------------------------------------------------------------
 #   Makefile for osca
-#   
 #   Supported platforms: Unix / Linux
-# ---------------------------------------------------------------------
+# -----------------------------------------------------------------
 
-# Directory of the target
-OUTPUT = osca
+# You can reset this variable by change following lines or using 
+# `make VARIABLE=VALUE `
+EIGEN_PATH := /usr/include
+MKL_INCLUDE := /usr/include
+MKL_LIB := /usr/lib64/intel64
+Rmath_INCLUDE := /usr/include
+Rmath_LIB := /usr/lib64/lib
 
-# Compiler
+DEBUG :=
+
 CXX = g++
+ifdef DEBUG
+CXXFLAGS = -Wall -g -O0 -fopenmp
+else
+CXXFLAGS = -Wall -O2 -fopenmp
+endif
+CPPFLAGS =  -I$(EIGEN_PATH) -I$(MKL_INCLUDE) -I$(Rmath_INCLUDE)
+LDFLAGS = -L$(MKL_LIB) -L$(Rmath_LIB)
+LIBS = -lz -lgomp -lmkl_core -lpthread -lmkl_gnu_thread -lmkl_intel_lp64 -lRmath -lgsl -lgslcblas
+objs = $(patsubst %.cpp,%.o,$(wildcard src/*.cpp))
 
-# EIGEN library
-EIGEN_PATH = $(EIGEN3_INCLUDE_DIR)
+.PHONY: all
+all: osca
 
-# Intel MKL library
-#MKL_PATH = /opt/intel/mkl
+osca: $(objs)
+	$(CXX) $(CXXFLAGS) $(objs) $(LDFLAGS) $(LIBS) -o $@
 
-# Compiler flags
-#CXXFLAGS = -w -O3 -m64 -fopenmp -I $(EIGEN_PATH) -DDEBUG -g -std=c++11 
-CXXFLAGS = -w -O3 -m64 -fopenmp -I $(EIGEN_PATH) -DEIGEN_NO_DEBUG -std=c++11
-LIB += -static -lz -Wl,-lm -ldl
-#LIB += -lz -Wl, -lm -ldl
+osca_static: $(objs)
+	$(CXX) $(CXXFLAGS) $(objs) $(LDFLAGS) -static -Wl,--start-group $(LIBS) -Wl,--end-group -o $@
 
-HDR += l4_osc.h \
-	   l3_efile.h \
-	   l2_efile.h \
-            l2_reml.h \
-            l2_bfile.h \
-            l1_op_geno.h \
-            l0_io.h \
-            l0_mem.h \
-            l0_stat.h \
-            l0_com.h \
-	   cdflib.h \
-	   dcdflib.h \
-           ipmpar.h \
-           l1_stat.hpp \
-	   l3_vqtl.hpp	\
-	   l2_besd.hpp \
-           l3_smr.hpp \
-	   l3_ewas.hpp
-SRC = l4_osc.cpp \
-	   l3_efile.cpp \
-	   l2_efile.cpp \
-            l2_reml.cpp \
-            l2_bfile.cpp \
-            l1_op_geno.cpp \
-            l0_io.cpp \
-            l0_mem.cpp \
-            l0_stat.cpp \
-            l0_com.cpp \
-	   dcdflib.cpp \
-           l1_stat.cpp \
-	   l3_vqtl.cpp	\
-	   l2_besd.cpp \
-           l3_smr.cpp \
-	   l3_ewas.cpp
+$(objs): %.o: %.cpp
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 
-OBJ = $(SRC:.cpp=.o)
 
-all : $(OUTPUT) 
-
-$(OUTPUT) :
-	$(CXX) $(CXXFLAGS) -o $(OUTPUT) $(OBJ) $(LIB) 
-
-$(OBJ) : $(HDR)
-
-.cpp.o : 
-	$(CXX) $(CXXFLAGS) -c $*.cpp
-.SUFFIXES : .cpp .c .o $(SUFFIXES)
-
-$(OUTPUT) : $(OBJ)
-
-FORCE:
-
-clean: 
-	rm -f *.o osca
+.PHONY: clean
+clean:
+	rm -f src/*.o
+	rm -f osca
+	rm -f osca_static

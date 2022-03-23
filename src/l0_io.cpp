@@ -17,12 +17,12 @@ void read_msglist(string msglistfile, vector<string> &msglist, string msg)
     ifstream i_msglist(msglistfile.c_str());
     if(!i_msglist)
     {
-        
+
         LOGPRINTF("Error: can not open the file %s to read.\n",msglistfile.c_str());
         TERMINATE();
     }
     LOGPRINTF( "Reading a list of %s from %s .\n", msg.c_str() ,msglistfile.c_str());
-  
+
     while(i_msglist>>StrBuf){
         msglist.push_back(StrBuf);
         getline(i_msglist, StrBuf);
@@ -37,11 +37,11 @@ void update_map_kp(const vector<string> &id_list, map<string, int> &id_map, vect
     for(i=0; i<id_list.size(); i++) id_map_buf.erase(id_list[i]);
     map<string, int>::iterator iter;
     for(iter=id_map_buf.begin(); iter!=id_map_buf.end(); iter++) id_map.erase(iter->first);
-    
+
     keep.clear();
     for(iter=id_map.begin(); iter!=id_map.end(); iter++) keep.push_back(iter->second);
     stable_sort(keep.begin(), keep.end());
-    /* 
+    /*
      //the same as above
      keep.clear();
      map<string, int> id_map_buf;
@@ -65,7 +65,7 @@ void update_map_rm(const vector<string> &id_list, map<string, int> &id_map, vect
 {
     int i = 0;
     for (i = 0; i < id_list.size(); i++) id_map.erase(id_list[i]);
-    
+
     keep.clear();
     map<string, int>::iterator iter;
     for (iter = id_map.begin(); iter != id_map.end(); iter++) keep.push_back(iter->second);
@@ -96,7 +96,7 @@ void write_msglist(char* outFileName, vector<string> &msg)
 {
     FILE* efile=NULL;
     if(fopen_checked(&efile, outFileName,"w")) TERMINATE();
-    
+
     for (int i = 0; i <msg.size(); i++) {
         string str=msg[i]+'\n';
         if(fputs_checked(str.c_str(),efile))
