@@ -7,6 +7,7 @@
 //
 
 #include "l4_osc.h"
+#include "config.h"
 
 using namespace EFILE;
 using namespace VQTL;
@@ -16,10 +17,17 @@ using namespace PERMU;
 int main(int argc, char * argv[])
 {
     cout << "*******************************************************************" << endl;
+#if defined __linux && __GNUC__
+    cout << "* OSCA (OmicS-data-based Complex trait Analysis)" << endl;
+    cout << "* VERSION " << OSCA_VERSION << endl;
+    cout << "* Build at " << __DATE__ << " " << __TIME__ << ", by GCC " << __GNUC__ << "." << __GNUC_MINOR__ << endl;
+    cout << "* On linux, " << "kernel " << LINUX_VERSION_MAJOR << "." << LINUX_VERSION_PATCHLEVEL <<endl;
+#else
     cout << "* OmicS-data-based Complex trait Analysis (OSCA)" << endl;
-    cout << "* version 0.45" << endl;
+    cout << "* version 0.5.0" << endl;
+#endif
     cout << "* (C) 2016 Futao Zhang, Zhihong Zhu and Jian Yang" << endl;
-    cout << "* The University of Queensland" << endl;
+    cout << "* The University of Queensland & Westlake University" << endl;
     cout << "* MIT License" << endl;
     cout << "*******************************************************************" << endl;
 
