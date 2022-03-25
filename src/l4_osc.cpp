@@ -21,7 +21,9 @@ int main(int argc, char * argv[])
     cout << "* OSCA (OmicS-data-based Complex trait Analysis)" << endl;
     cout << "* VERSION " << OSCA_VERSION << endl;
     cout << "* Build at " << __DATE__ << " " << __TIME__ << ", by GCC " << __GNUC__ << "." << __GNUC_MINOR__ << endl;
+# if defined LINUX_VERSION_MAJOR && defined LINUX_VERSION_PATCHLEVEL
     cout << "* On linux, " << "kernel " << LINUX_VERSION_MAJOR << "." << LINUX_VERSION_PATCHLEVEL <<endl;
+# endif
 #else
     cout << "* OmicS-data-based Complex trait Analysis (OSCA)" << endl;
     cout << "* version 0.5.0" << endl;
