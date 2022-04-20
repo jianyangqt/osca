@@ -46,7 +46,7 @@ message(STATUS "CMAKE_STATIC_LIBRARY_PREFIX: " ${CMAKE_STATIC_LIBRARY_PREFIX})
 message(STATUS "CMAKE_STATIC_LIBRARY_SUFFIX: " ${CMAKE_STATIC_LIBRARY_SUFFIX})
 
 message(STATUS "CMAKE_FIND_LIBRARY_PREFIXES" ${CMAKE_FIND_LIBRARY_PREFIXES})
-set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+#set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
 message(STATUS "CMAKE_FIND_LIBRARY_SUFFIXES" ${CMAKE_FIND_LIBRARY_SUFFIXES})
 
 message(STATUS "CMAKE_PROJECT_NAME: " ${CMAKE_PROJECT_NAME})
@@ -57,9 +57,9 @@ message("")
 
 
 #detect zlib
-set(zlib_path )
-set(zlib_include_path)
-set(zlib_lib_path)
+set(zlib_path FALSE CACHE PATH "zlib package location")
+set(zlib_include_path FALSE CACHE PATH "zlib head file location")
+set(zlib_lib_path FALSE CACHE PATH "zlib library location")
 if (zlib_path)
     set(zlib_include_dir ${zlib_path}/include)
     set(zlib_lib_dir ${zlib_path}/lib)
