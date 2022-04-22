@@ -1839,7 +1839,7 @@ namespace VQTL {
             uint64_t num_beta_se = 0;
             vector <uint32_t> snp_idx_per_probe;
             uint32_t probe_chr = 0;
-            uint32_t probe_bp = 0;
+            int64_t probe_bp = 0;
             uint32_t probe_bp_start = 0;
             uint32_t probe_bp_end = 0;
             uint32_t snp_chr = 0;
@@ -1851,7 +1851,7 @@ namespace VQTL {
                 fflush(stdout);
 
                 probe_chr = einfo._epi_chr[einfo._epi_include[jj]];
-                probe_bp = einfo._epi_bp[einfo._epi_include[jj]];
+                probe_bp = (int64_t)einfo._epi_bp[einfo._epi_include[jj]];
                 probe_bp_start = (probe_bp - cis_itvl * 1000) > 0? probe_bp - cis_itvl * 1000: 1;
                 probe_bp_end = probe_bp + cis_itvl * 1000;
                 
