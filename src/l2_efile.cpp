@@ -800,7 +800,7 @@ namespace EFILE {
             else if(strlist[0]=="NA" || strlist[0]=="na"){
                 einfo->_epi_chr.push_back(-9);
                 if(!chrwarning) {
-                    LOGPRINTF("WARNING: At least one probe chromose is missing.\n");
+                    LOGPRINTF("WARNING: chromosome information of at least one probe is missing.\n");
                     chrwarning=true;
                 }
             } else if (atoi(strlist[0].c_str())==0 ) {
