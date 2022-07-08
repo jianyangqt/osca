@@ -26,7 +26,7 @@ int main(int argc, char * argv[])
 # endif
 #else
     cout << "* OmicS-data-based Complex trait Analysis (OSCA)" << endl;
-    cout << "* version 0.5.0" << endl;
+    cout << "* version " << OSCA_VERSION << endl;
 #endif
     cout << "* (C) 2016 Futao Zhang, Zhihong Zhu and Jian Yang" << endl;
     cout << "* The University of Queensland & Westlake University" << endl;
