@@ -2423,7 +2423,8 @@ namespace VQTL {
                 LOGPRINTF("ERROR: Line %u has less than %d items.\n", line_idx,colnum);
                 TERMINATE();
             }
-            eqtlinfo->_probe_name_map.insert(pair<string,int>(strlist[3],line_idx));
+            to_upper(strlist[3]);
+            eqtlinfo->_probe_name_map.insert(pair<string,int>(strlist[3], line_idx));
             if(eqtlinfo->_probe_name_map.size()==line_idx)
             {
                 LOGPRINTF("ERROR: Duplicate probe : %s.\n", strlist[1].c_str());
@@ -2555,7 +2556,11 @@ namespace VQTL {
     void gene_check(eInfo* sqtlinfo,vector< vector<int>> &tranids, char* annofileName, bInfo* bdata,eInfo* einfo, bool cis_flag, bool trans_flag)
     {
         eqtlInfo tmpinfo;
-        read_annofile(&tmpinfo, annofileName);
+        if (annofileName) {
+            read_annofile(&tmpinfo, annofileName);
+        } else {
+            LOGPRINTF("a annotation file is needed.\n");
+        }
 
         int ids = 0;
         map<int, int> bchr_map;
