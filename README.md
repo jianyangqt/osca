@@ -28,6 +28,8 @@ OSCA (OmicS-data-based Complex trait Analysis) is a software tool for the analys
 
 - Rmath library
 
+    __Note__: functions of Rmath are also contained by libR.so/libR.a, you can use them instead of Rmath to make life easier.
+
     I using version 3.6 as example to install this library.
 
     * download R
