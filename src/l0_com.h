@@ -63,7 +63,9 @@ using namespace Eigen;
 
 //typedef unsigned int uint32_t;
 //typedef unsigned long long uint64_t;
+#if ! defined _MSC_VER
 typedef unsigned long		uintptr_t;
+#endif
 
 #define ONELU 1LLU
 #define CACHELINE 64
