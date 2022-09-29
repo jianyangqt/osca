@@ -538,9 +538,9 @@ namespace PERMU
             grow->snp_contained = snp_num;
             #pragma omp critical
             {
-                LOGPRINTF("\n\033[0;32m>\033[0mProcessing gene:%s, probeid:%s (%d/%d)\n", 
+                LOGPRINTF("\n\033[0;32m>\033[0mProcessing gene:%s, probe_id:%s (%d/%d).\n", 
                     gene_name.c_str(), prbid.c_str(), ++probe_counter, probe_num_ok);
-                LOGPRINTF("    This gene contain %d transcritps/isoform, and have %d SNPs\n",
+                LOGPRINTF("    This gene contains %d isoforms and %d SNPs.\n",
                         numTrans, snp_num);
                
             }
