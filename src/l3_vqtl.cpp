@@ -2848,7 +2848,7 @@ output_beta_se(const double pdev, string snprs, string prbid, vector< double > b
         char* annofileName, char* covbodfileName, char* covefileName,
         bool transopse_ecov, bool use_top_p, bool trans_flag, int trans_itvl, bool no_isoform_eqtl, bool not_use_top)
     {
-        LOGPRINTF("\n\033[0;32mInter sQTL analysis...\033[0m\n");
+        LOGPRINTF("\n\033[0;32mEnter sQTL analysis...\033[0m\n");
         if (cis_flag && trans_flag) {
             fprintf(stderr, "The cis_flag and trans_flag can not be true at same time.");
             TERMINATE();
