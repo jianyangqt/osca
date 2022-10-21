@@ -193,7 +193,7 @@ add_executable(osca ${PRJ_SOURCE_DIR}/l0_com.cpp ${PRJ_SOURCE_DIR}/l0_io.cpp
 if (CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "x86_64")
     if (system STREQUAL "UNIX-like")
         if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
-            target_compile_options(osca PRIVATE -O3 -fopenmp)
+            target_compile_options(osca PRIVATE -fopenmp)
             target_include_directories(osca PRIVATE ${zlib_include_dir} PRIVATE ${gsl_include_dir} PRIVATE ${eigen_dir} PRIVATE  ${mkl_include_dir} PRIVATE ${rmath_lib_dir})
             target_link_directories(osca PRIVATE ${zlib_lib_dir} PRIVATE ${gsl_lib_dir} PRIVATE ${mkl_lib_dir} PRIVATE  ${rmath_lib_dir})
             if (NOT BUILD_STATIC)
