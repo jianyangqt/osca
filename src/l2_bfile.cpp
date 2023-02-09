@@ -205,7 +205,7 @@ namespace BFILE{
             bdata->_snp_name_map.insert(pair<string, int>( bdata->_snp_name[i], i));
             if (size ==  bdata->_snp_name_map.size())
             {
-                sprintf(logbuf, "Error: Duplicated SNP IDs found: %s .\n", bdata->_snp_name[i].c_str());
+                sprintf(logbuf, "Error: Duplicated SNP IDs found: %s .(Untill now, sex chromsomes is not supported)\n", bdata->_snp_name[i].c_str());
                 logprintb();
                TERMINATE();
             }
