@@ -67,6 +67,7 @@ typedef struct {
     int opt_cis_window_bp;
 
     float pthresh;
+    int opt_mem;
 
     const char *opt_outname;  // output file name.
     const char *opt_outformat;
@@ -902,9 +903,9 @@ help_legacy(void)
         "--pheno     STR, phenotyp file in plain text.(no support yet)\n"
         "--pheno-bod STR, phenotyp file in bod file format.\n"
         "--threads   INT, number of threads to use, default is 1.\n"
-        "--start-var INT, index of first variant to calculate. default is 1.\n"
+        "--start-var INT, index of first variant to calculate. default is 1.(not support yet)\n"
         "--end-var   INT, last variant to calculate. default is last one of bim "
-        "file.\n"
+        "file.(not support yet)\n"
         "--start-probe INT, index of first probe.(not support yet)\n"
         "--end-probe INT, last probe, defaulte is last one.(not support yet)\n"
         "--tast-num  INT, tast number.\n"
@@ -915,7 +916,8 @@ help_legacy(void)
         "--cis       INT, only calculate cis region.(not support yet)\n"
         "--cis-window-pb\n"
         "            INT, widow width in basepare defined as cis.(not support yet)\n"
-        "--pthresh  FLOAT, p value to filter beta1 t test result.(not support yet)\n"
+        "--pthresh FLOAT, p value to filter beta1 t test result.\n"
+        "--mem       INT, memoray used by program, default is 3/4 all memoray.\n"
         "--out       STR, output file name.\n"
         "--outformat STR, output format, default is besd.(not support yet)\n\n"
     );
@@ -1119,7 +1121,7 @@ vqtl_parse_args_legacy(int argc, char *argv[], const char *method, VQTL_ARGS_ptr
 
             if (strcmp(argv[i], "--trans-distance-bp") == 0) {
                 if (i + 1 < argc && strncmp(argv[i + 1], "--", 2) != 0) {
-                    args->opt_end_variant = atoi(argv[++i]);
+                    args->opt_trans_distance_bp = atoi(argv[++i]);
                     printf("--trans-distance-bp %s\n", argv[i]);
                     continue;
                 } else {
@@ -1130,14 +1132,14 @@ vqtl_parse_args_legacy(int argc, char *argv[], const char *method, VQTL_ARGS_ptr
             }
 
             if (strcmp(argv[i], "--cis") == 0) {
-                args->flag_trans = true;
+                args->flag_cis = true;
                 printf("--cis");
                 continue;
             }
 
             if (strcmp(argv[i], "--cis-window-bp") == 0) {
                 if (i + 1 < argc && strncmp(argv[i + 1], "--", 2) != 0) {
-                    args->opt_end_variant = atoi(argv[++i]);
+                    args->opt_cis_window_bp = atoi(argv[++i]);
                     printf("--cis-window-bp %s\n", argv[i]);
                     continue;
                 } else {
@@ -1149,11 +1151,23 @@ vqtl_parse_args_legacy(int argc, char *argv[], const char *method, VQTL_ARGS_ptr
 
             if (strcmp(argv[i], "--pthresh") == 0) {
                 if (i + 1 < argc && strncmp(argv[i + 1], "--", 2) != 0) {
-                    args->opt_end_variant = atof(argv[++i]);
+                    args->pthresh = atof(argv[++i]);
                     printf("--pthresh %s\n", argv[i]);
                     continue;
                 } else {
                     fprintf(stderr, "--pthresh need a argument.\n");
+                    args->flag_help = true;
+                    break;
+                }
+            }
+
+            if (strcmp(argv[i], "--mem") == 0) {
+                if (i + 1 < argc && strncmp(argv[i + 1], "--", 2) != 0) {
+                    args->opt_mem = atoi(argv[++i]);
+                    printf("--mem %s\n", argv[i]);
+                    continue;
+                } else {
+                    fprintf(stderr, "--mem need a argument.\n");
                     args->flag_help = true;
                     break;
                 }
