@@ -7,4 +7,7 @@
 # include <linux/version.h>
 #endif
 
+#define MODULE_VQTL_DRM_SVLM
+
+
 #endif

@@ -188,7 +188,7 @@ add_executable(osca ${PRJ_SOURCE_DIR}/l0_com.cpp ${PRJ_SOURCE_DIR}/l0_io.cpp
     ${PRJ_SOURCE_DIR}/l3_gwas.cpp  ${PRJ_SOURCE_DIR}/l3_permutation.cpp  
     ${PRJ_SOURCE_DIR}/l3_smr.cpp  ${PRJ_SOURCE_DIR}/l3_vqtl.cpp  
     ${PRJ_SOURCE_DIR}/l4_osc.cpp  ${PRJ_SOURCE_DIR}/cis_learn_beta.cpp  
-    ${PRJ_SOURCE_DIR}/dcdflib.cpp
+    ${PRJ_SOURCE_DIR}/dcdflib.cpp ${PRJ_SOURCE_DIR}/Module_vqtl_drm_svlm.c
     )
 if (CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "x86_64")
     if (system STREQUAL "UNIX-like")

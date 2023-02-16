@@ -7,6 +7,7 @@
 //
 
 #include "l4_osc.h"
+#include "Module_vqtl_drm_svlm.h"
 #include "config.h"
 
 using namespace EFILE;
@@ -67,6 +68,8 @@ int main(int argc, char * argv[])
         exit(EXIT_FAILURE);
     }
     printf("Logging to %s.\n", logfname.c_str());
+
+
     FLAGS_VALID_CK(argc, argv);
 
     long int time_used = 0, start = time(NULL);
@@ -84,7 +87,15 @@ int main(int argc, char * argv[])
         //logprintb();
     }
     LOGPRINTF("\nOptions:\n");
-    option(argc, argv);
+
+    int module_status = 0;
+#ifdef MODULE_VQTL_DRM_SVLM
+    module_status += Module_vqtl_drm(argc, argv);
+    module_status += Module_vqtl_svlm(argc, argv);
+#endif
+    if (!module_status) {
+        option(argc, argv);
+    }
 
 
     curr = time(0);
