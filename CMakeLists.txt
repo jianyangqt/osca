@@ -190,6 +190,8 @@ add_executable(osca ${PRJ_SOURCE_DIR}/l0_com.cpp ${PRJ_SOURCE_DIR}/l0_io.cpp
     ${PRJ_SOURCE_DIR}/l4_osc.cpp  ${PRJ_SOURCE_DIR}/cis_learn_beta.cpp  
     ${PRJ_SOURCE_DIR}/dcdflib.cpp ${PRJ_SOURCE_DIR}/Module_vqtl_drm_svlm.c
     )
+add_subdirectory(lib)
+
 if (CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "x86_64")
     if (system STREQUAL "UNIX-like")
         if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
@@ -197,7 +199,7 @@ if (CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "x86_64")
             target_include_directories(osca PRIVATE ${zlib_include_dir} PRIVATE ${gsl_include_dir} PRIVATE ${eigen_dir} PRIVATE  ${mkl_include_dir} PRIVATE ${rmath_lib_dir})
             target_link_directories(osca PRIVATE ${zlib_lib_dir} PRIVATE ${gsl_lib_dir} PRIVATE ${mkl_lib_dir} PRIVATE  ${rmath_lib_dir})
             if (NOT BUILD_STATIC)
-                target_link_libraries(osca z -Wl,--start-group mkl_core mkl_intel_lp64 mkl_gnu_thread -Wl,--end-group gomp pthread Rmath gsl gslcblas m)
+                target_link_libraries(osca z -Wl,--start-group mkl_core mkl_intel_lp64 mkl_gnu_thread -Wl,--end-group gomp pthread Rmath gsl gslcblas m oscalib)
             else()
                 message(WARNING "You now try to link libs staticlly, You need make sure all static lib was installed.")
                 target_link_libraries(osca -static z -Wl,--start-group mkl_core mkl_intel_lp64 mkl_gnu_thread -Wl,--end-group gomp pthread Rmath gsl gslcblas m dl)
