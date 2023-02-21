@@ -26,9 +26,9 @@ plinkopen(const char *filename)
 
     data_out.status = PLINK_FAIL;
     data_out.raw_buf_len = 0;
-    data_out.bed_raw_per_variant_buf = NULL;
+    data_out.raw_buf = NULL;
     data_out.decode_buf_len = 0;
-    data_out.bed_decoded_per_variant_buf = NULL;
+    data_out.decoded_buf = NULL;
     data_out.line_buf_len = PLINK_LINE_BUF_LEN;
     data_out.line_buf = NULL;
 
@@ -123,7 +123,7 @@ plinkopen(const char *filename)
     fin = data_out.bed_file;
     if (fread(megic_num, sizeof(char), PLINK_MEGIC_NUM_LEN, fin) != 3) {
         fprintf(stderr, "read megic num failed.\n");
-        data_out.status = PLINK_READ_FAIL;
+        data_out.status = PLINK_FILE_READ_FAIL;
         return data_out;
     }
     memcpy(data_out.bed_megic_num, megic_num, PLINK_MEGIC_NUM_LEN);
@@ -189,14 +189,14 @@ plinkclose(PLINKFILE_ptr plink_data)
         plink_data->bed_file = NULL;
     }
 
-    if (plink_data->bed_raw_per_variant_buf) {
-        free(plink_data->bed_raw_per_variant_buf);
-        plink_data->bed_raw_per_variant_buf = NULL;
+    if (plink_data->raw_buf) {
+        free(plink_data->raw_buf);
+        plink_data->raw_buf = NULL;
     }
 
-    if (plink_data->bed_decoded_per_variant_buf) {
-        free(plink_data->bed_decoded_per_variant_buf);
-        plink_data->bed_decoded_per_variant_buf = NULL;
+    if (plink_data->decoded_buf) {
+        free(plink_data->decoded_buf);
+        plink_data->decoded_buf = NULL;
     }
 
     if (plink_data->line_buf) {
@@ -239,11 +239,12 @@ plinkseek(PLINKFILE_ptr plink_data, uint32_t seek_len)
     
     FAM_LINE fam_line;
     BIM_LINE bim_line;
+    uint32_t indi_num = plink_data->individual_num;
     char *bed_data = (char *)malloc(sizeof(char) * plink_data->individual_num);
     for (uint32_t i = 0; i < seek_len; i++) {
-        famreadline(plink_data, fam_line);
-        bimreadline(plink_data, bim_line);
-        bedreaddata(plink_data, bed_data);
+        famreadline(plink_data, &fam_line);
+        bimreadline(plink_data, &bim_line);
+        bedreaddata(plink_data, bed_data, indi_num);
     }
     free(bed_data);
     return 0;
@@ -467,7 +468,7 @@ bimreadline(PLINKFILE_ptr plink_dara, BIM_LINE_ptr bim_line)
             if (str_len >= PLINE_MAX_ALLEL_LEN) {
                 fprintf(stderr, "allel %s trimed\n", allel1);
             }
-            bim_line->allel1[PLINE_MAX_ALLEL_LEN - 1] = '\0';
+            (bim_line->allel1)[PLINE_MAX_ALLEL_LEN - 1] = '\0';
             strncpy(bim_line->allel1, allel1, PLINE_MAX_ALLEL_LEN - 1);
             
         } else {
@@ -529,8 +530,8 @@ bedreaddata(PLINKFILE_ptr plink_data, char *bed_data, uint64_t bed_data_len)
         return 1;
     }
 
-    char *raw_buf = plink_data->bed_raw_per_variant_buf;
-    char *decode_buf = plink_data->bed_decoded_per_variant_buf;
+    char *raw_buf = plink_data->raw_buf;
+    char *decode_buf = plink_data->decoded_buf;
     int raw_len = plink_data->raw_buf_len;
     int decode_len = plink_data->decode_buf_len;
     int readlen = 0;

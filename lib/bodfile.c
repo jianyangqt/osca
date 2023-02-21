@@ -233,8 +233,8 @@ bodfileseek(BODFILE_ptr bod_data, uint32_t seek_len)
     double *probe_buf = (double *)malloc(sizeof(double) * indi_num);
 
     for (uint32_t i = 0; i < seek_len; i++) {
-        oiireadline(bod_data, oii_line);
-        opireadline(bod_data, opi_line);
+        oiireadline(bod_data, &oii_line);
+        opireadline(bod_data, &opi_line);
         bodreaddata(bod_data, probe_buf, indi_num);
     }
     
@@ -531,19 +531,17 @@ bodloaddata_n(BODFILE_ptr bod_data, double *bod_readoutn, uint64_t readout_len,
 int
 bodloaddata_all(BODFILE_ptr bod_data, double *bod_readoutall, uint64_t readout_len)
 {
-    FILE *fin = bod_data->bod_file;
-
-    uint32_t end = bod_data->probe_num;
-    uint32_t start = 1;
+    uint32_t load_len = bod_data->probe_num;
+    uint32_t start = 0;
 
     uint32_t indi_num = bod_data->individual_num;
     
-    if (readout_len != (end - start + 1) * indi_num) {
+    if (readout_len != load_len * indi_num) {
         fprintf(stderr, "bed malloc len error.\n");
         return 1;
     }
 
-    if (bodloaddata_n(bod_data, bod_readoutall, readout_len, start, end) != 0) {
+    if (bodloaddata_n(bod_data, bod_readoutall, readout_len, start, load_len) != 0) {
         fprintf(stderr, "read bod failed.\n");
         return 1;
     }

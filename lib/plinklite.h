@@ -31,6 +31,7 @@
 #define PLINK_FAIL 1
 #define PLINK_FILE_OPEN_FAIL 2
 #define PLINK_FILE_EMPTY 3
+#define PLINK_FILE_READ_FAIL 6
 #define PLINK_MEGIC_NUM_FAIL 4
 #define PLINK_MALLOC_BUF_FAIL 5
 #define PLINK_MEGIC_NUM_LEN 3
@@ -90,16 +91,19 @@ typedef struct fam_line_stu {
 #define PLINK_MT_CHROM 203
 #define PLINE_BIM_POS_NA 0
 #define PLINE_MAX_ALLEL_LEN 8
+
+struct allel_stu {
+    char trimed_flag;
+    char allel[PLINE_MAX_ALLEL_LEN];
+    uint64_t trime_allel_index;
+};
+
 typedef struct bim_line_stu {
     unsigned char chrom;
     char rsid[64];
     float phy_pos;
     uint32_t pos;
-    struct {
-        char trimed_flag;
-        allel[PLINE_MAX_ALLEL_LEN];
-        uint64_t trime_allel_index;
-    } allel1;
+    char allel1[PLINE_MAX_ALLEL_LEN];
     char allel2[PLINE_MAX_ALLEL_LEN];
 
 } BIM_LINE, *BIM_LINE_ptr;
