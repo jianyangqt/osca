@@ -64,7 +64,7 @@ static inline void FLAGS_VALID_CK(int option_num, char* option_str[])
         "--covar-efile","--covar-tefile","--nmecs","--reverse-assoc","--fdr","--cor-r2",
         "--make-bld","--save-r2","--r2-thresh","--moment-force", "--use-top", "--trans",
         "--trans-wind", "--trans-meta", "--permutation", "--permu-times", "--no-isoform-eQTL",
-        "--method", "--help"
+        "--method", "--help", "--geno", "--pheno-bod", "--mem"
     };
 
     vector<string> flags(flgs, flgs + sizeof(flgs)/sizeof(flgs[0]));

@@ -80,7 +80,7 @@ typedef struct bodfile {
 } BODFILE, *BODFILE_ptr;
 
 
-typedef struct oii_line {
+typedef struct oii_line_stu {
     char family_id[64];
     char indiv_id[64];
     char parental_id[64];
@@ -89,7 +89,7 @@ typedef struct oii_line {
 } OII_LINE, *OII_LINE_ptr;
 
 
-typedef struct opi_line {
+typedef struct opi_line_stu {
     unsigned char chrom;  // 0 for NA, 201 for X, 202 for Y, 203 for MT
     char probe_id[64];
     uint32_t position;  // 0 for NA
@@ -98,18 +98,23 @@ typedef struct opi_line {
 } OPI_LINE, *OPI_LINE_ptr;
 
 BODFILE_EXTERN BODFILE bodfileopen(const char *filename);
-BODFILE_EXTERN void bodfileclose(BODFILE_ptr bod_data);
+BODFILE_EXTERN int bodfileclose(BODFILE_ptr bod_data);
+BODFILE_EXTERN void bodfilerewind(BODFILE_ptr bod_data);
+BODFILE_EXTERN int bodfileseek(BODFILE_ptr bod_data, uint32_t seek_len);
+
 BODFILE_EXTERN int oiireadline(BODFILE_ptr bod_data, OII_LINE_ptr oii_line);
 BODFILE_EXTERN int oiireadlines(BODFILE_ptr bod_data, OII_LINE_ptr oii_lines,
                  uint32_t oii_line_num);
+
 BODFILE_EXTERN int opireadline(BODFILE_ptr bod_data, OPI_LINE_ptr opi_line);
 BODFILE_EXTERN int opireadlines(BODFILE_ptr bod_data, OPI_LINE_ptr opi_lines,
                  uint32_t line_num);
-BODFILE_EXTERN int bodreaddata(BODFILE_ptr bod_data, double *bod_readout, uint32_t readout_len);
+
+BODFILE_EXTERN int bodreaddata(BODFILE_ptr bod_data, double *bod_readout, uint64_t readout_len);
 BODFILE_EXTERN int bodloaddata_n(BODFILE_ptr bod_data, double *bod_readoutn,
-                  uint32_t readout_len, int start, int end);
+                  uint64_t readout_len, uint32_t start_offset, uint32_t load_len);
 BODFILE_EXTERN int bodloaddata_all(BODFILE_ptr bod_data, double *bod_readoutall,
-                    uint32_t readout_len);
+                    uint64_t readout_len);
 
 #endif
 
