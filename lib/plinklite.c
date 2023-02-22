@@ -236,11 +236,11 @@ plinkrewind(PLINKFILE_ptr plink_data)
 int
 plinkseek(PLINKFILE_ptr plink_data, uint32_t seek_len)
 {
-    
+    plinkrewind(plink_data);
     FAM_LINE fam_line;
     BIM_LINE bim_line;
     uint32_t indi_num = plink_data->individual_num;
-    char *bed_data = (char *)malloc(sizeof(char) * plink_data->individual_num);
+    char *bed_data = (char *)malloc(sizeof(char) * indi_num);
     for (uint32_t i = 0; i < seek_len; i++) {
         famreadline(plink_data, &fam_line);
         bimreadline(plink_data, &bim_line);
@@ -466,7 +466,8 @@ bimreadline(PLINKFILE_ptr plink_dara, BIM_LINE_ptr bim_line)
         if (allel1[1023] == '\0') {
             str_len = strlen(allel1);
             if (str_len >= PLINE_MAX_ALLEL_LEN) {
-                fprintf(stderr, "allel %s trimed\n", allel1);
+                //fprintf(stderr, "allel %s trimed\n", allel1);
+                ;
             }
             (bim_line->allel1)[PLINE_MAX_ALLEL_LEN - 1] = '\0';
             strncpy(bim_line->allel1, allel1, PLINE_MAX_ALLEL_LEN - 1);
@@ -479,7 +480,8 @@ bimreadline(PLINKFILE_ptr plink_dara, BIM_LINE_ptr bim_line)
         if (allel2[1023] == '\0') {
             str_len = strlen(allel2);
             if (str_len >= PLINE_MAX_ALLEL_LEN) {
-                fprintf(stderr, "allel %s trimed\n", allel2);
+                //fprintf(stderr, "allel %s trimed\n", allel2);
+                ;
             }
             bim_line->allel2[PLINE_MAX_ALLEL_LEN - 1] = '\0';
             strncpy(bim_line->allel2, allel2, PLINE_MAX_ALLEL_LEN - 1);
@@ -578,14 +580,17 @@ int
 bedloaddata_n(PLINKFILE_ptr plink_data, char *bed_data, uint64_t bed_data_len,
     int start_offset, int load_length)
 {
+    FILE *fin = plink_data->bed_file;
     uint32_t indiv_num = plink_data->individual_num;
+    uint64_t current_byte_offset = plink_data->bed_byte_offset;
+    uint32_t current_data_index = plink_data->current_bed_data_index;
 
     if ((load_length * indiv_num) != bed_data_len) {
         fprintf(stderr, "bed data length error.\n");
         return 1;
     }
     
-    plinkseek(plink_data, start_offset);
+    fseek(fin, start_offset * indiv_num, SEEK_SET);
     for (int i = 0; i < load_length; i++) {
         int status = 0;
         if ((status = bedreaddata(plink_data, bed_data, indiv_num)) == 0) {
@@ -597,6 +602,9 @@ bedloaddata_n(PLINKFILE_ptr plink_data, char *bed_data, uint64_t bed_data_len,
             return 1;
         }
     }
+    fseek(fin, current_byte_offset, SEEK_SET);
+    plink_data->current_bed_data_index = current_data_index;
+    plink_data->bed_byte_offset = current_byte_offset;
 
     return 0;
 }

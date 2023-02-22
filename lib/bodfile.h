@@ -49,9 +49,9 @@
 #define BOD_MT_CHROM 203
 #define BOD_CHROM_UNKNOW 13
 
-#define BOD_ORIEN_POS 0
-#define BOD_ORIEN_NEG 1
-#define BOD_ORIEN_NA 2
+#define BOD_ORIEN_POS 1
+#define BOD_ORIEN_NEG 2
+#define BOD_ORIEN_NA 0
 
 typedef struct bodfile {
     uint32_t individual_num;
