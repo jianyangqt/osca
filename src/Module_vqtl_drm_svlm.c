@@ -74,7 +74,7 @@ typedef struct {
     int opt_cis_window_bp;
 
     float pthresh;
-    int opt_mem;
+    float opt_mem;
 
     const char *opt_outname;  // output file name.
     const char *opt_outformat;
@@ -85,20 +85,26 @@ typedef struct {
 
 /*->> DRM Thread argument structure*/
 typedef struct {
-    int thread_index;
+
     int thread_num;
+    int thread_index;
+
+    uint32_t probe_slice_start_index;
+    uint32_t probe_slice_len;
+    uint32_t probe_offset;
+
+    uint32_t variant_slice_start_index;
+    uint32_t variant_slice_len;
 
     uint32_t fam_num;
     uint32_t oii_num;
-    uint32_t vari_num;
-    uint32_t probe_num;
     uint32_t align_len;
+
     char not_need_align;
 
     uint32_t *fam_index_array;
     uint32_t *oii_index_array;
 
-    uint32_t variant_load_num;
     char *variant_data;
     uint64_t variant_data_len_char;
 
@@ -163,14 +169,17 @@ static int align_fam_oii_ids(FAM_LINE_ptr fam_lines, uint32_t fam_line_num,
 int Module_vqtl_drm(int argc, char *argv[]);
 static DRM_THREAD_ARGS_ptr make_drm_threads_args(
     int thread_num, uint32_t indi_num_fam, uint32_t indi_num_oii,
-    uint32_t vari_num, uint32_t probe_num, uint32_t align_len, char not_need_align, uint32_t variant_load_num,
-    char *variant_data, uint64_t variant_data_len, uint32_t *fam_index_array,
-    uint32_t *oii_index_array, DRM_THREAD_ARGS_ptr thread_args);
+    uint32_t align_len, char not_need_align, uint32_t *fam_index_array,
+    uint32_t *oii_index_array, uint32_t probe_slice_start,
+    uint32_t probe_slice_len, char *variant_data, uint64_t variant_data_len,
+    DRM_THREAD_ARGS_ptr thread_args);
 static void free_drm_threads_args_malloc(DRM_THREAD_ARGS_ptr args, int thread_num);
 static void *drm_thread_worker(void *args);
 static void drm_print_res(DRM_THREAD_ARGS_ptr thread_args, int thread_num,
                       int probe_num, FILE *outfile);
-
+static void drm_write_tmp_data(DRM_THREAD_ARGS_ptr thread_args, int thread_num,
+    FILE *fout, float pthresh, uint32_t *varint_index_pass_thresh,
+    double *beta_value, double *se_value);
 
 int Module_vqtl_svlm(int argc, char *argv[]);
 static SVLM_THREAD_ARGS_ptr make_svlm_threads_args(int thread_num,
@@ -310,84 +319,142 @@ Module_vqtl_drm(int argc, char *argv[])
 
 
     uint64_t mem_size = 0;
-    int mem = args->opt_mem;
+    float mem = args->opt_mem;
     printf("--mem %d\n", mem);
-    if (mem == 0) {
+    if (mem == 0.0) {
         SYSINFO sysinfo_dt;
         get_sysinfo(&sysinfo_dt);
         mem_size = sysinfo_dt.mem_size_byte * (3 / 4);
     } else {
-        mem_size = (uint64_t)mem * 1024 * 1024 * 1024;
+        mem_size = (uint64_t)float_t((double)mem * 1024 * 1024 * 1024);
     }
     printf("mem size %lu\n", mem_size);
 
- 
 
-    uint32_t variant_load_len = 0;
-    variant_load_len = mem_size / (indi_num_fam * sizeof(char));
-    uint32_t variant_process_len = variant_end - variant_start_offset;
-    printf("variant_load_len %u; variant_process_len %u\n", variant_load_len,
-        variant_process_len);
+    uint32_t variant_load_len = mem_size / (indi_num_fam * sizeof(char));
+    uint32_t variant_total_len = variant_end - variant_start_offset;
+
 
     char *variant_data = NULL;
     uint64_t variant_data_len = 0;
-    if (variant_process_len > variant_load_len) {
+    if (variant_total_len > variant_load_len) {
         variant_data_len = variant_load_len * indi_num_fam;
         variant_data =
             (char *)malloc(sizeof(char) * variant_data_len);
     } else {
-        variant_data_len = variant_process_len * indi_num_fam;
+        variant_data_len = variant_total_len * indi_num_fam;
         variant_data =
             (char *)malloc(sizeof(char) * variant_data_len);
     }
 
-    printf("%lu\n", variant_data_len);
+
+    int thread_num = args->opt_thread;
+    pthread_t *restrict thread_ids =
+        (pthread_t *)malloc(sizeof(pthread_t) * thread_num);
+    DRM_THREAD_ARGS_ptr threads_args = (DRM_THREAD_ARGS_ptr)malloc(
+        sizeof(DRM_THREAD_ARGS) * thread_num);
+
+    uint32_t probe_slice_start = probe_start_offset;
+    uint32_t probe_slice_len = probe_end - probe_start_offset;
+    make_drm_threads_args(thread_num, indi_num_fam, indi_num_oii, align_len,
+        not_need_align,fam_index_array, oii_index_array,
+        probe_slice_start, probe_slice_len,
+        variant_data, variant_data_len,
+        threads_args);
+
+    // creat tmp directory
+    char tmp_dir_name[] = "oscatmp";
+    char tmp_fname[512];
+
+    if (access(tmp_dir_name, F_OK)) {
+        mkdir(tmp_dir_name);
+    } else {
+        DIR *dirp = opendir(tmp_dir_name);
+        struct dirent *dp = NULL;
+        while ((dp = readdir(dirp)) != NULL) {
+            if (strcmp(".", dp->d_name) != 0 && strcmp("..", dp->d_name) != 0) {
+                strcpy(tmp_fname, tmp_dir_name);
+                strcat(tmp_fname, "/");
+                strcat(tmp_fname, "dp->d_name");
+                if (unlink(tmp_fname)) {
+                    fprintf(stderr, "%s remove failed.\n", fname);
+                }
+            }
+        }
+    }
+
+    //malloc buffer for drm_write_tmp_data funtion.
+    uint32_t *variant_index_pass_thresh = (uint32_t *)malloc(sizeof(uint32_t) *
+        variant_load_len);
+    double *beta_value_pass_thresh = (double *)malloc(sizeof(double) * variant_load_len);
+    double *se_value_pass_thresh = (double *)malloc(sizeof(double) *
+        variant_load_len);
+
+
 
     uint64_t variant_data_len_real = 0;
-    uint32_t variant_load_len_real = 0;
-    int thread = args->opt_thread;
-    pthread_t *restrict thread_ids =
-        (pthread_t *)malloc(sizeof(pthread_t) * thread);
-    DRM_THREAD_ARGS_ptr threads_args = (DRM_THREAD_ARGS_ptr)malloc(
-        sizeof(DRM_THREAD_ARGS) * thread);
-    make_drm_threads_args(thread, indi_num_fam, indi_num_oii, vari_num,
-                          probe_num, align_len, not_need_align, variant_load_len, variant_data,
-                          variant_data_len, fam_index_array, oii_index_array,
-                          threads_args);
-
-
+    uint32_t variant_slice_start = 0;
+    uint32_t variant_slice_len = 0;
+    char tmp_fname_new[256];
+    uint32_t tmp_meta_arrary[4];
+    float pthresh = args->pthresh;
     for (int i = variant_start_offset; i < variant_end; i += variant_load_len) {
+        variant_slice_start = i;
         if (i + variant_load_len > variant_end) {
-            variant_load_len_real = variant_end - i;
+            variant_slice_len = variant_end - i;
         } else {
-            variant_load_len_real = variant_load_len;
+            variant_slice_len = variant_load_len;
         }
-        variant_data_len_real = variant_load_len_real * indi_num_fam;
-        bedloaddata_n(&plink_data, variant_data, variant_data_len_real, i, variant_load_len_real);
-        for (int k = 0; k < thread; k++) {
-            threads_args->variant_load_num = variant_load_len_real;
+
+
+        strcpy(tmp_fname, tmp_dir_name);
+        strcat(tmp_fname, "/");
+        sprintf(tmp_fname_new, "tmp_%u_%u_%u_%u", probe_slice_start,
+            probe_slice_len, variant_slice_start, variant_slice_len);
+        strcat(tmp_fname, tmp_fname_new);
+        tmp_meta_arrary[0] = probe_slice_start;
+        tmp_meta_arrary[1] = probe_slice_len;
+        tmp_meta_arrary[2] = variant_slice_start;
+        tmp_meta_arrary[3] = variant_slice_len;
+        FILE *fout = fopen(tmp_fname, "w");
+        if (!fout) {
+            fprintf(stderr, "open OSCA tmp file failed.\n");
+        }
+        fwrite(tmp_meta_arrary, sizeof(uint32_t), 4, fout);
+
+        variant_data_len_real = variant_slice_len * indi_num_fam;
+        bedloaddata_n(&plink_data, variant_data, variant_data_len_real,
+            variant_slice_start, variant_slice_len);
+        for (int k = 0; k < thread_num; k++) {
             threads_args->variant_data_len_char = variant_data_len_real;
+            threads_args->variant_slice_start_index = variant_slice_start;
+            threads_args->variant_slice_len = variant_slice_len;
         }
         
-        uint32_t j_limit = probe_end - thread + 1;
+        uint32_t j_limit = probe_end - thread_num + 1;
         int j = 0;
         bodfileseek(&bod_data, probe_start_offset);
-        for (j = probe_start_offset; j < j_limit; j += thread) {
+        for (j = probe_start_offset; j < j_limit; j += thread_num) {
             double *readdata;
             uint32_t readdata_len;
-            for (int n = 0; n < thread; n++) {
+            for (int n = 0; n < thread_num; n++) {
                 readdata = threads_args[n].probe_data;
                 readdata_len = threads_args[n].oii_num;
                 bodreaddata(&bod_data, readdata, readdata_len);
+                threads_args->probe_offset = j + n;
             }
 
-            for (int m = 0; m < thread; m++) {
+            for (int m = 0; m < thread_num; m++) {
                 pthread_create(&(thread_ids[m]), NULL, drm_thread_worker, &(threads_args[m]));
             }
-            for (int p = 0; p < thread; p++) {
+            for (int p = 0; p < thread_num; p++) {
                 pthread_join(thread_ids[p], NULL);
             }
 
+            dir_write_tmp_data(threads_args, thread_num, fout, pthresh,
+                               variant_index_pass_thresh,
+                               beta_value_pass_thresh,
+                               se_value_pass_thresh);
         }
 
         int left_probe_n = 0;
@@ -398,6 +465,7 @@ Module_vqtl_drm(int argc, char *argv[])
             readdata = threads_args[j].probe_data;
             readdata_len = threads_args[j].oii_num;
             bodreaddata(&bod_data, readdata, readdata_len);
+            threads_args->probe_offset = j;
         }
         for (int m = 0; m < left_probe_n; m++) {
             pthread_create(&(thread_ids[m]), NULL, drm_thread_worker,
@@ -405,8 +473,23 @@ Module_vqtl_drm(int argc, char *argv[])
         }
         for (int p = 0; p < left_probe_n; p++) {
             pthread_join(thread_ids[p], NULL);
+            
         }
+
+        dir_write_tmp_data(threads_args, left_probe_n, fout, pthresh,
+                           variant_index_pass_thresh, beta_value_pass_thresh,
+                           se_value_pass_thresh);
+
+        fclose(fout);
     }
+
+
+    //merge result into besd or plain text file.
+
+
+
+    //remove tmp directory.
+
 
     plinkclose(&plink_data);
     bodfileclose(&bod_data);
@@ -414,7 +497,9 @@ Module_vqtl_drm(int argc, char *argv[])
     free(fam_index_array);
     free(fam_lines);
     free(oii_lines);
-
+    free(variant_index_pass_thresh);
+    free(beta_value_pass_thresh);
+    free(se_value_pass_thresh);
     return 1;
 }
 
@@ -723,7 +808,7 @@ help_legacy(void)
         "--cis-window-pb\n"
         "                INT, widow width in basepare defined as cis.(not support yet)\n"
         "--pthresh     FLOAT, p value to filter beta1 t test result.\n"
-        "--mem           INT, GB, memoray used by program, default is 3/4 all memoray.\n"
+        "--mem         FLOAT, GB, memoray used by program, default is 3/4 all memoray.\n"
         "--out           STR, output file name.\n"
         "--outformat     STR, output format, default is besd.(not support yet)\n\n"
     );
@@ -759,7 +844,7 @@ vqtl_parse_args_legacy(int argc, char *argv[], const char *method, VQTL_ARGS_ptr
 
     args->opt_outname = NULL;
     args->opt_outformat = NULL;
-    args->opt_mem = 0;
+    args->opt_mem = 0.0;
 
 
     char out_tast_suffix[64];
@@ -971,7 +1056,7 @@ vqtl_parse_args_legacy(int argc, char *argv[], const char *method, VQTL_ARGS_ptr
 
             if (strcmp(argv[i], "--mem") == 0) {
                 if (i + 1 < argc && strncmp(argv[i + 1], "--", 2) != 0) {
-                    args->opt_mem = atoi(argv[++i]);
+                    args->opt_mem = atof(argv[++i]);
                     printf("--mem %s\n", argv[i]);
                     continue;
                 } else {
@@ -1299,27 +1384,29 @@ align_fam_oii_ids(FAM_LINE_ptr fam_lines, uint32_t fam_line_num,
     return 0;
 }
 
-
 static DRM_THREAD_ARGS_ptr
-make_drm_threads_args(int thread_num, uint32_t indi_num_fam, uint32_t indi_num_oii,
-    uint32_t vari_num, uint32_t probe_num, uint32_t align_len, char not_need_align, uint32_t variant_load_num,
+make_drm_threads_args(
+    int thread_num, uint32_t indi_num_fam, uint32_t indi_num_oii,
+    uint32_t align_len, char not_need_align, uint32_t *fam_index_array,
+    uint32_t *oii_index_array,
+    uint32_t probe_slice_start, uint32_t probe_slice_len,
     char *variant_data, uint64_t variant_data_len,
-    uint32_t *fam_index_array, uint32_t *oii_index_array,
-    DRM_THREAD_ARGS_ptr thread_args)
-{
+    DRM_THREAD_ARGS_ptr thread_args) {
+        
     for (int i = 0; i < thread_num; i++) {
         thread_args[i].thread_index = i;
         thread_args[i].thread_num = thread_num;
 
         thread_args[i].fam_num = indi_num_fam;
         thread_args[i].oii_num = indi_num_oii;
-        thread_args[i].vari_num = vari_num;
-        thread_args[i].probe_num = probe_num;
         thread_args[i].align_len = align_len;
         thread_args[i].not_need_align = not_need_align;
         thread_args[i].fam_index_array = fam_index_array;
         thread_args[i].oii_index_array = oii_index_array;
-        thread_args[i].variant_load_num = variant_load_num;
+
+        thread_args[i].probe_slice_start_index = probe_slice_start;
+        thread_args[i].probe_slice_len = probe_slice_len;
+
         thread_args[i].variant_data = variant_data;
         thread_args[i].variant_data_len_char = variant_data_len;
 
@@ -1344,8 +1431,6 @@ make_drm_threads_args(int thread_num, uint32_t indi_num_fam, uint32_t indi_num_o
     
     return thread_args;
 }
-
-
 
 
 static void
@@ -1535,6 +1620,35 @@ drm_print_res(DRM_THREAD_ARGS_ptr thread_args, int thread_num, int probe_num,
     return;
 }
 
+static void
+drm_write_tmp_data(DRM_THREAD_ARGS_ptr thread_args, int thread_num, FILE *fout,
+    float pthresh, uint32_t *varint_index_pass_thresh, double *beta_value,
+    double *se_value)
+{
+    uint32_t variant_num_pass_thresh = 0;
+    double *result = NULL;
+    uint32_t variant_slice_len = 0;
+    for (int i = 0; i < thread_num; i++) {
+        result = thread_args[i].result;
+        variant_slice_len = thread_args[i].variant_slice_len;
+        for (int j = 0; j < variant_slice_len; j++) {
+            uint32_t offset = j * 3;
+            if (result[offset + 2] <= pthresh) {
+                varint_index_pass_thresh[variant_num_pass_thresh] = j;
+                beta_value[variant_num_pass_thresh] = result[offset]
+                se_value[variant_num_pass_thresh] = result[offset + 1]
+                variant_num_pass_thresh++;
+            }
+
+        }
+        fwrite(&variant_num_pass_thresh, sizeof(uint32_t), 1, fout);
+        fwrite(varint_index_pass_thresh, sizeof(uint32_t),
+            variant_num_pass_thresh, fout);
+        fwrite(beta_value, sizeof(double), variant_num_pass_thresh, fout);
+        fwrite(beta_value, sizeof(double), variant_num_pass_thresh, fout);
+
+    }
+}
 
 
 static SVLM_THREAD_ARGS_ptr make_svlm_threads_args(
