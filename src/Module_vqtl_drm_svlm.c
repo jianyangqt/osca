@@ -37,6 +37,7 @@
 #include "../lib/plinklite.h"
 #include "../lib/bodfile.h"
 #include "../lib/sysinfo.h"
+#include "../lib/besdfile.h"
 
 
 /*
@@ -115,46 +116,56 @@ typedef struct {
     double *g2_array;
     double *geno_array;
     double *pheno_array;
-    double *result;
+    float *result;
 
 } DRM_THREAD_ARGS, *DRM_THREAD_ARGS_ptr;
 /*<<- DRM Thread argument structure*/
 
+
 /*->> SVLM Thread argument structure*/
 typedef struct {
     int thread_index;
+    int thread_num;
+
+    uint32_t probe_slice_start_index;
+    uint32_t probe_slice_len;
+    uint32_t probe_offset;
+
+    uint32_t variant_slice_start_index;
+    uint32_t variant_slice_len;
 
     uint32_t fam_num;
     uint32_t oii_num;
-    uint32_t probe_num;
     uint32_t align_len;
 
-    // pointer to memory have alloced.
-    double *bod_data_all_probe;
+    char not_need_align;
+
     uint32_t *fam_index_array;
-    uint32_t *oii_index_arrya;
+    uint32_t *oii_index_array;
+
+    char *variant_data;
+    uint64_t variant_data_len_char;
 
     // pointer need to allocate.
-    double *geno_data_this_variant;
+    double *probe_data;
     double *geno_array;
     double *pheno_array;
-    double *result;
+    float *result;
 
 } SVLM_THREAD_ARGS, *SVLM_THREAD_ARGS_ptr;
 /*<<- SVLM Thread argument structure*/
 
 
 static void help_legacy(void);
-static VQTL_ARGS_ptr vqtl_parse_args_legacy(int argc, char *argv[], const char *method,
-                                     VQTL_ARGS_ptr args);
+static VQTL_ARGS_ptr vqtl_parse_args_legacy(int argc, char *argv[],
+    const char *method, VQTL_ARGS_ptr args);
 
 
 static int compare_uint32(const void *a, const void *b);
 static int compare_double(const void *a, const void *b);
 static unsigned int BKDRHash(char *str);
 static int linner_regression2(const double *x, const double *y,
-    const uint32_t array_len,
-    double *beta0, double *beta0_se, double *beta0_p,
+    const uint32_t array_len, double *beta0, double *beta0_se, double *beta0_p,
     double *beta1, double *beta1_se, double *beta1_p,
     double *ftest_p_val);
 static int linner_regression(const double *x, const double *y, uint32_t array_len, double *c1_res,
@@ -172,49 +183,25 @@ static DRM_THREAD_ARGS_ptr make_drm_threads_args(
     uint32_t align_len, char not_need_align, uint32_t *fam_index_array,
     uint32_t *oii_index_array, uint32_t probe_slice_start,
     uint32_t probe_slice_len, char *variant_data, uint64_t variant_data_len,
-    DRM_THREAD_ARGS_ptr thread_args);
+    uint32_t variant_load_len, DRM_THREAD_ARGS_ptr thread_args);
 static void free_drm_threads_args_malloc(DRM_THREAD_ARGS_ptr args, int thread_num);
 static void *drm_thread_worker(void *args);
-static void drm_print_res(DRM_THREAD_ARGS_ptr thread_args, int thread_num,
-                      int probe_num, FILE *outfile);
-static void drm_write_tmp_data(DRM_THREAD_ARGS_ptr thread_args, int thread_num,
-    FILE *fout, float pthresh, uint32_t *varint_index_pass_thresh,
-    double *beta_value, double *se_value);
 
 int Module_vqtl_svlm(int argc, char *argv[]);
-static SVLM_THREAD_ARGS_ptr make_svlm_threads_args(int thread_num,
-    uint32_t fam_node_num, uint32_t oii_node_num,
-    uint32_t probe_num, uint32_t align_len, double *bod_data_all,
-    uint32_t *fam_index_array, uint32_t *oii_index_array,
-    SVLM_THREAD_ARGS_ptr thread_args);
+static SVLM_THREAD_ARGS_ptr make_svlm_threads_args(
+    int thread_num, uint32_t indi_num_fam, uint32_t indi_num_oii,
+    uint32_t align_len, char not_need_align, uint32_t *fam_index_array,
+    uint32_t *oii_index_arrary, uint32_t probe_slice_start,
+    uint32_t probe_slice_len, char *variant_data, uint64_t variant_data_len,
+    uint32_t variant_load_len, SVLM_THREAD_ARGS_ptr thread_args);
 static void free_svlm_threads_args_malloc(SVLM_THREAD_ARGS_ptr thread_args,
     int thread_num);
 static void * svlm_thread_worker(void *args);
-static void svlm_print_res(SVLM_THREAD_ARGS_ptr thread_args, int thread_num,
-    int probe_num, FILE *outfile);
-
-
-enum PROGRESS {
-    BEGIN,
-    ARG_PARSED,
-    GENO_FILE_MALLOC,
-    BIM_READED,
-    FAM_READED,
-    PHENO_FILE_MALLOC,
-    OPI_READED,
-    OII_READED,
-    FAM_OII_INDEX_ARRAY_MALLOC,
-    BOD_DATA_INITED,
-    ALL_BOD_DATA_LOADED,
-    BED_DATA_INITED,
-    GET_VAR_REANGE,
-    THREAD_ID_MALLOC,
-    THREAD_ARGS_MALLOC,
-    THREAD_ARGS_MEMBER_MALLOC,
-    OUT_FIEL_OPENED,
-    END
-};
-
+static void write_tmp_data(void *thread_args_ori, char *args_type,
+                                int thread_num, FILE *fout, float pthresh,
+                                uint32_t *varint_index_pass_thresh,
+                                float *beta_value, float *se_value);
+;
 
 int
 Module_vqtl_drm(int argc, char *argv[])
@@ -293,47 +280,90 @@ Module_vqtl_drm(int argc, char *argv[])
     
     int task_num = args->opt_tast_num;
     int task_id = args->opt_tast_id;
+    char res_fname[512];
+    if (args->opt_outname) {
+        strcpy(res_fname, args->opt_outname);
+    } else {
+        strcpy(res_fname, "out");
+    }
     if (task_id > task_num) {
         fprintf(stderr, "task id should less than task number.\n");
         return 1;
     }
     int task_len = 0;
     if (task_num > 1) {
+        char sufix[512];
         task_len = ceil((double)probe_num / task_num);
         if (task_id > 1 && task_id <= task_num) {
+            sprintf(sufix, "_%d_%d", task_id, task_num);
+            strcat(res_fname, sufix);
             probe_start_offset = task_len * (task_id - 1);
 
         } else {
+            sprintf(sufix, "_%d_%d", 1, task_num);
+            strcat(res_fname, sufix);
             probe_start_offset = 0;
         }
 
         if (probe_start_offset + task_len < probe_num) {
             probe_end = probe_start_offset + task_len;
         }
-
     }
+    int res_fname_len = strlen(res_fname);
+
     printf("start probe offset: %u\n", probe_start_offset);
     printf("end probe: %u\n", probe_end);
     printf("start variant offset: %u\n", variant_start_offset);
     printf("end variant: %u\n", variant_end);
 
+    //write epi
+    res_fname[res_fname_len] = '\0';
+    strcat(res_fname, ".epi");
+    FILE *epi_fout = fopen(res_fname, "w");
+    //pass lines
+    for (int i = 0; i < probe_start_offset; i++) {
+        OPI_LINE opi_line;
+        opireadline(&bod_data, &opi_line);
+    }
+    for (int i = probe_start_offset; i < probe_end; i++) {
+        OPI_LINE opi_line;
+        char chrom[4];
+        char ori[4];
+        opireadline(&bod_data, &opi_line);
+        if (opi_line.chrom == 201) {
+            strcpy(chrom, "X");
+        } else if (opi_line.chrom == 202) {
+            strcpy(chrom, "Y");
+        } else if (opi_line.chrom == 203) {
+            strcpy(chrom, "MT");
+        } else {
+            sprintf(chrom, "%d", opi_line.chrom);
+        }
+        if (opi_line.ori == 0) {
+            strcpy(ori, "NA");
+        } else if (opi_line.ori == 1) {
+            strcpy(ori, "+");
+        } else {
+            strcpy(ori, "-");
+        }
+        fprintf(epi_fout, "%s\t%s\t%u\t%s\t%s\n", chrom, opi_line.probe_id,
+            opi_line.position, opi_line.gene_id, ori);
+    }
+    fclose(epi_fout);
 
     uint64_t mem_size = 0;
     float mem = args->opt_mem;
-    printf("--mem %d\n", mem);
     if (mem == 0.0) {
         SYSINFO sysinfo_dt;
         get_sysinfo(&sysinfo_dt);
         mem_size = sysinfo_dt.mem_size_byte * (3 / 4);
     } else {
-        mem_size = (uint64_t)float_t((double)mem * 1024 * 1024 * 1024);
+        mem_size = (uint64_t)floor((double)mem * 1024 * 1024 * 1024);
     }
-    printf("mem size %lu\n", mem_size);
-
+    printf("granted mem size %llu\n", mem_size);
 
     uint32_t variant_load_len = mem_size / (indi_num_fam * sizeof(char));
     uint32_t variant_total_len = variant_end - variant_start_offset;
-
 
     char *variant_data = NULL;
     uint64_t variant_data_len = 0;
@@ -342,11 +372,14 @@ Module_vqtl_drm(int argc, char *argv[])
         variant_data =
             (char *)malloc(sizeof(char) * variant_data_len);
     } else {
+        variant_load_len = variant_total_len;
         variant_data_len = variant_total_len * indi_num_fam;
         variant_data =
             (char *)malloc(sizeof(char) * variant_data_len);
     }
-
+    printf("variant load len: %u\n", variant_load_len);
+    printf("variant total len: %u\n", variant_total_len);
+    printf("variant_data_len: %llu\n", variant_data_len);
 
     int thread_num = args->opt_thread;
     pthread_t *restrict thread_ids =
@@ -359,15 +392,14 @@ Module_vqtl_drm(int argc, char *argv[])
     make_drm_threads_args(thread_num, indi_num_fam, indi_num_oii, align_len,
         not_need_align,fam_index_array, oii_index_array,
         probe_slice_start, probe_slice_len,
-        variant_data, variant_data_len,
+        variant_data, variant_data_len, variant_load_len,
         threads_args);
 
     // creat tmp directory
     char tmp_dir_name[] = "oscatmp";
     char tmp_fname[512];
-
     if (access(tmp_dir_name, F_OK)) {
-        mkdir(tmp_dir_name);
+        mkdir(tmp_dir_name, S_IRWXU);
     } else {
         DIR *dirp = opendir(tmp_dir_name);
         struct dirent *dp = NULL;
@@ -375,9 +407,9 @@ Module_vqtl_drm(int argc, char *argv[])
             if (strcmp(".", dp->d_name) != 0 && strcmp("..", dp->d_name) != 0) {
                 strcpy(tmp_fname, tmp_dir_name);
                 strcat(tmp_fname, "/");
-                strcat(tmp_fname, "dp->d_name");
+                strcat(tmp_fname, dp->d_name);
                 if (unlink(tmp_fname)) {
-                    fprintf(stderr, "%s remove failed.\n", fname);
+                    fprintf(stderr, "%s remove failed.\n", tmp_fname);
                 }
             }
         }
@@ -386,11 +418,8 @@ Module_vqtl_drm(int argc, char *argv[])
     //malloc buffer for drm_write_tmp_data funtion.
     uint32_t *variant_index_pass_thresh = (uint32_t *)malloc(sizeof(uint32_t) *
         variant_load_len);
-    double *beta_value_pass_thresh = (double *)malloc(sizeof(double) * variant_load_len);
-    double *se_value_pass_thresh = (double *)malloc(sizeof(double) *
-        variant_load_len);
-
-
+    float *beta_value_pass_thresh = (float *)malloc(sizeof(float) * variant_load_len);
+    float *se_value_pass_thresh = (float *)malloc(sizeof(float) * variant_load_len);
 
     uint64_t variant_data_len_real = 0;
     uint32_t variant_slice_start = 0;
@@ -398,6 +427,16 @@ Module_vqtl_drm(int argc, char *argv[])
     char tmp_fname_new[256];
     uint32_t tmp_meta_arrary[4];
     float pthresh = args->pthresh;
+
+    res_fname[res_fname_len] = '\0';
+    strcat(res_fname, ".esi");
+    FILE *esi_fout = fopen(res_fname, "w");
+    //pass first variant_start_offset lines.
+    for (int i = 0; i < variant_start_offset; i++) {
+        BIM_LINE bim_line;
+        bimreadline(&plink_data, &bim_line);
+    }
+
     for (int i = variant_start_offset; i < variant_end; i += variant_load_len) {
         variant_slice_start = i;
         if (i + variant_load_len > variant_end) {
@@ -405,7 +444,8 @@ Module_vqtl_drm(int argc, char *argv[])
         } else {
             variant_slice_len = variant_load_len;
         }
-
+        printf("variant slice %u to %u\n", variant_slice_start,
+            variant_slice_start + variant_slice_len);
 
         strcpy(tmp_fname, tmp_dir_name);
         strcat(tmp_fname, "/");
@@ -425,47 +465,82 @@ Module_vqtl_drm(int argc, char *argv[])
         variant_data_len_real = variant_slice_len * indi_num_fam;
         bedloaddata_n(&plink_data, variant_data, variant_data_len_real,
             variant_slice_start, variant_slice_len);
+        char *variant_data_ptr = variant_data;
+        for (int i = 0; i < variant_slice_len; i++) {
+            //do need align before calculate allel_freq?
+            float first_allel_freq = 0;
+            uint32_t value_num = 0;
+            uint32_t first_allel_count = 0;
+            for (int j = 0; j < indi_num_fam; j++) {
+                if (variant_data_ptr[j] != 4) {
+                    first_allel_count += variant_data_ptr[j];
+                    value_num++;
+                }
+            }
+
+            first_allel_freq = (float)first_allel_count / (2.0 * value_num);
+            BIM_LINE bim_line;
+            char chrom[4];
+            bimreadline(&plink_data, &bim_line);
+            if (bim_line.chrom == 201) {
+                strcpy(chrom, "X");
+            } else if (bim_line.chrom == 202) {
+                strcpy(chrom, "Y");
+            } else if (bim_line.chrom == 203) {
+                strcpy(chrom, "MT");
+            } else {
+                sprintf(chrom, "%d", bim_line.chrom);
+            }
+            fprintf(esi_fout, "%s\t%s\t%f\t%u\t%s\t%s\t%f\n", chrom, bim_line.rsid,
+                bim_line.phy_pos, bim_line.pos, bim_line.allel1,
+                bim_line.allel2, first_allel_freq);            
+            variant_data_ptr += indi_num_fam;
+        }
         for (int k = 0; k < thread_num; k++) {
-            threads_args->variant_data_len_char = variant_data_len_real;
-            threads_args->variant_slice_start_index = variant_slice_start;
-            threads_args->variant_slice_len = variant_slice_len;
+            threads_args[k].variant_data_len_char = variant_data_len_real;
+            threads_args[k].variant_slice_start_index = variant_slice_start;
+            threads_args[k].variant_slice_len = variant_slice_len;
         }
         
         uint32_t j_limit = probe_end - thread_num + 1;
-        int j = 0;
+        uint32_t j = 0;
+        printf("seek bod file \n");
         bodfileseek(&bod_data, probe_start_offset);
         for (j = probe_start_offset; j < j_limit; j += thread_num) {
-            double *readdata;
-            uint32_t readdata_len;
+            printf("probe index: %u\n", j);
+
             for (int n = 0; n < thread_num; n++) {
+                double *readdata;
+                uint32_t readdata_len;
                 readdata = threads_args[n].probe_data;
                 readdata_len = threads_args[n].oii_num;
                 bodreaddata(&bod_data, readdata, readdata_len);
-                threads_args->probe_offset = j + n;
+                threads_args[n].probe_offset = j + n;
             }
 
             for (int m = 0; m < thread_num; m++) {
-                pthread_create(&(thread_ids[m]), NULL, drm_thread_worker, &(threads_args[m]));
+                pthread_create(&(thread_ids[m]), NULL, drm_thread_worker,
+                    &(threads_args[m]));
             }
             for (int p = 0; p < thread_num; p++) {
                 pthread_join(thread_ids[p], NULL);
             }
 
-            dir_write_tmp_data(threads_args, thread_num, fout, pthresh,
-                               variant_index_pass_thresh,
-                               beta_value_pass_thresh,
-                               se_value_pass_thresh);
+            write_tmp_data(threads_args, VQTL_DRM_METHOD, thread_num, fout,
+                               pthresh, variant_index_pass_thresh,
+                               beta_value_pass_thresh, se_value_pass_thresh);
         }
 
         int left_probe_n = 0;
         for (; j < probe_end; j++) {
-            left_probe_n++;
+            printf("j: %u\n", j);
             double *readdata;
             uint32_t readdata_len;
-            readdata = threads_args[j].probe_data;
-            readdata_len = threads_args[j].oii_num;
+            readdata = threads_args[left_probe_n].probe_data;
+            readdata_len = threads_args[left_probe_n].oii_num;
             bodreaddata(&bod_data, readdata, readdata_len);
-            threads_args->probe_offset = j;
+            threads_args[left_probe_n].probe_offset = j;
+            left_probe_n++;
         }
         for (int m = 0; m < left_probe_n; m++) {
             pthread_create(&(thread_ids[m]), NULL, drm_thread_worker,
@@ -476,20 +551,153 @@ Module_vqtl_drm(int argc, char *argv[])
             
         }
 
-        dir_write_tmp_data(threads_args, left_probe_n, fout, pthresh,
+        write_tmp_data(threads_args, VQTL_DRM_METHOD, left_probe_n, fout, pthresh,
                            variant_index_pass_thresh, beta_value_pass_thresh,
                            se_value_pass_thresh);
 
         fclose(fout);
     }
-
+    fclose(esi_fout);
 
     //merge result into besd or plain text file.
+    uint32_t tmp_file_num = (uint32_t)ceil((double)(variant_end - variant_start_offset) /
+        variant_load_len);
+    FILE **tmp_files_fin = (FILE **)malloc(sizeof(FILE *) * tmp_file_num);
+    uint32_t tmp_file_index = 0; 
+    for (int i = variant_start_offset; i < variant_end; i+=variant_load_len) {
+        variant_slice_start = i;
+        if (i + variant_load_len > variant_end) {
+            variant_slice_len = variant_end - i;
+        } else {
+            variant_slice_len = variant_load_len;
+        }
 
+        strcpy(tmp_fname, tmp_dir_name);
+        strcat(tmp_fname, "/");
+        sprintf(tmp_fname_new, "tmp_%u_%u_%u_%u", probe_slice_start,
+                probe_slice_len, variant_slice_start, variant_slice_len);
+        strcat(tmp_fname, tmp_fname_new);
 
+        FILE *fin = fopen(tmp_fname, "r");
+        if (!fin) {
+            fprintf(stderr, "open OSCA tmp file failed.\n");
+        }
+        tmp_files_fin[tmp_file_index] = fin;
+        tmp_file_index++;
+    }
+
+    int besd_file_format = 3;
+    uint32_t besd_sample_num = align_len;
+    uint32_t besd_esi_num = variant_end - variant_start_offset;
+    uint32_t besd_epi_num = probe_end - probe_start_offset;
+    uint64_t besd_value_num = 0;
+    uint64_t *besd_offset = (uint64_t *)malloc(sizeof(uint64_t) * (besd_epi_num * 2 + 1));
+    besd_offset[0] = 0;
+    uint32_t *besd_index = (uint32_t *)malloc(sizeof(uint32_t) * besd_esi_num);
+    float *besd_beta = (float *)malloc(sizeof(float) * besd_esi_num);
+    float *besd_se = (float *)malloc(sizeof(float) * besd_esi_num);
+    
+    for (int i = 0; i < tmp_file_num; i++) {
+        uint32_t first4[4];
+        fread(first4, sizeof(uint32_t), 4, tmp_files_fin[i]);
+    }
+    strcpy(tmp_fname, tmp_dir_name);
+    strcat(tmp_fname, "/");
+    strcat(tmp_fname, "besd_meta");
+    FILE *besd_meta_fout = fopen(tmp_fname, "w");
+    strcpy(tmp_fname, tmp_dir_name);
+    strcat(tmp_fname, "/");
+    strcat(tmp_fname, "besd_index");
+    FILE *besd_index_fout = fopen(tmp_fname, "w");
+    strcpy(tmp_fname, tmp_dir_name);
+    strcat(tmp_fname, "/");
+    strcat(tmp_fname, "besd_beta_se");
+    FILE *besd_beta_se_fout = fopen(tmp_fname, "w");
+    for (int i = 0; i < besd_epi_num; i++) {
+        uint32_t data_num_probe = 0;
+        uint32_t *besd_index_ptr = besd_index;
+        float *besd_beta_ptr = besd_beta;
+        float *besd_se_ptr = besd_se;
+        for (int j = 0; j < tmp_file_num; j++) {
+            uint32_t data_num_file = 0;
+            fread(&data_num_file, sizeof(uint32_t), 1, tmp_files_fin[j]);
+            data_num_probe += data_num_file;
+            fread(besd_index_ptr, sizeof(uint32_t), data_num_file, tmp_files_fin[j]);
+            fread(besd_beta_ptr, sizeof(float), data_num_file, tmp_files_fin[j]);
+            fread(besd_se_ptr, sizeof(float), data_num_file, tmp_files_fin[j]);
+            besd_index_ptr += data_num_file;
+            besd_beta_ptr += data_num_file;
+            besd_se_ptr += data_num_file;
+        }
+
+        besd_value_num += 2 * data_num_probe;
+        besd_offset[i * 2 + 1] = besd_offset[i * 2] * data_num_probe;
+        besd_offset[i * 2 + 2] = besd_offset[i * 2 + 1] * data_num_probe;
+        besd_sparse_write_variant_index(besd_index, data_num_probe, besd_index_fout);
+        besd_sparse_write_beta_se_data(besd_beta, besd_se, data_num_probe, besd_beta_se_fout);
+    }
+    besd_sparse_write_meta(besd_file_format, besd_sample_num, besd_esi_num,
+        besd_epi_num, besd_value_num, besd_offset, besd_meta_fout);
+    for (int k = 0; k < tmp_file_num; k++) {
+        fclose(tmp_files_fin[k]);
+    }
+    fclose(besd_index_fout);
+    fclose(besd_beta_se_fout);
+    fclose(besd_meta_fout);
+
+    strcpy(tmp_fname, tmp_dir_name);
+    strcat(tmp_fname, "/");
+    strcat(tmp_fname, "besd_meta");
+    FILE *besd_meta_fin = fopen(tmp_fname, "r");
+    strcpy(tmp_fname, tmp_dir_name);
+    strcat(tmp_fname, "/");
+    strcat(tmp_fname, "besd_index");
+    FILE *besd_index_fin = fopen(tmp_fname, "r");
+    strcpy(tmp_fname, tmp_dir_name);
+    strcat(tmp_fname, "/");
+    strcat(tmp_fname, "besd_beta_se");
+    FILE *besd_beta_se_fin = fopen(tmp_fname, "r");
+    res_fname[res_fname_len] = '\0';
+    strcat(res_fname, ".besd");
+    FILE *besd_fout = fopen(res_fname, "w");
+
+    //here borrow variant data as a file read buffer.
+    uint64_t read_len = 0;
+    while (read_len = fread(variant_data, sizeof(char), variant_data_len, besd_meta_fin)) {
+        fwrite(variant_data, sizeof(char), read_len, besd_fout);
+    }
+
+    while (read_len = fread(variant_data, sizeof(char), variant_data_len,
+                            besd_index_fin)) {
+        fwrite(variant_data, sizeof(char), read_len, besd_fout);
+    }
+
+    while (read_len = fread(variant_data, sizeof(char), variant_data_len,
+                            besd_beta_se_fin)) {
+        fwrite(variant_data, sizeof(char), read_len, besd_fout);
+    }
+    fclose(besd_meta_fin);
+    fclose(besd_index_fin);
+    fclose(besd_beta_se_fin);
+    fclose(besd_fout);
 
     //remove tmp directory.
 
+    if (!access(tmp_dir_name, F_OK)) {
+        DIR *dirp = opendir(tmp_dir_name);
+        struct dirent *dp = NULL;
+        while ((dp = readdir(dirp)) != NULL) {
+            if (strcmp(".", dp->d_name) != 0 && strcmp("..", dp->d_name) != 0) {
+                strcpy(tmp_fname, tmp_dir_name);
+                strcat(tmp_fname, "/");
+                strcat(tmp_fname, dp->d_name);
+                if (unlink(tmp_fname)) {
+                    fprintf(stderr, "%s remove failed.\n", tmp_fname);
+                }
+            }
+        }
+        rmdir(tmp_dir_name);
+    }
 
     plinkclose(&plink_data);
     bodfileclose(&bod_data);
@@ -497,9 +705,14 @@ Module_vqtl_drm(int argc, char *argv[])
     free(fam_index_array);
     free(fam_lines);
     free(oii_lines);
+    free(variant_data);
+    free(thread_ids);
+    free_drm_threads_args_malloc(threads_args, thread_num);
+    free(threads_args);
     free(variant_index_pass_thresh);
     free(beta_value_pass_thresh);
     free(se_value_pass_thresh);
+    
     return 1;
 }
 
@@ -507,8 +720,6 @@ Module_vqtl_drm(int argc, char *argv[])
 int
 Module_vqtl_svlm(int argc, char *argv[])
 {
-/*
-    enum PROGRESS svlm_progress = BEGIN;
     VQTL_ARGS_ptr args = (VQTL_ARGS_ptr)malloc(sizeof(VQTL_ARGS));
     args = vqtl_parse_args_legacy(argc, argv, VQTL_SVLM_METHOD, args);
     if (!(args->flag_vqtl) || !(args->method)) {
@@ -517,267 +728,496 @@ Module_vqtl_svlm(int argc, char *argv[])
         help_legacy();
         return 1;
     }
-    svlm_progress = ARG_PARSED;
-   
-
     printf("\n\033[0;32m>>>VQTL Module SVLM method\033[0m Begin\n");
 
-    int geno_name_len = strlen(args->arg_geno_file);
-    char *geno_file = (char *)malloc(sizeof(char) * (geno_name_len + 5));
-    if (!geno_file) {
-        fprintf(stderr, "malloc for geno file name failed.\n");
-        goto clean_before_exit;
-    }
-    svlm_progress = GENO_FILE_MALLOC;
+    const char *plinkf_filename = args->arg_geno_file;
+    PLINKFILE plink_data = plinkopen(plinkf_filename);
+    const char *bod_filename = args->opt_pheno_bod;
+    BODFILE bod_data = bodfileopen(bod_filename);
 
-    strcpy(geno_file, args->arg_geno_file);
-    strcat(geno_file, ".bim");
-    BIM_DATA_ptr bim_data_res = read_bim_file(geno_file);
-    if (!bim_data_res) {
-        fprintf(stderr, "read bim failed.\n");
-        goto clean_before_exit;
-    }
-    svlm_progress = BIM_READED;
+    uint32_t indi_num_fam = plink_data.individual_num;
+    uint32_t indi_num_oii = bod_data.individual_num;
+    uint32_t vari_num = plink_data.variant_num;
+    uint32_t probe_num = bod_data.probe_num;
+    printf("fam len: %u\noii len: %u\nvariant num: %u\nprobe num: %u\n",
+           indi_num_fam, indi_num_oii, vari_num, probe_num);
 
-    geno_file[geno_name_len] = '\0';
-    strcat(geno_file, ".fam");
-    FAM_DATA_ptr fam_data_res = read_fam_file(geno_file);
-    if (!fam_data_res) {
-        fprintf(stderr, "read fam file failed.\n");
-        goto clean_before_exit;
-    }
-    svlm_progress = FAM_READED;
-    
-    int pheno_name_len = strlen(args->opt_pheno_bod);
-    char *pheno_file = (char *)malloc(sizeof(char) * (pheno_name_len + 5));
-    if (!pheno_file) {
-        fprintf(stderr, "malloc for pheno file failed.\n");
-        goto clean_before_exit;
-    }
-    svlm_progress = PHENO_FILE_MALLOC;
+    // aligne fam and oii ids
+    uint32_t *fam_index_array =
+        (uint32_t *)malloc(sizeof(uint32_t) * indi_num_fam);
+    uint32_t *oii_index_array =
+        (uint32_t *)malloc(sizeof(uint32_t) * indi_num_oii);
+    FAM_LINE_ptr fam_lines =
+        (FAM_LINE_ptr)malloc(sizeof(FAM_LINE) * indi_num_fam);
+    OII_LINE_ptr oii_lines =
+        (OII_LINE_ptr)malloc(sizeof(OII_LINE) * indi_num_oii);
+    famreadlines(&plink_data, fam_lines, indi_num_fam);
+    oiireadlines(&bod_data, oii_lines, indi_num_oii);
 
-    strcpy(pheno_file, args->opt_pheno_bod);
-    strcat(pheno_file, ".opi");
-    OPI_DATA_ptr opi_data_res = read_opi_file(pheno_file);
-    if (!opi_data_res) {
-        fprintf(stderr, "read pheno file failed.\n");
-        goto clean_before_exit;
-    }
-    svlm_progress = OPI_READED;
-
-    pheno_file[pheno_name_len] = '\0';
-    strcat(pheno_file, ".oii");
-    OII_DATA_ptr oii_data_res = read_oii_file(pheno_file);
-    if (!oii_data_res) {
-        fprintf(stderr, "read oii file failed.\n");
-        goto clean_before_exit;
-    }
-    svlm_progress = OII_READED;
-
-    FAM_NODE_ptr *fam_node_array = (FAM_NODE_ptr *)make_node_ptr_array(
-        (void *)fam_data_res, FAM_DATA_TYPE);
-    if (!fam_node_array) {
-        fprintf(stderr, "malloc for fam node array failed.\n");
-        goto clean_before_exit;
-    }
-
-    OII_NODE_ptr *oii_node_array = (OII_NODE_ptr *)make_node_ptr_array(
-        (void *)oii_data_res, OII_DATA_TYPE);
-    if (!oii_node_array) {
-        fprintf(stderr, "malloc for oii node arrary failed.\n");
-        goto clean_before_exit;
-    }
-
-
-    uint32_t fam_node_num = fam_data_res->line_num;
-    uint32_t oii_node_num = oii_data_res->line_num;
     uint32_t align_len = 0;
-    uint32_t *fam_index_array = NULL, *oii_index_array = NULL;
-    align_fam_oii_ids(fam_node_array, fam_node_num, oii_node_array,
-                      oii_node_num, &fam_index_array, &oii_index_array,
-                      &align_len);
-    if (!fam_index_array || !oii_index_array) {
-        fprintf(stderr, "make fam index array or oii index array failed.\n");
-        goto clean_before_exit;
+    align_fam_oii_ids(fam_lines, indi_num_fam, oii_lines, indi_num_oii,
+                      fam_index_array, oii_index_array, &align_len);
+    printf("aligne len: %u\n", align_len);
+
+    char not_need_align = 0;  // if oii fam already aligned, then do not align in future.
+    if ((indi_num_fam == indi_num_oii) && (align_len == indi_num_fam)) {
+        not_need_align = 1;
+        for (int i = 0; i < indi_num_oii; i++) {
+            if ((i != oii_index_array[i]) || (i != fam_index_array[i])) {
+                not_need_align = 0;
+                break;
+            }
+        }
     }
-    svlm_progress = FAM_OII_INDEX_ARRAY_MALLOC;
+    printf("not need align: %d\n", not_need_align);
 
-
-    // load bod data to memory
-    pheno_file[pheno_name_len] = '\0';
-    strcat(pheno_file, ".bod");
-    BOD_DATA_ptr bod_data_res = init_bod_data_struct(pheno_file);
-    if (!bod_data_res) {
-        fprintf(stderr, "init bod data failed.\n");
-        goto clean_before_exit;
-    }
-    svlm_progress = BOD_DATA_INITED;
-
-    double *bod_data_all = load_bod_to_mem(bod_data_res);
-    if (!bod_data_all) {
-        fprintf(stderr, "load all bod data into mem failed.\n");
-        goto clean_before_exit;
-    }
-    svlm_progress = ALL_BOD_DATA_LOADED;
-
-    geno_file[geno_name_len] = '\0';
-    strcat(geno_file, ".bed");
-    BED_DATA_ptr bed_data_res = init_bed_data_struct(
-        geno_file, fam_data_res->line_num, bim_data_res->line_num);
-    if (!bed_data_res) {
-        fprintf(stderr, "init bed data failed.\n");
-        goto clean_before_exit;
-    }
-    svlm_progress = BED_DATA_INITED;
-
-    uint32_t variant_num_bim = bim_data_res->line_num;
-    uint32_t probe_num_opi = opi_data_res->line_num;
-    int thread_num = args->opt_thread;
-    int start_variant = 0;
-    int end_variant = variant_num_bim;
+    uint32_t probe_start_offset = 0;
+    uint32_t probe_end = probe_num;
+    uint32_t variant_start_offset = 0;
+    uint32_t variant_end = vari_num;
 
     int task_num = args->opt_tast_num;
     int task_id = args->opt_tast_id;
+    char res_fname[512];
+    if (args->opt_outname) {
+        strcpy(res_fname, args->opt_outname);
+    } else {
+        strcpy(res_fname, "out");
+    }
+    if (task_id > task_num) {
+        fprintf(stderr, "task id should less than task number.\n");
+        return 1;
+    }
+    int task_len = 0;
     if (task_num > 1) {
-        int task_width = ceil(variant_num_bim / task_num);
-        if (task_id != task_num) {
-            start_variant = (task_id - 1) * task_width;
-            end_variant = task_id * task_width;
+        char sufix[512];
+        task_len = ceil((double)probe_num / task_num);
+        if (task_id > 1 && task_id <= task_num) {
+            sprintf(sufix, "_%d_%d", task_id, task_num);
+            strcat(res_fname, sufix);
+            probe_start_offset = task_len * (task_id - 1);
+
         } else {
-            start_variant = (task_id - 1) * task_width;
-            end_variant = variant_num_bim;
+            sprintf(sufix, "_%d_%d", 1, task_num);
+            strcat(res_fname, sufix);
+            probe_start_offset = 0;
+        }
+
+        if (probe_start_offset + task_len < probe_num) {
+            probe_end = probe_start_offset + task_len;
         }
     }
-    if (args->opt_start_variant > 0) {
-        start_variant = args->opt_start_variant - 1;
-    }
-    if (args->opt_end_variant > 0) {
-        end_variant = args->opt_end_variant;
-    }
-    if (start_variant >= end_variant) {
-        fprintf(
-            stderr,
-            "start variant index should less equal than end variant index.");
-        goto clean_before_exit;
-    }
-    svlm_progress = GET_VAR_REANGE;
+    int res_fname_len = strlen(res_fname);
 
+    // write epi
+    res_fname[res_fname_len] = '\0';
+    strcat(res_fname, ".epi");
+    FILE *epi_fout = fopen(res_fname, "w");
+    // pass lines
+    for (int i = 0; i < probe_start_offset; i++) {
+        OPI_LINE opi_line;
+        opireadline(&bod_data, &opi_line);
+    }
+    for (int i = probe_start_offset; i < probe_end; i++) {
+        OPI_LINE opi_line;
+        char chrom[4];
+        char ori[4];
+        opireadline(&bod_data, &opi_line);
+        if (opi_line.chrom == 201) {
+            strcpy(chrom, "X");
+        } else if (opi_line.chrom == 202) {
+            strcpy(chrom, "Y");
+        } else if (opi_line.chrom == 203) {
+            strcpy(chrom, "MT");
+        } else {
+            sprintf(chrom, "%d", opi_line.chrom);
+        }
+        if (opi_line.ori == 0) {
+            strcpy(ori, "NA");
+        } else if (opi_line.ori == 1) {
+            strcpy(ori, "+");
+        } else {
+            strcpy(ori, "-");
+        }
+        fprintf(epi_fout, "%s\t%s\t%u\t%s\t%s\n", chrom, opi_line.probe_id,
+                opi_line.position, opi_line.gene_id, ori);
+    }
+    fclose(epi_fout);
 
+    printf("start probe offset: %u\n", probe_start_offset);
+    printf("end probe: %u\n", probe_end);
+    printf("start variant offset: %u\n", variant_start_offset);
+    printf("end variant: %u\n", variant_end);
+
+    uint64_t mem_size = 0;
+    float mem = args->opt_mem;
+    printf("--mem %f\n", mem);
+    if (mem == 0.0) {
+        SYSINFO sysinfo_dt;
+        get_sysinfo(&sysinfo_dt);
+        mem_size = sysinfo_dt.mem_size_byte * (3 / 4);
+    } else {
+        mem_size = (uint64_t)floor((double)mem * 1024 * 1024 * 1024);
+    }
+    printf("mem size %llu\n", mem_size);
+
+    uint32_t variant_load_len = mem_size / (indi_num_fam * sizeof(char));
+    uint32_t variant_total_len = variant_end - variant_start_offset;
+
+    char *variant_data = NULL;
+    uint64_t variant_data_len = 0;
+    if (variant_total_len > variant_load_len) {
+        variant_data_len = variant_load_len * indi_num_fam;
+        variant_data = (char *)malloc(sizeof(char) * variant_data_len);
+    } else {
+        variant_load_len = variant_total_len;
+        variant_data_len = variant_total_len * indi_num_fam;
+        variant_data = (char *)malloc(sizeof(char) * variant_data_len);
+    }
+
+    int thread_num = args->opt_thread;
     pthread_t *restrict thread_ids =
         (pthread_t *)malloc(sizeof(pthread_t) * thread_num);
-    if (!thread_ids) {
-        fprintf(stderr, "malloc for threads id failed.\n");
-        goto clean_before_exit;
-    }
-    svlm_progress = THREAD_ID_MALLOC;
+    SVLM_THREAD_ARGS_ptr threads_args =
+        (SVLM_THREAD_ARGS_ptr)malloc(sizeof(DRM_THREAD_ARGS) * thread_num);
 
-    uint32_t limit = end_variant - thread_num + 1;
-    SVLM_THREAD_ARGS_ptr thread_args = 
-        (SVLM_THREAD_ARGS_ptr)malloc(sizeof(SVLM_THREAD_ARGS) * thread_num);
-    if (!thread_args) {
-        fprintf(stderr, "malloc for theads args failed.\n");
-        goto clean_before_exit;
-    }
-    svlm_progress = THREAD_ARGS_MALLOC;
+    uint32_t probe_slice_start = probe_start_offset;
+    uint32_t probe_slice_len = probe_end - probe_start_offset;
+    make_svlm_threads_args(thread_num, indi_num_fam, indi_num_oii, align_len,
+                          not_need_align, fam_index_array, oii_index_array,
+                          probe_slice_start, probe_slice_len, variant_data,
+                          variant_data_len, variant_load_len, threads_args);
 
-    SVLM_THREAD_ARGS_ptr status = make_svlm_threads_args(thread_num, fam_node_num, oii_node_num, probe_num_opi,
-                      align_len, bod_data_all, fam_index_array, oii_index_array,
-                      thread_args);
-    if (!status) {
-        fprintf(stderr, "malloc for thread args inner memory failed.\n");
-        goto clean_before_exit;
-    }
-    svlm_progress = THREAD_ARGS_MEMBER_MALLOC;
-    
-    char outname[1024];
-    if (!args->opt_outname) {
-        strcpy(outname, "out");
+    // creat tmp directory
+    char tmp_dir_name[] = "oscatmp";
+    char tmp_fname[512];
+
+    if (access(tmp_dir_name, F_OK)) {
+        mkdir(tmp_dir_name, S_IRWXU);
     } else {
-        strcpy(outname, args->opt_outname);
-    }
-    FILE *outfile = fopen(outname, "w");
-    if (!outfile) {
-        fprintf(stderr, "open out file failed.\n");
-        goto clean_before_exit;
-    }
-    svlm_progress = OUT_FIEL_OPENED;
-
-    uint32_t i = 0;
-    char *geno_buf_by_varian = NULL;
-    for (i = start_variant; i < limit; i += thread_num ) {
-        for (int j = 0; j < thread_num; j++) {
-            geno_buf_by_varian = read_bed_by_variant(bed_data_res, NULL);
-            for (uint32_t k = 0; k < fam_node_num; k++) {
-                ((thread_args[j]).geno_data_this_variant)[k] =
-                    (double)geno_buf_by_varian[k];
+        DIR *dirp = opendir(tmp_dir_name);
+        struct dirent *dp = NULL;
+        while ((dp = readdir(dirp)) != NULL) {
+            if (strcmp(".", dp->d_name) != 0 && strcmp("..", dp->d_name) != 0) {
+                strcpy(tmp_fname, tmp_dir_name);
+                strcat(tmp_fname, "/");
+                strcat(tmp_fname, dp->d_name);
+                if (unlink(tmp_fname)) {
+                    fprintf(stderr, "%s remove failed.\n", tmp_fname);
+                }
             }
         }
-
-        for (uint32_t l = 0; l < thread_num; l++) {
-            pthread_create(&(thread_ids[l]), NULL, svlm_thread_worker,
-                           &(thread_args[l]));
-        }
-        for (uint32_t m = 0; m < thread_num; m++) {
-            pthread_join(thread_ids[m], NULL);
-        }
-        svlm_print_res(thread_args, thread_num, probe_num_opi, outfile);
     }
 
-    for (; i < end_variant; i++) {
-        geno_buf_by_varian = read_bed_by_variant(bed_data_res, NULL);
-        for (int j = 0; j < fam_node_num; j++) {
-            (thread_args[0]).geno_data_this_variant[j] =
-                (double)geno_buf_by_varian[j];
-        }
-        svlm_thread_worker(thread_args);
-        svlm_print_res(thread_args, 1, probe_num_opi, outfile);
+    // malloc buffer for drm_write_tmp_data funtion.
+    uint32_t *variant_index_pass_thresh =
+        (uint32_t *)malloc(sizeof(uint32_t) * variant_load_len);
+    float *beta_value_pass_thresh =
+        (float *)malloc(sizeof(float) * variant_load_len);
+    float *se_value_pass_thresh =
+        (float *)malloc(sizeof(float) * variant_load_len);
+
+    uint64_t variant_data_len_real = 0;
+    uint32_t variant_slice_start = 0;
+    uint32_t variant_slice_len = 0;
+    char tmp_fname_new[256];
+    uint32_t tmp_meta_arrary[4];
+    float pthresh = args->pthresh;
+
+    res_fname[res_fname_len] = '\0';
+    strcat(res_fname, ".esi");
+    FILE *esi_fout = fopen(res_fname, "w");
+    // pass first variant_start_offset lines.
+    for (int i = 0; i < variant_start_offset; i++) {
+        BIM_LINE bim_line;
+        bimreadline(&plink_data, &bim_line);
     }
 
-    svlm_progress = END;
+    for (int i = variant_start_offset; i < variant_end; i += variant_load_len) {
+        variant_slice_start = i;
+        if (i + variant_load_len > variant_end) {
+            variant_slice_len = variant_end - i;
+        } else {
+            variant_slice_len = variant_load_len;
+        }
+        printf("variant slice %u to %u\n", variant_slice_start,
+               variant_slice_start + variant_slice_len);
 
-    
-clean_before_exit:
-    switch (svlm_progress) {
-        case END:;
-        case OUT_FIEL_OPENED:
-            fclose(outfile);
-        case THREAD_ARGS_MEMBER_MALLOC:
-            free_svlm_threads_args_malloc(thread_args, thread_num);
-        case THREAD_ARGS_MALLOC:
-            free(thread_args);
-        case THREAD_ID_MALLOC:
-            free(thread_ids);
-        case GET_VAR_REANGE:;
-        case BED_DATA_INITED:
-            finalize_bed_data_struct(bed_data_res);
-        case ALL_BOD_DATA_LOADED:
-            clean_load_bod(bod_data_all);
-        case BOD_DATA_INITED:
-            finalize_bod_data_struct(bod_data_res);
-        case FAM_OII_INDEX_ARRAY_MALLOC:
-            clean_fam_oii_align_array(oii_index_array, fam_index_array);
-        case OII_READED:
-            clean_oii_data(oii_data_res);
-        case OPI_READED:
-            clean_opi_data(opi_data_res);
-        case PHENO_FILE_MALLOC:
-            free(pheno_file);
-        case FAM_READED:
-            clean_fam_data(fam_data_res);
-        case BIM_READED:
-            clean_bim_data(bim_data_res);
-        case GENO_FILE_MALLOC:
-            free(geno_file);
-        case ARG_PARSED:
-            free(args);
-        default:
-            if (svlm_progress == END) {
-                printf("Run successfully.\n");
+        strcpy(tmp_fname, tmp_dir_name);
+        strcat(tmp_fname, "/");
+        sprintf(tmp_fname_new, "tmp_%u_%u_%u_%u", probe_slice_start,
+                probe_slice_len, variant_slice_start, variant_slice_len);
+        strcat(tmp_fname, tmp_fname_new);
+        tmp_meta_arrary[0] = probe_slice_start;
+        tmp_meta_arrary[1] = probe_slice_len;
+        tmp_meta_arrary[2] = variant_slice_start;
+        tmp_meta_arrary[3] = variant_slice_len;
+        FILE *fout = fopen(tmp_fname, "w");
+        if (!fout) {
+            fprintf(stderr, "open OSCA tmp file failed.\n");
+        }
+        fwrite(tmp_meta_arrary, sizeof(uint32_t), 4, fout);
+
+        variant_data_len_real = variant_slice_len * indi_num_fam;
+        bedloaddata_n(&plink_data, variant_data, variant_data_len_real,
+                      variant_slice_start, variant_slice_len);
+
+        char *variant_data_ptr = variant_data;
+        for (int i = 0; i < variant_slice_len; i++) {
+            // do need align before calculate allel_freq?
+            float first_allel_freq = 0;
+            uint32_t value_num = 0;
+            uint32_t first_allel_count = 0;
+            for (int j = 0; j < indi_num_fam; j++) {
+                if (variant_data_ptr[j] != 4) {
+                    first_allel_count += variant_data_ptr[j];
+                    value_num++;
+                }
             }
-            printf("\033[0;32m<<<VQTL Module SVLM method\033[0m Returned\n\n");
-            
+
+            first_allel_freq = (float)first_allel_count / (2.0 * value_num);
+            BIM_LINE bim_line;
+            char chrom[4];
+            bimreadline(&plink_data, &bim_line);
+            if (bim_line.chrom == 201) {
+                strcpy(chrom, "X");
+            } else if (bim_line.chrom == 202) {
+                strcpy(chrom, "Y");
+            } else if (bim_line.chrom == 203) {
+                strcpy(chrom, "MT");
+            } else {
+                sprintf(chrom, "%d", bim_line.chrom);
+            }
+            fprintf(esi_fout, "%s\t%s\t%f\t%u\t%s\t%s\t%f\n", chrom,
+                    bim_line.rsid, bim_line.phy_pos, bim_line.pos,
+                    bim_line.allel1, bim_line.allel2, first_allel_freq);
+            variant_data_ptr += indi_num_fam;
+        }
+
+        for (int k = 0; k < thread_num; k++) {
+            threads_args[k].variant_data_len_char = variant_data_len_real;
+            threads_args[k].variant_slice_start_index = variant_slice_start;
+            threads_args[k].variant_slice_len = variant_slice_len;
+        }
+
+        uint32_t j_limit = probe_end - thread_num + 1;
+        uint32_t j = 0;
+        printf("seek bod file \n");
+        bodfileseek(&bod_data, probe_start_offset);
+        for (j = probe_start_offset; j < j_limit; j += thread_num) {
+            printf("j: %u\n", j);
+            double *readdata;
+            uint32_t readdata_len;
+            for (int n = 0; n < thread_num; n++) {
+                readdata = threads_args[n].probe_data;
+                readdata_len = threads_args[n].oii_num;
+                bodreaddata(&bod_data, readdata, readdata_len);
+                threads_args[n].probe_offset = j + n;
+            }
+
+            for (int m = 0; m < thread_num; m++) {
+                pthread_create(&(thread_ids[m]), NULL, svlm_thread_worker,
+                               &(threads_args[m]));
+            }
+            for (int p = 0; p < thread_num; p++) {
+                pthread_join(thread_ids[p], NULL);
+            }
+
+            write_tmp_data(threads_args, VQTL_SVLM_METHOD, thread_num, fout, pthresh,
+                               variant_index_pass_thresh,
+                               beta_value_pass_thresh, se_value_pass_thresh);
+        }
+
+        int left_probe_n = 0;
+        for (; j < probe_end; j++) {
+            printf("j: %u\n", j);
+            double *readdata;
+            uint32_t readdata_len;
+            readdata = threads_args[left_probe_n].probe_data;
+            readdata_len = threads_args[left_probe_n].oii_num;
+            bodreaddata(&bod_data, readdata, readdata_len);
+            threads_args[left_probe_n].probe_offset = j;
+            left_probe_n++;
+        }
+        for (int m = 0; m < left_probe_n; m++) {
+            pthread_create(&(thread_ids[m]), NULL, svlm_thread_worker,
+                           &(threads_args[m]));
+        }
+        for (int p = 0; p < left_probe_n; p++) {
+            pthread_join(thread_ids[p], NULL);
+        }
+
+        write_tmp_data(threads_args, VQTL_SVLM_METHOD, left_probe_n, fout, pthresh,
+                           variant_index_pass_thresh, beta_value_pass_thresh,
+                           se_value_pass_thresh);
+
+        fclose(fout);
     }
-*/
+
+    // merge result into besd or plain text file.
+    uint32_t tmp_file_num = (uint32_t)ceil(
+        (double)(variant_end - variant_start_offset) / variant_load_len);
+    FILE **tmp_files_fin = (FILE **)malloc(sizeof(FILE *) * tmp_file_num);
+    uint32_t tmp_file_index = 0;
+    for (int i = variant_start_offset; i < variant_end; i += variant_load_len) {
+        variant_slice_start = i;
+        if (i + variant_load_len > variant_end) {
+            variant_slice_len = variant_end - i;
+        } else {
+            variant_slice_len = variant_load_len;
+        }
+
+        strcpy(tmp_fname, tmp_dir_name);
+        strcat(tmp_fname, "/");
+        sprintf(tmp_fname_new, "tmp_%u_%u_%u_%u", probe_slice_start,
+                probe_slice_len, variant_slice_start, variant_slice_len);
+        strcat(tmp_fname, tmp_fname_new);
+
+        FILE *fin = fopen(tmp_fname, "r");
+        if (!fin) {
+            fprintf(stderr, "open OSCA tmp file failed.\n");
+        }
+        tmp_files_fin[tmp_file_index] = fin;
+        tmp_file_index++;
+    }
+
+    int besd_file_format = 3;
+    uint32_t besd_sample_num = align_len;
+    uint32_t besd_esi_num = variant_end - variant_start_offset;
+    uint32_t besd_epi_num = probe_end - probe_start_offset;
+    uint64_t besd_value_num = 0;
+    uint64_t *besd_offset =
+        (uint64_t *)malloc(sizeof(uint64_t) * (besd_epi_num * 2 + 1));
+    besd_offset[0] = 0;
+    uint32_t *besd_index = (uint32_t *)malloc(sizeof(uint32_t) * besd_esi_num);
+    float *besd_beta = (float *)malloc(sizeof(float) * besd_esi_num);
+    float *besd_se = (float *)malloc(sizeof(float) * besd_esi_num);
+
+    for (int i = 0; i < tmp_file_num; i++) {
+        uint32_t first4[4];
+        fread(first4, sizeof(uint32_t), 4, tmp_files_fin[i]);
+    }
+
+    strcpy(tmp_fname, tmp_dir_name);
+    strcat(tmp_fname, "/");
+    strcat(tmp_fname, "besd_meta");
+    FILE *besd_meta_fout = fopen(tmp_fname, "w");
+    strcpy(tmp_fname, tmp_dir_name);
+    strcat(tmp_fname, "/");
+    strcat(tmp_fname, "besd_index");
+    FILE *besd_index_fout = fopen(tmp_fname, "w");
+    strcpy(tmp_fname, tmp_dir_name);
+    strcat(tmp_fname, "/");
+    strcat(tmp_fname, "besd_beta_se");
+    FILE *besd_beta_se_fout = fopen(tmp_fname, "w");
+    for (int i = 0; i < besd_epi_num; i++) {
+        uint32_t data_num_probe = 0;
+        uint32_t *besd_index_ptr = besd_index;
+        float *besd_beta_ptr = besd_beta;
+        float *besd_se_ptr = besd_se;
+        for (int j = 0; j < tmp_file_num; j++) {
+            uint32_t data_num_file = 0;
+            fread(&data_num_file, sizeof(uint32_t), 1, tmp_files_fin[j]);
+            data_num_probe += data_num_file;
+            fread(besd_index_ptr, sizeof(uint32_t), data_num_file,
+                  tmp_files_fin[j]);
+            fread(besd_beta_ptr, sizeof(float), data_num_file,
+                  tmp_files_fin[j]);
+            fread(besd_se_ptr, sizeof(float), data_num_file, tmp_files_fin[j]);
+            besd_index_ptr += data_num_file;
+            besd_beta_ptr += data_num_file;
+            besd_se_ptr += data_num_file;
+        }
+
+        besd_value_num += 2 * data_num_probe;
+        besd_offset[i * 2 + 1] = besd_offset[i * 2] * data_num_probe;
+        besd_offset[i * 2 + 2] = besd_offset[i * 2 + 1] * data_num_probe;
+        besd_sparse_write_variant_index(besd_index, data_num_probe,
+                                        besd_index_fout);
+        besd_sparse_write_beta_se_data(besd_beta, besd_se, data_num_probe,
+                                       besd_beta_se_fout);
+    }
+    besd_sparse_write_meta(besd_file_format, besd_sample_num, besd_esi_num,
+                           besd_epi_num, besd_value_num, besd_offset,
+                           besd_meta_fout);
+    for (int k = 0; k < tmp_file_num; k++) {
+        fclose(tmp_files_fin[k]);
+    }
+    fclose(besd_index_fout);
+    fclose(besd_beta_se_fout);
+    fclose(besd_meta_fout);
+
+    strcpy(tmp_fname, tmp_dir_name);
+    strcat(tmp_fname, "/");
+    strcat(tmp_fname, "besd_meta");
+    FILE *besd_meta_fin = fopen(tmp_fname, "r");
+    strcpy(tmp_fname, tmp_dir_name);
+    strcat(tmp_fname, "/");
+    strcat(tmp_fname, "besd_index");
+    FILE *besd_index_fin = fopen(tmp_fname, "r");
+    strcpy(tmp_fname, tmp_dir_name);
+    strcat(tmp_fname, "/");
+    strcat(tmp_fname, "besd_beta_se");
+    FILE *besd_beta_se_fin = fopen(tmp_fname, "r");
+
+    res_fname[res_fname_len] = '\0';
+    strcat(res_fname, ".besd");
+    FILE *besd_fout = fopen(res_fname, "w");
+
+    // here borrow variant data as a file read buffer.
+    uint64_t read_len = 0;
+    while (read_len = fread(variant_data, sizeof(char), variant_data_len,
+                            besd_meta_fin)) {
+        fwrite(variant_data, sizeof(char), read_len, besd_fout);
+    }
+
+    while (read_len = fread(variant_data, sizeof(char), variant_data_len,
+                            besd_index_fin)) {
+        fwrite(variant_data, sizeof(char), read_len, besd_fout);
+    }
+
+    while (read_len = fread(variant_data, sizeof(char), variant_data_len,
+                            besd_beta_se_fin)) {
+        fwrite(variant_data, sizeof(char), read_len, besd_fout);
+    }
+    fclose(besd_meta_fin);
+    fclose(besd_index_fin);
+    fclose(besd_beta_se_fin);
+    fclose(besd_fout);
+
+
+
+    // remove tmp directory.
+    if (!access(tmp_dir_name, F_OK)) {
+        DIR *dirp = opendir(tmp_dir_name);
+        struct dirent *dp = NULL;
+        while ((dp = readdir(dirp)) != NULL) {
+            if (strcmp(".", dp->d_name) != 0 && strcmp("..", dp->d_name) != 0) {
+                strcpy(tmp_fname, tmp_dir_name);
+                strcat(tmp_fname, "/");
+                strcat(tmp_fname, dp->d_name);
+                if (unlink(tmp_fname)) {
+                    fprintf(stderr, "%s remove failed.\n", tmp_fname);
+                }
+            }
+        }
+        rmdir(tmp_dir_name);
+    }
+
+    plinkclose(&plink_data);
+    bodfileclose(&bod_data);
+    free(fam_index_array);
+    free(oii_index_array);
+    free(fam_lines);
+    free(oii_lines);
+    free(variant_data);
+    free(thread_ids);
+    free(variant_index_pass_thresh);
+    free(beta_value_pass_thresh);
+    free(se_value_pass_thresh);
+    free_svlm_threads_args_malloc(threads_args, thread_num);
+    free(threads_args);
+
     return 1;
 }
 
@@ -1384,13 +1824,14 @@ align_fam_oii_ids(FAM_LINE_ptr fam_lines, uint32_t fam_line_num,
     return 0;
 }
 
+
 static DRM_THREAD_ARGS_ptr
 make_drm_threads_args(
     int thread_num, uint32_t indi_num_fam, uint32_t indi_num_oii,
     uint32_t align_len, char not_need_align, uint32_t *fam_index_array,
     uint32_t *oii_index_array,
     uint32_t probe_slice_start, uint32_t probe_slice_len,
-    char *variant_data, uint64_t variant_data_len,
+    char *variant_data, uint64_t variant_data_len, uint32_t variant_load_len,
     DRM_THREAD_ARGS_ptr thread_args) {
         
     for (int i = 0; i < thread_num; i++) {
@@ -1418,7 +1859,7 @@ make_drm_threads_args(
         thread_args[i].g2_array = (double *)malloc(sizeof(double) * align_len);
         thread_args[i].geno_array = (double *)malloc(sizeof(double) * align_len);
         thread_args[i].pheno_array = (double *)malloc(sizeof(double) * align_len);
-        thread_args[i].result = (double *)malloc(sizeof(double) * variant_load_num * 3);
+        thread_args[i].result = (float *)malloc(sizeof(float) * variant_load_len * 3);
 
         if (!thread_args[i].probe_data ||
             !thread_args[i].g0_array || !thread_args[i].g1_array ||
@@ -1437,6 +1878,18 @@ static void
 free_drm_threads_args_malloc(DRM_THREAD_ARGS_ptr thread_args, int thread_num)
 {
     for (int i = 0; i < thread_num; i++) {
+        if (thread_args[i].fam_index_array) {
+            thread_args[i].fam_index_array = NULL;
+        }
+
+        if (thread_args[i].oii_index_array) {
+            thread_args[i].oii_index_array = NULL;
+        }
+        
+        if (thread_args[i].variant_data) {
+            thread_args[i].variant_data = NULL;
+        }
+
         if (thread_args[i].probe_data) {
             free(thread_args[i].probe_data);
             thread_args[i].probe_data = NULL;
@@ -1476,19 +1929,28 @@ free_drm_threads_args_malloc(DRM_THREAD_ARGS_ptr thread_args, int thread_num)
     return;
 }
 
-static void *drm_thread_worker(void *args) {
+
+static void *
+drm_thread_worker(void *args) {
     DRM_THREAD_ARGS_ptr args_in = (DRM_THREAD_ARGS_ptr)args;
+    int thread_index = args_in->thread_index;
+    int thread_num = args_in->thread_num;
+
+    uint32_t probe_slice_start_index = args_in->probe_slice_start_index;
+    uint32_t probe_slice_len = args_in->probe_slice_len;
+    uint32_t probe_offset = args_in->probe_offset;
+
+    uint32_t variant_slice_start = args_in->variant_slice_start_index;
+    uint32_t variant_slice_len = args_in->variant_slice_len;
+
     uint32_t fam_num = args_in->fam_num;
     uint32_t oii_num = args_in->oii_num;
-    uint32_t vari_num = args_in->vari_num;
-    uint32_t probe_num = args_in->probe_num;
     uint32_t align_len = args_in->align_len;
     char not_need_align = args_in->not_need_align;
 
     uint32_t *fam_index_array = args_in->fam_index_array;
     uint32_t *oii_index_array = args_in->oii_index_array;
 
-    uint32_t varin_num_loaded = args_in->variant_load_num;
     char *variant_data_loaded = args_in->variant_data;
     uint64_t variant_data_loaded_len = args_in->variant_data_len_char;
 
@@ -1499,7 +1961,7 @@ static void *drm_thread_worker(void *args) {
 
     double *geno_data_aligned = args_in->geno_array;
     double *pheno_data_aligned = args_in->pheno_array;
-    double *result = args_in->result;
+    float *result = args_in->result;
 
     double c1_res = 0, stdev_res = 0, t1_res = 0, p_value_res = 0;
     double geno_0_median = 0.0, geno_1_median = 0.0, geno_2_median = 0.0;
@@ -1515,7 +1977,7 @@ static void *drm_thread_worker(void *args) {
     double pheno_value;
 
     char *current_geno_one = NULL;
-    for (int i = 0; i < varin_num_loaded; i++) {
+    for (int i = 0; i < variant_slice_len; i++) {
         current_geno_one = variant_data_loaded + i * fam_num;
 
         align_len_rm_missing = 0;
@@ -1595,48 +2057,34 @@ static void *drm_thread_worker(void *args) {
                           &p_value_res);
         // c1_res beta1 beta1_se t_value_of_beta1, f_test_p
         // printf("%lf %lf %lf %lf\n", c1_res, stdev_res, t1_res, p_value_res);
-        result[i * 3] = c1_res;
-        result[i * 3 + 1] = stdev_res;
-        result[i * 3 + 2] = p_value_res;
+        result[i * 3] = (float)c1_res;
+        result[i * 3 + 1] = (float)stdev_res;
+        result[i * 3 + 2] = (float)p_value_res;
     }
 
     return NULL;
 }
 
 
-static void
-drm_print_res(DRM_THREAD_ARGS_ptr thread_args, int thread_num, int probe_num,
-    FILE *outfile)
-{
-    double *res = NULL;
-    for (int i = 0; i < thread_num; i++) {
-        res = (thread_args[i]).result;
-        for (int j = 0; j < probe_num; j++) {
-            fprintf(outfile, "%le\t%le\t%le\t%le\t", res[j*4], res[j*4 + 1],
-                res[j*4 + 2], res[j*4 + 3]);
-        }
-        fprintf(outfile, "\n");
-    }
-    return;
-}
-
+/*
 static void
 drm_write_tmp_data(DRM_THREAD_ARGS_ptr thread_args, int thread_num, FILE *fout,
-    float pthresh, uint32_t *varint_index_pass_thresh, double *beta_value,
-    double *se_value)
+    float pthresh, uint32_t *varint_index_pass_thresh, float *beta_value,
+    float *se_value)
 {
-    uint32_t variant_num_pass_thresh = 0;
-    double *result = NULL;
-    uint32_t variant_slice_len = 0;
+
     for (int i = 0; i < thread_num; i++) {
-        result = thread_args[i].result;
-        variant_slice_len = thread_args[i].variant_slice_len;
+        uint32_t variant_num_pass_thresh = 0;
+        float *result = thread_args[i].result;
+        uint32_t variant_slice_len = thread_args[i].variant_slice_len;
+        uint32_t variant_slice_start = thread_args[i].variant_slice_start_index;
         for (int j = 0; j < variant_slice_len; j++) {
             uint32_t offset = j * 3;
             if (result[offset + 2] <= pthresh) {
-                varint_index_pass_thresh[variant_num_pass_thresh] = j;
-                beta_value[variant_num_pass_thresh] = result[offset]
-                se_value[variant_num_pass_thresh] = result[offset + 1]
+                varint_index_pass_thresh[variant_num_pass_thresh] = j +
+                    variant_slice_start;
+                beta_value[variant_num_pass_thresh] = result[offset];
+                se_value[variant_num_pass_thresh] = result[offset + 1];
                 variant_num_pass_thresh++;
             }
 
@@ -1644,44 +2092,50 @@ drm_write_tmp_data(DRM_THREAD_ARGS_ptr thread_args, int thread_num, FILE *fout,
         fwrite(&variant_num_pass_thresh, sizeof(uint32_t), 1, fout);
         fwrite(varint_index_pass_thresh, sizeof(uint32_t),
             variant_num_pass_thresh, fout);
-        fwrite(beta_value, sizeof(double), variant_num_pass_thresh, fout);
-        fwrite(beta_value, sizeof(double), variant_num_pass_thresh, fout);
+        fwrite(beta_value, sizeof(float), variant_num_pass_thresh, fout);
+        fwrite(se_value, sizeof(float), variant_num_pass_thresh, fout);
 
     }
+    return;
 }
+*/
 
 
-static SVLM_THREAD_ARGS_ptr make_svlm_threads_args(
-    int thread_num, uint32_t fam_node_num, uint32_t oii_node_num,
-    uint32_t probe_num, uint32_t align_len, double *bod_data_all,
-    uint32_t *fam_index_array, uint32_t *oii_index_array,
-    SVLM_THREAD_ARGS_ptr thread_args) {
+static SVLM_THREAD_ARGS_ptr
+make_svlm_threads_args(
+    int thread_num, uint32_t indi_num_fam, uint32_t indi_num_oii,
+    uint32_t align_len, char not_need_align, uint32_t *fam_index_array,
+    uint32_t *oii_index_arrary, uint32_t probe_slice_start,
+    uint32_t probe_slice_len, char *variant_data, uint64_t variant_data_len,
+    uint32_t variant_load_len, SVLM_THREAD_ARGS_ptr thread_args) {
+
     for (int i = 0; i < thread_num; i++) {
         thread_args[i].thread_index = i;
-        thread_args[i].fam_num = fam_node_num;
-        thread_args[i].oii_num = oii_node_num;
-        thread_args[i].probe_num = probe_num;
+        thread_args[i].thread_num = thread_num;
+        thread_args[i].probe_slice_start_index = probe_slice_start;
+        thread_args[i].probe_slice_len = probe_slice_len;
+        
+        // will assigned later
+        thread_args[i].probe_offset = 0;
+        thread_args[i].variant_slice_start_index = 0;
+        thread_args[i].variant_slice_len = 0;
+
+        thread_args[i].fam_num = indi_num_fam;
+        thread_args[i].oii_num = indi_num_oii;
         thread_args[i].align_len = align_len;
 
-        thread_args[i].bod_data_all_probe = bod_data_all;
-        thread_args[i].fam_index_array = fam_index_array;
-        thread_args[i].oii_index_arrya = oii_index_array;
+        thread_args[i].not_need_align = not_need_align;
 
-        // need test mallc exit status
-        thread_args[i].geno_data_this_variant =
-            (double *)malloc(sizeof(double) * fam_node_num);
-        thread_args[i].pheno_array =
-            (double *)malloc(sizeof(double) * align_len);
-        thread_args[i].geno_array =
-            (double *)malloc(sizeof(double) * align_len);
-        thread_args[i].result =
-            (double *)malloc(sizeof(double) * probe_num * 8);
-        if (!thread_args[i].geno_data_this_variant ||
-            !thread_args[i].pheno_array || !thread_args[i].geno_array ||
-            !thread_args[i].result) {
-                fprintf(stderr, "malloc for thread args number mem failed.\n");
-                return NULL;
-        }
+        thread_args[i].fam_index_array = fam_index_array;
+        thread_args[i].oii_index_array = oii_index_arrary;
+
+        thread_args[i].variant_data = variant_data;
+        thread_args[i].variant_data_len_char = variant_data_len;
+
+        thread_args[i].probe_data = (double *)malloc(sizeof(double) * indi_num_oii);
+        thread_args[i].geno_array = (double *)malloc(sizeof(double) * align_len);
+        thread_args[i].pheno_array = (double *)malloc(sizeof(double) * align_len);
+        thread_args[i].result = (float *)malloc(sizeof(float) * variant_load_len * 3);
     }
     return thread_args;
 }
@@ -1691,52 +2145,81 @@ static void
 free_svlm_threads_args_malloc(SVLM_THREAD_ARGS_ptr thread_args, int thread_num)
 {
     for (int i = 0; i < thread_num; i++) {
-        free(thread_args[i].geno_data_this_variant);
-        free(thread_args[i].geno_array);
-        free(thread_args[i].pheno_array);
-        free(thread_args[i].result);
+        if (thread_args[i].fam_index_array) {
+            thread_args[i].fam_index_array = NULL;
+        }
+
+        if (thread_args[i].oii_index_array) {
+            thread_args[i].oii_index_array = NULL;
+        }
+
+        if (thread_args[i].variant_data) {
+            thread_args[i].variant_data = NULL;
+        }
+
+        if (thread_args[i].probe_data) {
+            free(thread_args[i].probe_data);
+            thread_args[i].probe_data = NULL;
+        }
+
+        if (thread_args[i].geno_array) {
+            free(thread_args[i].geno_array);
+            thread_args[i].geno_array = NULL;
+        }
+
+        if (thread_args[i].pheno_array) {
+            free(thread_args[i].pheno_array);
+            thread_args[i].pheno_array = NULL;
+        }
+
+        if (thread_args[i].result) {
+            free(thread_args[i].result);
+            thread_args[i].result = NULL;
+        }
     }
 
     return;
 }
 
 
-
 static void *
 svlm_thread_worker(void *args)
 {
     SVLM_THREAD_ARGS_ptr args_in = (SVLM_THREAD_ARGS_ptr)args;
-//    int thread_index = args_in->thread_index;
-//    uint32_t fam_num = args_in->fam_num;
+    uint32_t fam_num = args_in->fam_num;
     uint32_t oii_num = args_in->oii_num;
-    uint32_t probe_num = args_in->probe_num;
     uint32_t align_len = args_in->align_len;
+    uint32_t variant_slice_len = args_in->variant_slice_len;
+    char *variant_data = args_in->variant_data;
+    char not_need_align = args_in->not_need_align;
 
-    double * bod_data_all = args_in->bod_data_all_probe;
     uint32_t *fam_index_array = args_in->fam_index_array;
-    uint32_t *oii_index_array = args_in->oii_index_arrya;
+    uint32_t *oii_index_array = args_in->oii_index_array;
 
-    double *geno_data_one_variant = args_in->geno_data_this_variant;
-    double *pheno_data_one_probe = NULL;
-
+    double *probe_data = args_in->probe_data;
     double *geno_array = args_in->geno_array;
     double *pheno_array = args_in->pheno_array;
-    double *result = args_in->result;
+    float *result = args_in->result;
 
     uint32_t geno_index = 0, pheno_index = 0;
     uint32_t align_len_rm_missing = 0;
     double geno_value = 0.0, pheno_value = 0.0;
     double beta0, beta0_se, beta0_p, beta1, beta1_se, beta1_p, ftest_p_val;
-    uint32_t result_index = 0;
-    for (int i = 0; i < probe_num; i++) {
-        pheno_data_one_probe = bod_data_all + (i * oii_num);
+    char *varinat_data_one = NULL;
+    for (int i = 0; i < variant_slice_len; i++) {
+        varinat_data_one = variant_data + (i * fam_num);
         align_len_rm_missing = 0;
         for (int j = 0; j < align_len; j++) {
-            geno_index = fam_index_array[j];
-            pheno_index = oii_index_array[j];
-            geno_value = geno_data_one_variant[geno_index];
-            pheno_value = pheno_data_one_probe[pheno_index];
 
+            if (not_need_align) {
+                geno_value = (double)varinat_data_one[j];
+                pheno_value = probe_data[j];
+            } else {
+                geno_index = fam_index_array[j];
+                pheno_index = oii_index_array[j];
+                geno_value = varinat_data_one[geno_index];
+                pheno_value = probe_data[pheno_index];
+            }
             if (geno_value != 4.0 && pheno_value != -9.0) {
                 geno_array[align_len_rm_missing] = geno_value;
                 pheno_array[align_len_rm_missing] = pheno_value;
@@ -1745,10 +2228,6 @@ svlm_thread_worker(void *args)
         }
         linner_regression2(geno_array, pheno_array, align_len_rm_missing, &beta0,
             &beta0_se, &beta0_p, &beta1, &beta1_se, &beta1_p, &ftest_p_val);
-        result[result_index++] = beta0;
-        result[result_index++] = beta0_se;
-        result[result_index++] = beta1;
-        result[result_index++] = beta1_se;
         // pheno_array turn into array of residual square.
         for (int k = 0; k < align_len_rm_missing; k++) {
             double residule;
@@ -1758,11 +2237,9 @@ svlm_thread_worker(void *args)
         linner_regression2(geno_array, pheno_array, align_len_rm_missing,
                            &beta0, &beta0_se, &beta0_p, &beta1, &beta1_se,
                            &beta1_p, &ftest_p_val);
-        result[result_index++] = beta1;
-        result[result_index++] = beta1_se;
-        result[result_index++] = beta1_p;
-        result[result_index++] = ftest_p_val;
-        printf("%le\n", ftest_p_val);
+        result[i * 3] = (float)beta1;
+        result[i * 3 + 1] = (float)beta1_se;
+        result[i * 3 + 2] = (float)beta1_p;
     }
 
     return NULL;
@@ -1770,27 +2247,65 @@ svlm_thread_worker(void *args)
 
 
 static void
-svlm_print_res(SVLM_THREAD_ARGS_ptr thread_args, int thread_num, int probe_num,
-    FILE *outfile)
+write_tmp_data(void *thread_args_ori, char *args_type,
+    int thread_num, FILE *fout, float pthresh,
+    uint32_t *varint_index_pass_thresh,
+    float *beta_value, float *se_value)
 {
-    /*
-        res of every point: beta0, beta0_se, beta1, beta1_se, beta1_secode,
-        beta1_se_seconde, beta1_p_seconde, ftest_p_val_seconde
-    */
 
-    double *res = NULL;
-    for (int i = 0; i < thread_num; i++) {
-        res = (thread_args[i]).result;
-        for (int j = 0; j < probe_num; j++) {
-            double chi2 = res[j * 4 + 4] * res[j * 4 + 5];
-            chi2 = chi2 * chi2;
-            fprintf(outfile, "%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t%le\t",
-                res[j * 8], res[j * 8 + 1], res[j * 8 + 2], res[j * 8 + 3],
-                res[j * 8 + 4], res[j * 8 + 5], res[j * 8 + 6], res[j * 8 + 7],
-                chi2
-            );
+    if (strcmp(args_type, VQTL_DRM_METHOD) == 0) {
+        DRM_THREAD_ARGS_ptr thread_args = (DRM_THREAD_ARGS_ptr)thread_args_ori;
+        for (int i = 0; i < thread_num; i++) {
+            uint32_t variant_num_pass_thresh = 0;
+            float *result = thread_args[i].result;
+            uint32_t variant_slice_len = thread_args[i].variant_slice_len;
+            uint32_t variant_slice_start =
+                thread_args[i].variant_slice_start_index;
+            for (int j = 0; j < variant_slice_len; j++) {
+                uint32_t offset = j * 3;
+                if (result[offset + 2] <= pthresh) {
+                    varint_index_pass_thresh[variant_num_pass_thresh] =
+                        j + variant_slice_start;
+                    beta_value[variant_num_pass_thresh] = result[offset];
+                    se_value[variant_num_pass_thresh] = result[offset + 1];
+                    variant_num_pass_thresh++;
+                }
+            }
+            fwrite(&variant_num_pass_thresh, sizeof(uint32_t), 1, fout);
+            fwrite(varint_index_pass_thresh, sizeof(uint32_t),
+                   variant_num_pass_thresh, fout);
+            fwrite(beta_value, sizeof(float), variant_num_pass_thresh, fout);
+            fwrite(se_value, sizeof(float), variant_num_pass_thresh, fout);
         }
-        fprintf(outfile, "\n");
+    } else if (strcmp(args_type, VQTL_SVLM_METHOD) == 0) {
+        SVLM_THREAD_ARGS_ptr thread_args = (SVLM_THREAD_ARGS_ptr)thread_args_ori;
+        for (int i = 0; i < thread_num; i++) {
+            uint32_t variant_num_pass_thresh = 0;
+            float *result = thread_args[i].result;
+            uint32_t variant_slice_len = thread_args[i].variant_slice_len;
+            uint32_t variant_slice_start =
+                thread_args[i].variant_slice_start_index;
+            for (int j = 0; j < variant_slice_len; j++) {
+                uint32_t offset = j * 3;
+                if (result[offset + 2] <= pthresh) {
+                    varint_index_pass_thresh[variant_num_pass_thresh] =
+                        j + variant_slice_start;
+                    beta_value[variant_num_pass_thresh] = result[offset];
+                    se_value[variant_num_pass_thresh] = result[offset + 1];
+                    variant_num_pass_thresh++;
+                }
+            }
+            fwrite(&variant_num_pass_thresh, sizeof(uint32_t), 1, fout);
+            fwrite(varint_index_pass_thresh, sizeof(uint32_t),
+                   variant_num_pass_thresh, fout);
+            fwrite(beta_value, sizeof(float), variant_num_pass_thresh, fout);
+            fwrite(se_value, sizeof(float), variant_num_pass_thresh, fout);
+        }
+    } else {
+        fprintf(stderr, "method type not recognized.\n");
+        return;
     }
+
     return;
+    
 }
