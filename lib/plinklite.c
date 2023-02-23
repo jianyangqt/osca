@@ -541,6 +541,7 @@ bedreaddata(PLINKFILE_ptr plink_data, char *bed_data, uint64_t bed_data_len)
         if (readlen == EOF) {
             return -1;
         }
+        fprintf(stderr, "readlen not equal to expected.\n");
         return 1;
     }
 
@@ -589,8 +590,10 @@ bedloaddata_n(PLINKFILE_ptr plink_data, char *bed_data, uint64_t bed_data_len,
         fprintf(stderr, "bed data length error.\n");
         return 1;
     }
-    
-    fseek(fin, start_offset * indiv_num, SEEK_SET);
+    uint64_t seek_len = start_offset * indiv_num + 3;
+    fseek(fin, start_offset * indiv_num + 3, SEEK_SET);
+    plink_data->bed_byte_offset = seek_len;
+    plink_data->current_bed_data_index = start_offset;
     for (int i = 0; i < load_length; i++) {
         int status = 0;
         if ((status = bedreaddata(plink_data, bed_data, indiv_num)) == 0) {
