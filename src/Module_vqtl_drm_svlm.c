@@ -168,7 +168,7 @@ static int linner_regression2(const double *x, const double *y,
     double *beta1, double *beta1_se, double *beta1_p,
     double *ftest_p_val);
 static int linner_regression(const double *x, const double *y, uint32_t array_len, double *c1_res,
-    double *stdev1_res, double *t1_res, double *p_value_res);
+    double *stdev1_res, double *p_value_res);
 
 static int align_fam_oii_ids(FAM_LINE_ptr fam_lines, uint32_t fam_line_num,
                              OII_LINE_ptr oii_lines, uint32_t oii_line_num,
@@ -519,7 +519,7 @@ Module_vqtl_drm(int argc, char *argv[])
             for (int p = 0; p < thread_num; p++) {
                 pthread_join(thread_ids[p], NULL);
             }
-            
+            printf("output res\n");
             write_tmp_data(threads_args, VQTL_DRM_METHOD, thread_num, fout,
                                pthresh, variant_index_pass_thresh,
                                beta_value_pass_thresh, se_value_pass_thresh);
@@ -1570,23 +1570,23 @@ BKDRHash(char *str)
 
 static int
 linner_regression(const double *x, const double *y, uint32_t array_len, double *c1_res,
-    double *stdev1_res, double *t1_res, double *p_value_res)
+    double *stdev1_res, double *p_value_res)
 {
     //printf("%lf %lf %u\n", x[0], y[0], array_len);
     double c0, c1, cov00, cov01, cov11, sumsq;
     gsl_fit_linear(x, 1, y, 1, array_len, &c0, &c1, &cov00, &cov01, &cov11, &sumsq);
-    //printf("%lf %lf %lf %lf %lf %lf\n", c0, c1, cov00, cov01, cov11, sumsq);
 
-    // double stdev0 = sqrt(cov00);
-    // double t0 = c0 / stdev0;
-    // double pv0 = (t0 < 0)? 2 * (1 - gsl_cdf_tdist_P(-t0, n - 2)): 2 * (1 -
-    // gsl_cdf_tdist_P(t0, n - 2));
-
+/*
+    double stdev0 = sqrt(cov00);
+    double t0 = c0 / stdev0;
+    double pv0 = (t0 < 0)? 2 * (1 - gsl_cdf_tdist_P(-t0, array_len - 2)): 2 *
+        (1 - gsl_cdf_tdist_P(t0, array_len - 2));
+*/
     double stdev1 = sqrt(cov11);
     double t1 = c1 / stdev1;
-    // double pv1 = t1 < 0 ? 2 * (1 - gsl_cdf_tdist_P(-t1, n - 2)): 2 * (1 -
-    // gsl_cdf_tdist_P(t1, n - 2));
-
+    double pv1 = t1 < 0 ? 2 * (1 - gsl_cdf_tdist_P(-t1, array_len - 2)): 2 *
+        (1 - gsl_cdf_tdist_P(t1, array_len - 2));
+/*
     int i = 0;
     double dl = array_len - 2;
     double y_mean = 0;
@@ -1600,18 +1600,14 @@ linner_regression(const double *x, const double *y, uint32_t array_len, double *
         y_var += pow(y[i] - y_mean, 2);
     }
 
-    // double ym = 0.2 * (y[0] + y[1] + y[2] + y[3] + y[4]);
-    // double sct = pow(y[0] - ym, 2) + pow(y[1]-ym, 2) + pow(y[2] - ym, 2) +
-    // pow(y[3] - ym, 2) + pow(y[4] - ym, 2);
     double R2 = 1 - sumsq / y_var;
     double F = R2 * dl / (1 - R2);
     double p_value = 1 - gsl_cdf_fdist_P(F, 1, dl);
-
+*/
     //printf("%le %le %le %le\n", c1, stdev1, t1, p_value);
     *c1_res = c1;
     *stdev1_res = stdev1;
-    *t1_res = t1;
-    *p_value_res = p_value;
+    *p_value_res = pv1;
 
     return 0;
 }
@@ -1753,23 +1749,7 @@ align_fam_oii_ids(FAM_LINE_ptr fam_lines, uint32_t fam_line_num,
     if (duplicat_num > 0) {
         fprintf(stderr, "duplicated fam-indi id found\n");
     }
-/*
-    uint32_t *fam_index_arrary_tmp = fam_index_array;
-    uint32_t not_duplicated_fam_id_num = 0;
-    for (i = 0; i < fam_line_num; i++) {
-        this_ptr = &(hash_array[i]);
-        while (this_ptr) {
-            if (this_ptr->data_index != -1) {
-                fam_index_arrary_tmp[not_duplicated_fam_id_num] =
-                    (uint32_t)(this_ptr->data_index);
-                not_duplicated_fam_id_num++;
-            }
-            this_ptr = this_ptr->next;
-        }
-    }
-    qsort(fam_index_arrary_tmp, not_duplicated_fam_id_num, sizeof(uint32_t),
-        compare_uint32);
-*/
+
     // algin oii index
     this_ptr = NULL;
     int32_t oii_mapped_index_to_fam = -1;
@@ -1932,18 +1912,10 @@ free_drm_threads_args_malloc(DRM_THREAD_ARGS_ptr thread_args, int thread_num)
 static void *
 drm_thread_worker(void *args) {
     DRM_THREAD_ARGS_ptr args_in = (DRM_THREAD_ARGS_ptr)args;
-    int thread_index = args_in->thread_index;
-    int thread_num = args_in->thread_num;
-
-    uint32_t probe_slice_start_index = args_in->probe_slice_start_index;
-    uint32_t probe_slice_len = args_in->probe_slice_len;
-    uint32_t probe_offset = args_in->probe_offset;
-
-    uint32_t variant_slice_start = args_in->variant_slice_start_index;
+    printf(">%d\n", args_in->thread_index);
     uint32_t variant_slice_len = args_in->variant_slice_len;
 
     uint32_t fam_num = args_in->fam_num;
-    uint32_t oii_num = args_in->oii_num;
     uint32_t align_len = args_in->align_len;
     char not_need_align = args_in->not_need_align;
 
@@ -1951,7 +1923,6 @@ drm_thread_worker(void *args) {
     uint32_t *oii_index_array = args_in->oii_index_array;
 
     char *variant_data_loaded = args_in->variant_data;
-    uint64_t variant_data_loaded_len = args_in->variant_data_len_char;
 
     double *pheno_data = args_in->probe_data;
     double *g0_array = args_in->g0_array;
@@ -1962,32 +1933,20 @@ drm_thread_worker(void *args) {
     double *pheno_data_aligned = args_in->pheno_array;
     float *result = args_in->result;
 
-    double c1_res = 0, stdev_res = 0, t1_res = 0, p_value_res = 0;
-    double geno_0_median = 0.0, geno_1_median = 0.0, geno_2_median = 0.0;
-    int g0_num = 0, g1_num = 0, g2_num = 0;
-
-    double *g0_array_tmp = NULL;
-    double *g1_array_tmp = NULL;
-    double *g2_array_tmp = NULL;
-    int align_len_rm_missing = 0;
-    uint32_t geno_index = 0;
-    uint32_t pheno_index = 0;
-    double geno_value;
-    double pheno_value;
-
-    char *current_geno_one = NULL;
     for (int i = 0; i < variant_slice_len; i++) {
-        current_geno_one = variant_data_loaded + i * fam_num;
-        //printf(">>>%u %u\n", args_in->probe_offset, variant_slice_start + i);
-        align_len_rm_missing = 0;
-        g0_array_tmp = g0_array;
-        g1_array_tmp = g1_array;
-        g2_array_tmp = g2_array;
-        g0_num = 0;
-        g1_num = 0;
-        g2_num = 0;
+        double c1_res = 0, stdev_res = 0, p_value_res = 0;
+        double geno_0_median = 0.0, geno_1_median = 0.0, geno_2_median = 0.0;
+        int align_len_rm_missing = 0;
 
-        for (int j = 0; j < align_len; j++) {
+        char *current_geno_one = variant_data_loaded + i * fam_num;
+        uint32_t g0_num = 0, g1_num = 0, g2_num = 0;
+
+        // printf(">>>%u %u\n", args_in->probe_offset, variant_slice_start + i);
+        for (uint32_t j = 0; j < align_len; j++) {
+            uint32_t geno_index = 0;
+            uint32_t pheno_index = 0;
+            double geno_value;
+            double pheno_value;
             if (not_need_align) {
                 geno_value = (double)current_geno_one[j];
                 pheno_value = pheno_data[j];
@@ -2000,51 +1959,49 @@ drm_thread_worker(void *args) {
             }
             // do I need use other way to compare float number?
             if (geno_value != 4.0 && pheno_value != -9.0) {
+                if (geno_value == 0.0) {
+                    g0_array[g0_num] = pheno_value;
+                    g0_num++;
+                } else if (geno_value == 1.0) {
+                    g1_array[g1_num] = pheno_value;
+                    g1_num++;
+                } else if (geno_value == 2.0) {
+                    g2_array[g2_num] = pheno_value;
+                    g2_num++;
+                } else {
+                    fprintf(stderr, "geno value can not be others.\n");
+                    return NULL;
+                }
                 geno_data_aligned[align_len_rm_missing] = geno_value;
                 pheno_data_aligned[align_len_rm_missing] = pheno_value;
                 align_len_rm_missing++;
             }
         }
-       /*
-        for (int i = 0; i < align_len_rm_missing; i++) {
-            printf("%lf %lf\n", geno_data_aligned[i], pheno_data_aligned[i]);
-        }
-        */
-        for (int k = 0; k < align_len_rm_missing; k++) {
-                if (geno_data_aligned[k] == 0.0) {
-                *g0_array_tmp = pheno_data_aligned[k];
-                g0_num++;
-                g0_array_tmp++;
-                } else if (geno_data_aligned[k] == 1.0) {
-                *g1_array_tmp = pheno_data_aligned[k];
-                g1_num++;
-                g1_array_tmp++;
-                } else {
-                *g2_array_tmp = pheno_data_aligned[k];
-                g2_num++;
-                g2_array_tmp++;
-                }
-        }
 
         qsort(g0_array, g0_num, sizeof(double), compare_double);
         qsort(g1_array, g1_num, sizeof(double), compare_double);
         qsort(g2_array, g2_num, sizeof(double), compare_double);
+        if (g0_num > 0) {
+            geno_0_median =
+                (g0_num % 2)
+                    ? g0_array[g0_num / 2]
+                    : (g0_array[g0_num / 2 - 1] + g0_array[g0_num / 2]) / 2;
+        }
 
-        geno_0_median =
-            (g0_num % 2)
-                ? g0_array[g0_num / 2]
-                : (g0_array[g0_num / 2 - 1] + g0_array[g0_num / 2]) / 2;
+        if (g1_num > 0) {
+            geno_1_median =
+                (g1_num % 2)
+                    ? g1_array[g1_num / 2]
+                    : (g1_array[g1_num / 2 - 1] + g1_array[g1_num / 2]) / 2;
+        }
 
-        geno_1_median =
-            (g1_num % 2)
-                ? g1_array[g1_num / 2]
-                : (g1_array[g1_num / 2 - 1] + g1_array[g1_num / 2]) / 2;
-
-        geno_2_median =
-            (g2_num % 2)
-                ? g2_array[g2_num / 2]
-                : (g2_array[g2_num / 2 - 1] + g2_array[g2_num / 2]) / 2;
-
+        if (g2_num > 0) {
+            geno_2_median =
+                (g2_num % 2)
+                    ? g2_array[g2_num / 2]
+                    : (g2_array[g2_num / 2 - 1] + g2_array[g2_num / 2]) / 2;
+        }
+        
         // substract conressponding median from pheno value. and use absulute
         // value.
         for (int i = 0; i < align_len_rm_missing; i++) {
@@ -2057,20 +2014,20 @@ drm_thread_worker(void *args) {
         }
 
         linner_regression(geno_data_aligned, pheno_data_aligned,
-                          align_len_rm_missing, &c1_res, &stdev_res, &t1_res,
+                          align_len_rm_missing, &c1_res, &stdev_res,
                           &p_value_res);
-        // c1_res beta1 beta1_se t_value_of_beta1, f_test_p
-        /*
-                printf("%u %u %lf %lf %lf\n", args_in->probe_offset,
-           variant_slice_start + i, c1_res, stdev_res, p_value_res);
 
-        */
+    /*    
+        printf("%u %u %lf %lf %lf\n", args_in->probe_offset,
+           variant_slice_start + i, c1_res, stdev_res, p_value_res);
+    */
+        
         result[i * 3] = (float)c1_res;
         result[i * 3 + 1] = (float)stdev_res;
         result[i * 3 + 2] = (float)p_value_res;
         
     }
-
+    printf("<%d\n", args_in->thread_index);
     return NULL;
 }
 
