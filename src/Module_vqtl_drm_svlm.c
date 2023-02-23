@@ -160,7 +160,6 @@ static void help_legacy(void);
 static VQTL_ARGS_ptr vqtl_parse_args_legacy(int argc, char *argv[],
     const char *method, VQTL_ARGS_ptr args);
 
-
 static int compare_uint32(const void *a, const void *b);
 static int compare_double(const void *a, const void *b);
 static unsigned int BKDRHash(char *str);
@@ -175,7 +174,6 @@ static int align_fam_oii_ids(FAM_LINE_ptr fam_lines, uint32_t fam_line_num,
                              OII_LINE_ptr oii_lines, uint32_t oii_line_num,
                              uint32_t *fam_index_array,
                              uint32_t *oii_index_array, uint32_t *aligned_len);
-
 
 int Module_vqtl_drm(int argc, char *argv[]);
 static DRM_THREAD_ARGS_ptr make_drm_threads_args(
@@ -201,7 +199,7 @@ static void write_tmp_data(void *thread_args_ori, char *args_type,
                                 int thread_num, FILE *fout, float pthresh,
                                 uint32_t *varint_index_pass_thresh,
                                 float *beta_value, float *se_value);
-;
+
 
 int
 Module_vqtl_drm(int argc, char *argv[])
@@ -252,9 +250,7 @@ Module_vqtl_drm(int argc, char *argv[])
 
     uint32_t align_len = 0;
     align_fam_oii_ids(fam_lines, indi_num_fam, oii_lines, indi_num_oii,
-        fam_index_array, oii_index_array, &align_len);
-    printf("aligne len: %u\n", align_len);
-    
+        fam_index_array, oii_index_array, &align_len);    
     char not_need_align = 0; //if oii fam already aligned, then do not align in future.
     if ((indi_num_fam == indi_num_oii) && (align_len == indi_num_fam)) {
         not_need_align = 1;
@@ -265,13 +261,7 @@ Module_vqtl_drm(int argc, char *argv[])
             }
         }
     }
-    printf("not need align: %d\n", not_need_align);
-
-#ifdef DEBUG_INFO
-    for (int i = 0; i < align_len; i++) {
-        printf("%u\t%u\n", oii_index_array[i], fam_index_array[i]);
-    }
-#endif
+    printf("fam and oii ids was aligned, alinged length: %u\n", align_len);
 
     uint32_t probe_start_offset = 0;
     uint32_t probe_end = probe_num;
@@ -295,16 +285,16 @@ Module_vqtl_drm(int argc, char *argv[])
         char sufix[512];
         task_len = ceil((double)probe_num / task_num);
         if (task_id > 1 && task_id <= task_num) {
-            sprintf(sufix, "_%d_%d", task_id, task_num);
+            sprintf(sufix, "_%d_%d", task_num, task_id);
             strcat(res_fname, sufix);
             probe_start_offset = task_len * (task_id - 1);
 
         } else {
-            sprintf(sufix, "_%d_%d", 1, task_num);
+            sprintf(sufix, "_%d_%d", task_num, 1);
             strcat(res_fname, sufix);
             probe_start_offset = 0;
         }
-
+        // probe_end has been assigned as probe_num previousely.
         if (probe_start_offset + task_len < probe_num) {
             probe_end = probe_start_offset + task_len;
         }
@@ -350,7 +340,9 @@ Module_vqtl_drm(int argc, char *argv[])
             opi_line.position, opi_line.gene_id, ori);
     }
     fclose(epi_fout);
+    printf("epi file was writen.\n");
 
+    //grant memory
     uint64_t mem_size = 0;
     float mem = args->opt_mem;
     if (mem == 0.0) {
@@ -444,7 +436,7 @@ Module_vqtl_drm(int argc, char *argv[])
         } else {
             variant_slice_len = variant_load_len;
         }
-        printf("variant slice %u to %u\n", variant_slice_start,
+        printf("variant slice: %u to %u\n", variant_slice_start,
             variant_slice_start + variant_slice_len);
 
         strcpy(tmp_fname, tmp_dir_name);
@@ -467,13 +459,13 @@ Module_vqtl_drm(int argc, char *argv[])
             variant_slice_start, variant_slice_len);
         char *variant_data_ptr = variant_data;
         for (int i = 0; i < variant_slice_len; i++) {
-            //do need align before calculate allel_freq?
             float first_allel_freq = 0;
             uint32_t value_num = 0;
             uint32_t first_allel_count = 0;
-            for (int j = 0; j < indi_num_fam; j++) {
-                if (variant_data_ptr[j] != 4) {
-                    first_allel_count += variant_data_ptr[j];
+            for (int j = 0; j < align_len; j++) {
+                uint32_t index = fam_index_array[j];
+                if (variant_data_ptr[index] != 4) {
+                    first_allel_count += variant_data_ptr[index];
                     value_num++;
                 }
             }
@@ -496,6 +488,8 @@ Module_vqtl_drm(int argc, char *argv[])
                 bim_line.allel2, first_allel_freq);            
             variant_data_ptr += indi_num_fam;
         }
+
+
         for (int k = 0; k < thread_num; k++) {
             threads_args[k].variant_data_len_char = variant_data_len_real;
             threads_args[k].variant_slice_start_index = variant_slice_start;
@@ -504,7 +498,7 @@ Module_vqtl_drm(int argc, char *argv[])
         
         uint32_t j_limit = probe_end - thread_num + 1;
         uint32_t j = 0;
-        printf("seek bod file \n");
+        
         bodfileseek(&bod_data, probe_start_offset);
         for (j = probe_start_offset; j < j_limit; j += thread_num) {
             printf("probe index: %u\n", j);
@@ -525,7 +519,7 @@ Module_vqtl_drm(int argc, char *argv[])
             for (int p = 0; p < thread_num; p++) {
                 pthread_join(thread_ids[p], NULL);
             }
-
+            
             write_tmp_data(threads_args, VQTL_DRM_METHOD, thread_num, fout,
                                pthresh, variant_index_pass_thresh,
                                beta_value_pass_thresh, se_value_pass_thresh);
@@ -533,7 +527,7 @@ Module_vqtl_drm(int argc, char *argv[])
 
         int left_probe_n = 0;
         for (; j < probe_end; j++) {
-            printf("j: %u\n", j);
+            printf("probe index: %u\n", j);
             double *readdata;
             uint32_t readdata_len;
             readdata = threads_args[left_probe_n].probe_data;
@@ -558,6 +552,7 @@ Module_vqtl_drm(int argc, char *argv[])
         fclose(fout);
     }
     fclose(esi_fout);
+    printf("esi file was writen.\n");
 
     //merge result into besd or plain text file.
     uint32_t tmp_file_num = (uint32_t)ceil((double)(variant_end - variant_start_offset) /
@@ -680,6 +675,7 @@ Module_vqtl_drm(int argc, char *argv[])
     fclose(besd_index_fin);
     fclose(besd_beta_se_fin);
     fclose(besd_fout);
+    printf("besd file was writen.\n");
 
     //remove tmp directory.
 
@@ -712,7 +708,7 @@ Module_vqtl_drm(int argc, char *argv[])
     free(variant_index_pass_thresh);
     free(beta_value_pass_thresh);
     free(se_value_pass_thresh);
-    
+    printf("\n\033[0;32m<<<VQTL Module DRM method\033[0m End\n");
     return 1;
 }
 
@@ -753,13 +749,11 @@ Module_vqtl_svlm(int argc, char *argv[])
         (OII_LINE_ptr)malloc(sizeof(OII_LINE) * indi_num_oii);
     famreadlines(&plink_data, fam_lines, indi_num_fam);
     oiireadlines(&bod_data, oii_lines, indi_num_oii);
-
     uint32_t align_len = 0;
     align_fam_oii_ids(fam_lines, indi_num_fam, oii_lines, indi_num_oii,
                       fam_index_array, oii_index_array, &align_len);
-    printf("aligne len: %u\n", align_len);
-
-    char not_need_align = 0;  // if oii fam already aligned, then do not align in future.
+    // if oii fam already aligned, then do not align in future.
+    char not_need_align = 0;
     if ((indi_num_fam == indi_num_oii) && (align_len == indi_num_fam)) {
         not_need_align = 1;
         for (int i = 0; i < indi_num_oii; i++) {
@@ -769,7 +763,7 @@ Module_vqtl_svlm(int argc, char *argv[])
             }
         }
     }
-    printf("not need align: %d\n", not_need_align);
+    printf("fam and oii ids was aligned, alinged length: %u\n", align_len);
 
     uint32_t probe_start_offset = 0;
     uint32_t probe_end = probe_num;
@@ -793,21 +787,26 @@ Module_vqtl_svlm(int argc, char *argv[])
         char sufix[512];
         task_len = ceil((double)probe_num / task_num);
         if (task_id > 1 && task_id <= task_num) {
-            sprintf(sufix, "_%d_%d", task_id, task_num);
+            sprintf(sufix, "_%d_%d", task_num, task_id);
             strcat(res_fname, sufix);
             probe_start_offset = task_len * (task_id - 1);
 
         } else {
-            sprintf(sufix, "_%d_%d", 1, task_num);
+            sprintf(sufix, "_%d_%d", task_num, 1);
             strcat(res_fname, sufix);
             probe_start_offset = 0;
         }
-
+        //probe_end has been assigned as probe_num previousely.
         if (probe_start_offset + task_len < probe_num) {
             probe_end = probe_start_offset + task_len;
         }
     }
     int res_fname_len = strlen(res_fname);
+
+    printf("start probe offset: %u\n", probe_start_offset);
+    printf("end probe: %u\n", probe_end);
+    printf("start variant offset: %u\n", variant_start_offset);
+    printf("end variant: %u\n", variant_end);
 
     // write epi
     res_fname[res_fname_len] = '\0';
@@ -843,15 +842,11 @@ Module_vqtl_svlm(int argc, char *argv[])
                 opi_line.position, opi_line.gene_id, ori);
     }
     fclose(epi_fout);
+    printf("epi file was writen.\n");
 
-    printf("start probe offset: %u\n", probe_start_offset);
-    printf("end probe: %u\n", probe_end);
-    printf("start variant offset: %u\n", variant_start_offset);
-    printf("end variant: %u\n", variant_end);
-
+    //grant memory
     uint64_t mem_size = 0;
     float mem = args->opt_mem;
-    printf("--mem %f\n", mem);
     if (mem == 0.0) {
         SYSINFO sysinfo_dt;
         get_sysinfo(&sysinfo_dt);
@@ -859,7 +854,7 @@ Module_vqtl_svlm(int argc, char *argv[])
     } else {
         mem_size = (uint64_t)floor((double)mem * 1024 * 1024 * 1024);
     }
-    printf("mem size %llu\n", mem_size);
+    printf("granted mem size %llu\n", mem_size);
 
     uint32_t variant_load_len = mem_size / (indi_num_fam * sizeof(char));
     uint32_t variant_total_len = variant_end - variant_start_offset;
@@ -874,6 +869,9 @@ Module_vqtl_svlm(int argc, char *argv[])
         variant_data_len = variant_total_len * indi_num_fam;
         variant_data = (char *)malloc(sizeof(char) * variant_data_len);
     }
+    printf("variant load len: %u\n", variant_load_len);
+    printf("variant total len: %u\n", variant_total_len);
+    printf("variant_data_len: %llu\n", variant_data_len);
 
     int thread_num = args->opt_thread;
     pthread_t *restrict thread_ids =
@@ -891,7 +889,6 @@ Module_vqtl_svlm(int argc, char *argv[])
     // creat tmp directory
     char tmp_dir_name[] = "oscatmp";
     char tmp_fname[512];
-
     if (access(tmp_dir_name, F_OK)) {
         mkdir(tmp_dir_name, S_IRWXU);
     } else {
@@ -940,7 +937,7 @@ Module_vqtl_svlm(int argc, char *argv[])
         } else {
             variant_slice_len = variant_load_len;
         }
-        printf("variant slice %u to %u\n", variant_slice_start,
+        printf("variant slice: %u to %u\n", variant_slice_start,
                variant_slice_start + variant_slice_len);
 
         strcpy(tmp_fname, tmp_dir_name);
@@ -961,16 +958,16 @@ Module_vqtl_svlm(int argc, char *argv[])
         variant_data_len_real = variant_slice_len * indi_num_fam;
         bedloaddata_n(&plink_data, variant_data, variant_data_len_real,
                       variant_slice_start, variant_slice_len);
-
         char *variant_data_ptr = variant_data;
         for (int i = 0; i < variant_slice_len; i++) {
             // do need align before calculate allel_freq?
             float first_allel_freq = 0;
             uint32_t value_num = 0;
             uint32_t first_allel_count = 0;
-            for (int j = 0; j < indi_num_fam; j++) {
-                if (variant_data_ptr[j] != 4) {
-                    first_allel_count += variant_data_ptr[j];
+            for (int j = 0; j < align_len; j++) {
+                uint32_t index = fam_index_array[j];
+                if (variant_data_ptr[index] != 4) {
+                    first_allel_count += variant_data_ptr[index];
                     value_num++;
                 }
             }
@@ -1002,13 +999,14 @@ Module_vqtl_svlm(int argc, char *argv[])
 
         uint32_t j_limit = probe_end - thread_num + 1;
         uint32_t j = 0;
-        printf("seek bod file \n");
+        
         bodfileseek(&bod_data, probe_start_offset);
         for (j = probe_start_offset; j < j_limit; j += thread_num) {
-            printf("j: %u\n", j);
-            double *readdata;
-            uint32_t readdata_len;
+            printf("probe index: %u\n", j);
+
             for (int n = 0; n < thread_num; n++) {
+                double *readdata;
+                uint32_t readdata_len;
                 readdata = threads_args[n].probe_data;
                 readdata_len = threads_args[n].oii_num;
                 bodreaddata(&bod_data, readdata, readdata_len);
@@ -1022,7 +1020,7 @@ Module_vqtl_svlm(int argc, char *argv[])
             for (int p = 0; p < thread_num; p++) {
                 pthread_join(thread_ids[p], NULL);
             }
-
+            
             write_tmp_data(threads_args, VQTL_SVLM_METHOD, thread_num, fout, pthresh,
                                variant_index_pass_thresh,
                                beta_value_pass_thresh, se_value_pass_thresh);
@@ -1030,7 +1028,7 @@ Module_vqtl_svlm(int argc, char *argv[])
 
         int left_probe_n = 0;
         for (; j < probe_end; j++) {
-            printf("j: %u\n", j);
+            printf("probe index: %u\n", j);
             double *readdata;
             uint32_t readdata_len;
             readdata = threads_args[left_probe_n].probe_data;
@@ -1053,6 +1051,7 @@ Module_vqtl_svlm(int argc, char *argv[])
 
         fclose(fout);
     }
+    printf("esi file was writen.\n");
 
     // merge result into besd or plain text file.
     uint32_t tmp_file_num = (uint32_t)ceil(
@@ -1184,7 +1183,7 @@ Module_vqtl_svlm(int argc, char *argv[])
     fclose(besd_index_fin);
     fclose(besd_beta_se_fin);
     fclose(besd_fout);
-
+    printf("besd file was writen.\n");
 
 
     // remove tmp directory.
@@ -1217,7 +1216,7 @@ Module_vqtl_svlm(int argc, char *argv[])
     free(se_value_pass_thresh);
     free_svlm_threads_args_malloc(threads_args, thread_num);
     free(threads_args);
-
+    printf("\n\033[0;32m<<<VQTL Module SVLM method\033[0m End\n");
     return 1;
 }
 
@@ -1353,7 +1352,7 @@ vqtl_parse_args_legacy(int argc, char *argv[], const char *method, VQTL_ARGS_ptr
             if (strcmp(argv[i], "--pheno-bod") == 0) {
                 if (i + 1 < argc && strncmp(argv[i + 1], "--", 2) != 0) {
                     args->opt_pheno_bod = argv[++i];
-                    printf("--pheno-bod %s", argv[i]);
+                    printf("--pheno-bod %s\n", argv[i]);
                     continue;
                 } else {
                     fprintf(stderr, "--pheno-bod need a argument.\n");
@@ -1979,7 +1978,7 @@ drm_thread_worker(void *args) {
     char *current_geno_one = NULL;
     for (int i = 0; i < variant_slice_len; i++) {
         current_geno_one = variant_data_loaded + i * fam_num;
-
+        //printf(">>>%u %u\n", args_in->probe_offset, variant_slice_start + i);
         align_len_rm_missing = 0;
         g0_array_tmp = g0_array;
         g1_array_tmp = g1_array;
@@ -1997,6 +1996,7 @@ drm_thread_worker(void *args) {
                 geno_value = (double)current_geno_one[geno_index];
                 pheno_index = oii_index_array[j];
                 pheno_value = pheno_data[pheno_index];
+                //printf("index: %d %d\n", geno_index, pheno_index);
             }
             // do I need use other way to compare float number?
             if (geno_value != 4.0 && pheno_value != -9.0) {
@@ -2005,7 +2005,11 @@ drm_thread_worker(void *args) {
                 align_len_rm_missing++;
             }
         }
-
+       /*
+        for (int i = 0; i < align_len_rm_missing; i++) {
+            printf("%lf %lf\n", geno_data_aligned[i], pheno_data_aligned[i]);
+        }
+        */
         for (int k = 0; k < align_len_rm_missing; k++) {
                 if (geno_data_aligned[k] == 0.0) {
                 *g0_array_tmp = pheno_data_aligned[k];
@@ -2056,49 +2060,19 @@ drm_thread_worker(void *args) {
                           align_len_rm_missing, &c1_res, &stdev_res, &t1_res,
                           &p_value_res);
         // c1_res beta1 beta1_se t_value_of_beta1, f_test_p
-        // printf("%lf %lf %lf %lf\n", c1_res, stdev_res, t1_res, p_value_res);
+        /*
+                printf("%u %u %lf %lf %lf\n", args_in->probe_offset,
+           variant_slice_start + i, c1_res, stdev_res, p_value_res);
+
+        */
         result[i * 3] = (float)c1_res;
         result[i * 3 + 1] = (float)stdev_res;
         result[i * 3 + 2] = (float)p_value_res;
+        
     }
 
     return NULL;
 }
-
-
-/*
-static void
-drm_write_tmp_data(DRM_THREAD_ARGS_ptr thread_args, int thread_num, FILE *fout,
-    float pthresh, uint32_t *varint_index_pass_thresh, float *beta_value,
-    float *se_value)
-{
-
-    for (int i = 0; i < thread_num; i++) {
-        uint32_t variant_num_pass_thresh = 0;
-        float *result = thread_args[i].result;
-        uint32_t variant_slice_len = thread_args[i].variant_slice_len;
-        uint32_t variant_slice_start = thread_args[i].variant_slice_start_index;
-        for (int j = 0; j < variant_slice_len; j++) {
-            uint32_t offset = j * 3;
-            if (result[offset + 2] <= pthresh) {
-                varint_index_pass_thresh[variant_num_pass_thresh] = j +
-                    variant_slice_start;
-                beta_value[variant_num_pass_thresh] = result[offset];
-                se_value[variant_num_pass_thresh] = result[offset + 1];
-                variant_num_pass_thresh++;
-            }
-
-        }
-        fwrite(&variant_num_pass_thresh, sizeof(uint32_t), 1, fout);
-        fwrite(varint_index_pass_thresh, sizeof(uint32_t),
-            variant_num_pass_thresh, fout);
-        fwrite(beta_value, sizeof(float), variant_num_pass_thresh, fout);
-        fwrite(se_value, sizeof(float), variant_num_pass_thresh, fout);
-
-    }
-    return;
-}
-*/
 
 
 static SVLM_THREAD_ARGS_ptr
@@ -2226,6 +2200,7 @@ svlm_thread_worker(void *args)
                 align_len_rm_missing++;
             }            
         }
+
         linner_regression2(geno_array, pheno_array, align_len_rm_missing, &beta0,
             &beta0_se, &beta0_p, &beta1, &beta1_se, &beta1_p, &ftest_p_val);
         // pheno_array turn into array of residual square.
@@ -2237,9 +2212,14 @@ svlm_thread_worker(void *args)
         linner_regression2(geno_array, pheno_array, align_len_rm_missing,
                            &beta0, &beta0_se, &beta0_p, &beta1, &beta1_se,
                            &beta1_p, &ftest_p_val);
+        /*
+        printf("%u %u %lf %lf %lf\n", args_in->probe_offset,
+            args_in->variant_slice_start_index + i, beta1, beta1_se, beta1_p);
+        */
         result[i * 3] = (float)beta1;
         result[i * 3 + 1] = (float)beta1_se;
         result[i * 3 + 2] = (float)beta1_p;
+        
     }
 
     return NULL;
