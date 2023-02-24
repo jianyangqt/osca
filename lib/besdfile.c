@@ -2,15 +2,52 @@
 
 #include "besdfile.h"
 
+int
+besdfileopen(const char *fname, void *besd_data)
+{
+
+    return 0;
+}
+
+void
+besdfilerewind(void *besd_data)
+{
+
+    return;
+}
+
 
 int
-esiprint(void)
+besdfileseek(void *besd_data)
+{
+
+    return 0;
+}
+
+
+int
+epireadline(void)
 {
     return 0;
 }
 
 
-int epiprint(void)
+int
+epireadlines(void)
+{
+    return 0;
+}
+
+
+int
+esireadline(void)
+{
+    return 0;
+}
+
+
+int
+esireadlines(void)
 {
     return 0;
 }
@@ -56,8 +93,13 @@ besd_sparse_write_beta_se_data(float *beta, float *se, uint32_t data_len, FILE *
 
 
 int
-besd_concatenate_files(void)
+besd_sparse_write(void)
 {
+
+    /*
+        method one,
+        creat tmp files, and then concatnate them.
+    */
 
     return 0;
 
