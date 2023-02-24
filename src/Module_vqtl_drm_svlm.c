@@ -434,7 +434,7 @@ Module_vqtl_drm(int argc, char *argv[])
         } else {
             variant_slice_len = variant_load_len;
         }
-        printf("variant slice: %u to %u\n", variant_slice_start,
+        printf(">>variant slice<< %u to %u\n", variant_slice_start,
             variant_slice_start + variant_slice_len);
 
         strcpy(tmp_fname, tmp_dir_name);
@@ -517,7 +517,7 @@ Module_vqtl_drm(int argc, char *argv[])
             for (int p = 0; p < thread_num; p++) {
                 pthread_join(thread_ids[p], NULL);
             }
-            printf("output res\n");
+            
             write_tmp_data(threads_args, VQTL_DRM_METHOD, thread_num, fout,
                                pthresh, variant_index_pass_thresh,
                                beta_value_pass_thresh, se_value_pass_thresh);
@@ -570,7 +570,7 @@ Module_vqtl_drm(int argc, char *argv[])
         sprintf(tmp_fname_new, "tmp_%u_%u_%u_%u", probe_slice_start,
                 probe_slice_len, variant_slice_start, variant_slice_len);
         strcat(tmp_fname, tmp_fname_new);
-
+        printf("tmp file name : %s\n", tmp_fname);
         FILE *fin = fopen(tmp_fname, "r");
         if (!fin) {
             fprintf(stderr, "open OSCA tmp file failed.\n");
@@ -624,10 +624,12 @@ Module_vqtl_drm(int argc, char *argv[])
         }
 
         besd_value_num += 2 * data_num_probe;
-        besd_offset[i * 2 + 1] = besd_offset[i * 2] * data_num_probe;
-        besd_offset[i * 2 + 2] = besd_offset[i * 2 + 1] * data_num_probe;
+        besd_offset[i * 2 + 1] = besd_offset[i * 2] + data_num_probe;
+        besd_offset[i * 2 + 2] = besd_offset[i * 2 + 1] + data_num_probe;
         besd_sparse_write_variant_index(besd_index, data_num_probe, besd_index_fout);
         besd_sparse_write_beta_se_data(besd_beta, besd_se, data_num_probe, besd_beta_se_fout);
+        printf("probe: %d, besd_offset: %lu, value_num: %lu\n", i,
+            besd_value_num, besd_offset[i * 2 + 2]);
     }
     besd_sparse_write_meta(besd_file_format, besd_sample_num, besd_esi_num,
         besd_epi_num, besd_value_num, besd_offset, besd_meta_fout);
@@ -676,7 +678,6 @@ Module_vqtl_drm(int argc, char *argv[])
     printf("besd file was writen.\n");
 
     //remove tmp directory.
-
     if (!access(tmp_dir_name, F_OK)) {
         DIR *dirp = opendir(tmp_dir_name);
         struct dirent *dp = NULL;
@@ -935,7 +936,7 @@ Module_vqtl_svlm(int argc, char *argv[])
         } else {
             variant_slice_len = variant_load_len;
         }
-        printf("variant slice: %u to %u\n", variant_slice_start,
+        printf(">>variant slice<< %u to %u\n", variant_slice_start,
                variant_slice_start + variant_slice_len);
 
         strcpy(tmp_fname, tmp_dir_name);
@@ -1069,7 +1070,7 @@ Module_vqtl_svlm(int argc, char *argv[])
         sprintf(tmp_fname_new, "tmp_%u_%u_%u_%u", probe_slice_start,
                 probe_slice_len, variant_slice_start, variant_slice_len);
         strcat(tmp_fname, tmp_fname_new);
-
+        printf("tmp file name %s\n", tmp_fname);
         FILE *fin = fopen(tmp_fname, "r");
         if (!fin) {
             fprintf(stderr, "open OSCA tmp file failed.\n");
@@ -1127,8 +1128,11 @@ Module_vqtl_svlm(int argc, char *argv[])
         }
 
         besd_value_num += 2 * data_num_probe;
-        besd_offset[i * 2 + 1] = besd_offset[i * 2] * data_num_probe;
-        besd_offset[i * 2 + 2] = besd_offset[i * 2 + 1] * data_num_probe;
+        besd_offset[i * 2 + 1] = besd_offset[i * 2] + data_num_probe;
+        besd_offset[i * 2 + 2] = besd_offset[i * 2 + 1] + data_num_probe;
+        printf("probe: %d, besd_offset: %lu, value_num: %lu\n", i,
+               besd_value_num, besd_offset[i * 2 + 2]);
+
         besd_sparse_write_variant_index(besd_index, data_num_probe,
                                         besd_index_fout);
         besd_sparse_write_beta_se_data(besd_beta, besd_se, data_num_probe,
@@ -2005,20 +2009,20 @@ drm_thread_worker(void *args) {
         }
         */
 
-       for (int i = 0; i < align_len_rm_missing; i++) {
+       for (int k = 0; k < align_len_rm_missing; k++) {
             double tmp;
-            if (geno_data_aligned[i] == 0.0) {
-                tmp = pheno_data_aligned[i] - geno_0_median;
+            if (geno_data_aligned[k] == 0.0) {
+                tmp = pheno_data_aligned[k] - geno_0_median;
                 tmp = (tmp < 0)? -tmp: tmp;
-                pheno_data_aligned[i] = tmp;
-            } else if (geno_data_aligned[i] == 1.0) {
-                tmp = pheno_data_aligned[i] - geno_1_median;
-                tmp = (tmp < 0) ? -tmp : tmp;
-                pheno_data_aligned[i] = tmp;
+                pheno_data_aligned[k] = tmp;
+            } else if (geno_data_aligned[k] == 1.0) {
+                tmp = pheno_data_aligned[k] - geno_1_median;
+                tmp = (tmp < 0)? -tmp : tmp;
+                pheno_data_aligned[k] = tmp;
             } else {
-                tmp = pheno_data_aligned[i] - geno_2_median;
-                tmp = (tmp < 0) ? -tmp : tmp;
-                pheno_data_aligned[i] = tmp;
+                tmp = pheno_data_aligned[k] - geno_2_median;
+                tmp = (tmp < 0)? -tmp : tmp;
+                pheno_data_aligned[k] = tmp;
             }
        }
 
@@ -2026,10 +2030,10 @@ drm_thread_worker(void *args) {
                           align_len_rm_missing, &c1_res, &stdev_res,
                           &p_value_res);
     
-       
+        /*
         printf("%u %u %lf %lf %lf\n", args_in->probe_offset,
            args_in->variant_slice_start_index + i, c1_res, stdev_res, p_value_res);
-    
+        */
         
         result[i * 3] = (float)c1_res;
         result[i * 3 + 1] = (float)stdev_res;
@@ -2037,7 +2041,7 @@ drm_thread_worker(void *args) {
         
     }
     clock_t t2 = clock();
-    printf("<%d   %ld\n", args_in->thread_index, t2 - t1);
+    printf("<%d   %ld cpu ticks\n", args_in->thread_index, t2 - t1);
     return NULL;
 }
 
@@ -2176,17 +2180,17 @@ svlm_thread_worker(void *args)
         }
         linner_regression(geno_array, pheno_array, align_len_rm_missing,
                            &beta1, &beta1_se, &beta1_p);
-        
+        /*
         printf("%u %u %lf %lf %lf\n", args_in->probe_offset,
             args_in->variant_slice_start_index + i, beta1, beta1_se, beta1_p);
-        
+        */
         result[i * 3] = (float)beta1;
         result[i * 3 + 1] = (float)beta1_se;
         result[i * 3 + 2] = (float)beta1_p;
         
     }
     clock_t t2 = clock();
-    printf("<%d    %lu\n", args_in->thread_index, t2 - t1);
+    printf("<%d    %lu cpu ticks\n", args_in->thread_index, t2 - t1);
     return NULL;
 }
 
@@ -2216,6 +2220,8 @@ write_tmp_data(void *thread_args_ori, char *args_type,
                     variant_num_pass_thresh++;
                 }
             }
+            printf("probe %u: variant %u pass thresh.\n", 
+                thread_args[i].probe_offset, variant_num_pass_thresh);
             fwrite(&variant_num_pass_thresh, sizeof(uint32_t), 1, fout);
             fwrite(varint_index_pass_thresh, sizeof(uint32_t),
                    variant_num_pass_thresh, fout);
@@ -2240,6 +2246,8 @@ write_tmp_data(void *thread_args_ori, char *args_type,
                     variant_num_pass_thresh++;
                 }
             }
+            printf("probe %u: variant %u pass thresh.\n",
+                   thread_args[i].probe_offset, variant_num_pass_thresh);
             fwrite(&variant_num_pass_thresh, sizeof(uint32_t), 1, fout);
             fwrite(varint_index_pass_thresh, sizeof(uint32_t),
                    variant_num_pass_thresh, fout);
