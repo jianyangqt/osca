@@ -165,12 +165,8 @@ static int compare_uint32(const void *a, const void *b);
 static int compare_double(const void *a, const void *b);
 static double qmedian(double *array, int p, int r, int pos);
 static unsigned int BKDRHash(char *str);
-static int linner_regression2(const double *x, const double *y,
-    const uint32_t array_len, double *beta0, double *beta0_se, double *beta0_p,
-    double *beta1, double *beta1_se, double *beta1_p,
-    double *ftest_p_val);
-static int linner_regression(const double *x, const double *y, uint32_t array_len, double *c1_res,
-    double *stdev1_res, double *p_value_res);
+static int linner_regression(const double *x, const double *y, uint32_t array_len,
+    double *beta1, double *beta1_se, double *p_beta1);
 
 static int align_fam_oii_ids(FAM_LINE_ptr fam_lines, uint32_t fam_line_num,
                              OII_LINE_ptr oii_lines, uint32_t oii_line_num,
@@ -1571,8 +1567,8 @@ BKDRHash(char *str)
 
 
 static int
-linner_regression(const double *x, const double *y, uint32_t array_len, double *c1_res,
-    double *stdev1_res, double *p_value_res)
+linner_regression(const double *x, const double *y, uint32_t array_len, double *beta1,
+    double *se_beta1, double *p_beta1)
 {
     //printf("%lf %lf %u\n", x[0], y[0], array_len);
     double c0, c1, cov00, cov01, cov11, sumsq;
@@ -1607,76 +1603,9 @@ linner_regression(const double *x, const double *y, uint32_t array_len, double *
     double p_value = 1 - gsl_cdf_fdist_P(F, 1, dl);
 */
     //printf("%le %le %le %le\n", c1, stdev1, t1, p_value);
-    *c1_res = c1;
-    *stdev1_res = stdev1;
-    *p_value_res = pv1;
-
-    return 0;
-}
-
-
-static int
-linner_regression2(const double *x, const double *y, const uint32_t array_len,
-    double *beta0, double *beta0_se, double *beta0_p,
-    double *beta1, double *beta1_se, double *beta1_p,
-    double *ftest_p_val)
-{
-    /*
-        y = beta0 + beta1 * x
-        c0: beta0
-        c1: beta1
-        cov00: square of standard error of beta0
-        cov11: square of standard error of beta1
-        sumsq: sum of residule square(RSS)
-    */
-
-    double c0, c1, cov00, cov01, cov11, sumsq;
-    gsl_fit_linear(x, 1, y, 1, array_len, &c0, &c1, &cov00, &cov01, &cov11,
-                   &sumsq);
-
-    /*
-        t = beta / se
-        then carry out t test.
-    */
-    double stdev0 = sqrt(cov00);
-    double t0 = c0 / stdev0;
-    double pv0 = (t0 < 0)? 2 * (1 - gsl_cdf_tdist_P(-t0, array_len - 2)):
-        2 * (1 - gsl_cdf_tdist_P(t0, array_len - 2));
-
-    double stdev1 = sqrt(cov11);
-    double t1 = c1 / stdev1;
-    double pv1 = t1 < 0 ? 2 * (1 - gsl_cdf_tdist_P(-t1, array_len - 2)):
-        2 * (1 - gsl_cdf_tdist_P(t1, array_len - 2));
-
-    /*
-        calculate mean of y and Variance of y.
-    */
-    double dl = array_len - 2;
-    double y_mean = 0;
-    for (int i = 0; i < array_len; i++) {
-        y_mean += y[i];
-    }
-    y_mean = y_mean / array_len;
-
-    double y_var = 0;
-    for (int i = 0; i < array_len; i++) {
-        y_var += pow(y[i] - y_mean, 2);
-    }
-
-    /*
-        Get f value and carry out f test.
-    */
-    double R2 = 1 - sumsq / y_var;
-    double F = R2 * dl / (1 - R2);
-    double ftest_p_value = 1 - gsl_cdf_fdist_P(F, 1, dl);
-
-    *beta0 = c0;
-    *beta0_se = stdev0;
-    *beta0_p = pv0;
     *beta1 = c1;
-    *beta1_se = stdev1;
-    *beta1_p = pv1;
-    *ftest_p_val = ftest_p_value;
+    *se_beta1 = stdev1;
+    *p_beta1 = pv1;
 
     return 0;
 }
@@ -2097,10 +2026,10 @@ drm_thread_worker(void *args) {
                           align_len_rm_missing, &c1_res, &stdev_res,
                           &p_value_res);
     
-    /*    
+       
         printf("%u %u %lf %lf %lf\n", args_in->probe_offset,
-           variant_slice_start + i, c1_res, stdev_res, p_value_res);
-    */
+           args_in->variant_slice_start_index + i, c1_res, stdev_res, p_value_res);
+    
         
         result[i * 3] = (float)c1_res;
         result[i * 3 + 1] = (float)stdev_res;
@@ -2198,8 +2127,10 @@ static void *
 svlm_thread_worker(void *args)
 {
     SVLM_THREAD_ARGS_ptr args_in = (SVLM_THREAD_ARGS_ptr)args;
+    printf(">%d\n", args_in->thread_index);
+    clock_t t1 = clock();
+
     uint32_t fam_num = args_in->fam_num;
-    uint32_t oii_num = args_in->oii_num;
     uint32_t align_len = args_in->align_len;
     uint32_t variant_slice_len = args_in->variant_slice_len;
     char *variant_data = args_in->variant_data;
@@ -2213,53 +2144,49 @@ svlm_thread_worker(void *args)
     double *pheno_array = args_in->pheno_array;
     float *result = args_in->result;
 
-    uint32_t geno_index = 0, pheno_index = 0;
-    uint32_t align_len_rm_missing = 0;
-    double geno_value = 0.0, pheno_value = 0.0;
-    double beta0, beta0_se, beta0_p, beta1, beta1_se, beta1_p, ftest_p_val;
-    char *varinat_data_one = NULL;
     for (int i = 0; i < variant_slice_len; i++) {
-        varinat_data_one = variant_data + (i * fam_num);
-        align_len_rm_missing = 0;
+        char *varinat_data_one = variant_data + (i * fam_num);
+        uint32_t align_len_rm_missing = 0;
+        uint32_t geno_index = 0, pheno_index = 0;
+        char geno_value = 0;
+        double pheno_value = 0.0;
+        double beta0, beta0_se, beta0_p, beta1, beta1_se, beta1_p, ftest_p_val;
+
         for (int j = 0; j < align_len; j++) {
 
-            if (not_need_align) {
-                geno_value = (double)varinat_data_one[j];
-                pheno_value = probe_data[j];
-            } else {
-                geno_index = fam_index_array[j];
-                pheno_index = oii_index_array[j];
-                geno_value = varinat_data_one[geno_index];
-                pheno_value = probe_data[pheno_index];
-            }
-            if (geno_value != 4.0 && pheno_value != -9.0) {
-                geno_array[align_len_rm_missing] = geno_value;
+            geno_index = fam_index_array[j];
+            pheno_index = oii_index_array[j];
+            geno_value = varinat_data_one[geno_index];
+            pheno_value = probe_data[pheno_index];
+            
+            if (geno_value != 4 && pheno_value != -9.0) {
+                geno_array[align_len_rm_missing] = (double)geno_value;
                 pheno_array[align_len_rm_missing] = pheno_value;
                 align_len_rm_missing++;
             }            
         }
 
-        linner_regression2(geno_array, pheno_array, align_len_rm_missing, &beta0,
-            &beta0_se, &beta0_p, &beta1, &beta1_se, &beta1_p, &ftest_p_val);
+        linner_regression(geno_array, pheno_array, align_len_rm_missing,
+            &beta1, &beta1_se, &beta1_p);
         // pheno_array turn into array of residual square.
         for (int k = 0; k < align_len_rm_missing; k++) {
             double residule;
             residule = pheno_array[k] - (beta0 + beta1 * geno_array[k]);
             pheno_array[k] = residule * residule;
         }
-        linner_regression2(geno_array, pheno_array, align_len_rm_missing,
-                           &beta0, &beta0_se, &beta0_p, &beta1, &beta1_se,
-                           &beta1_p, &ftest_p_val);
-        /*
+        linner_regression(geno_array, pheno_array, align_len_rm_missing,
+                           &beta1, &beta1_se, &beta1_p);
+        
         printf("%u %u %lf %lf %lf\n", args_in->probe_offset,
             args_in->variant_slice_start_index + i, beta1, beta1_se, beta1_p);
-        */
+        
         result[i * 3] = (float)beta1;
         result[i * 3 + 1] = (float)beta1_se;
         result[i * 3 + 2] = (float)beta1_p;
         
     }
-
+    clock_t t2 = clock();
+    printf("<%d    %lu\n", args_in->thread_index, t2 - t1);
     return NULL;
 }
 
