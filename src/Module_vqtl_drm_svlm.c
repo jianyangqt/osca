@@ -33,6 +33,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <dirent.h>
+#include <time.h>
 
 #include "../lib/plinklite.h"
 #include "../lib/bodfile.h"
@@ -162,6 +163,7 @@ static VQTL_ARGS_ptr vqtl_parse_args_legacy(int argc, char *argv[],
 
 static int compare_uint32(const void *a, const void *b);
 static int compare_double(const void *a, const void *b);
+static double qmedian(double *array, int p, int r, int pos);
 static unsigned int BKDRHash(char *str);
 static int linner_regression2(const double *x, const double *y,
     const uint32_t array_len, double *beta0, double *beta0_se, double *beta0_p,
@@ -1909,10 +1911,38 @@ free_drm_threads_args_malloc(DRM_THREAD_ARGS_ptr thread_args, int thread_num)
 }
 
 
+static double
+qmedian(double *array, int p, int r, int pos)
+{
+    double x = array[r];
+    int i = p - 1;
+    double tmp;
+    for (int j = p; j < r; j++) {
+        if (array[j] <= x) {
+            i++;
+            tmp = array[i];
+            array[i] = array[j];
+            array[j] = tmp;
+        }
+    }
+    array[r] = array[i + 1];
+    array[i + 1] = x;
+
+    if (pos > i + 1) {
+        return qmedian(array, i + 2, r, pos);
+    } else if (pos < i + 1) {
+        return qmedian(array, p, i, pos);
+    } else {
+        return array[i + 1];
+    }
+}
+
+
 static void *
 drm_thread_worker(void *args) {
     DRM_THREAD_ARGS_ptr args_in = (DRM_THREAD_ARGS_ptr)args;
     printf(">%d\n", args_in->thread_index);
+    clock_t t1 = clock();
     uint32_t variant_slice_len = args_in->variant_slice_len;
 
     uint32_t fam_num = args_in->fam_num;
@@ -1934,6 +1964,7 @@ drm_thread_worker(void *args) {
     float *result = args_in->result;
 
     for (int i = 0; i < variant_slice_len; i++) {
+        
         double c1_res = 0, stdev_res = 0, p_value_res = 0;
         double geno_0_median = 0.0, geno_1_median = 0.0, geno_2_median = 0.0;
         int align_len_rm_missing = 0;
@@ -1941,43 +1972,38 @@ drm_thread_worker(void *args) {
         char *current_geno_one = variant_data_loaded + i * fam_num;
         uint32_t g0_num = 0, g1_num = 0, g2_num = 0;
 
-        // printf(">>>%u %u\n", args_in->probe_offset, variant_slice_start + i);
         for (uint32_t j = 0; j < align_len; j++) {
             uint32_t geno_index = 0;
             uint32_t pheno_index = 0;
-            double geno_value;
+            char geno_value;
             double pheno_value;
-            if (not_need_align) {
-                geno_value = (double)current_geno_one[j];
-                pheno_value = pheno_data[j];
-            } else {
-                geno_index = fam_index_array[j];
-                geno_value = (double)current_geno_one[geno_index];
-                pheno_index = oii_index_array[j];
-                pheno_value = pheno_data[pheno_index];
-                //printf("index: %d %d\n", geno_index, pheno_index);
-            }
+            geno_index = fam_index_array[j];
+            geno_value = current_geno_one[geno_index];
+            pheno_index = oii_index_array[j];
+            pheno_value = pheno_data[pheno_index];
+           
             // do I need use other way to compare float number?
-            if (geno_value != 4.0 && pheno_value != -9.0) {
-                if (geno_value == 0.0) {
+            if (geno_value != 4 && pheno_value != -9.0) {
+                if (geno_value == 0) {
                     g0_array[g0_num] = pheno_value;
                     g0_num++;
-                } else if (geno_value == 1.0) {
+                } else if (geno_value == 1) {
                     g1_array[g1_num] = pheno_value;
                     g1_num++;
-                } else if (geno_value == 2.0) {
+                } else if (geno_value == 2) {
                     g2_array[g2_num] = pheno_value;
                     g2_num++;
                 } else {
                     fprintf(stderr, "geno value can not be others.\n");
                     return NULL;
                 }
-                geno_data_aligned[align_len_rm_missing] = geno_value;
+                geno_data_aligned[align_len_rm_missing] = (double)geno_value;
                 pheno_data_aligned[align_len_rm_missing] = pheno_value;
                 align_len_rm_missing++;
             }
         }
-
+/*
+        //old method to get median.
         qsort(g0_array, g0_num, sizeof(double), compare_double);
         qsort(g1_array, g1_num, sizeof(double), compare_double);
         qsort(g2_array, g2_num, sizeof(double), compare_double);
@@ -2001,22 +2027,76 @@ drm_thread_worker(void *args) {
                     ? g2_array[g2_num / 2]
                     : (g2_array[g2_num / 2 - 1] + g2_array[g2_num / 2]) / 2;
         }
-        
-        // substract conressponding median from pheno value. and use absulute
-        // value.
+        printf(">>>%lf %lf %lf\n", geno_0_median, geno_1_median, geno_2_median);
+ */
+        /*new method to get median.*/
+        if (g0_num > 0) {
+            if (g0_num % 2) {
+                geno_0_median = qmedian(g0_array, 0, g0_num - 1, g0_num / 2);
+            } else {
+                geno_0_median =
+                    (qmedian(g0_array, 0, g0_num - 1, g0_num / 2 - 1) +
+                     qmedian(g0_array, 0, g0_num - 1, g0_num / 2)) /
+                    2;
+            }
+        }
+        if (g1_num > 0) {
+            if (g1_num % 2) {
+                geno_1_median = qmedian(g1_array, 0, g1_num - 1, g1_num / 2);
+            } else {
+                geno_1_median =
+                    (qmedian(g1_array, 0, g1_num - 1, g1_num / 2 - 1) +
+                     qmedian(g1_array, 0, g1_num - 1, g1_num / 2)) /
+                    2;
+            }
+        }
+        if (g2_num > 0) {
+            if (g2_num % 2) {
+                geno_2_median = qmedian(g2_array, 0, g2_num - 1, g2_num / 2);
+            } else {
+                geno_2_median =
+                    (qmedian(g2_array, 0, g2_num - 1, g2_num / 2 - 1) +
+                     qmedian(g2_array, 0, g2_num - 1, g2_num / 2)) /
+                    2;
+            }
+        }
+        //printf("<<<%lf %lf %lf\n", geno_0_median, geno_1_median, geno_2_median);
+
+        /*substract conressponding median from pheno value. and use absulute
+         * value.*/
+        /*
         for (int i = 0; i < align_len_rm_missing; i++) {
                 pheno_data_aligned[i] =
                     (geno_data_aligned[i] == 0.0)
                         ? fabs(pheno_data_aligned[i] - geno_0_median)
                         : ((geno_data_aligned[i] == 1.0)
-                               ? fabs(pheno_data_aligned[i] - geno_1_median)
-                               : fabs(pheno_data_aligned[i] - geno_2_median));
+                                ? fabs(pheno_data_aligned[i] - geno_1_median)
+                                : fabs(pheno_data_aligned[i] -
+        geno_2_median));
         }
+        */
+
+       for (int i = 0; i < align_len_rm_missing; i++) {
+            double tmp;
+            if (geno_data_aligned[i] == 0.0) {
+                tmp = pheno_data_aligned[i] - geno_0_median;
+                tmp = (tmp < 0)? -tmp: tmp;
+                pheno_data_aligned[i] = tmp;
+            } else if (geno_data_aligned[i] == 1.0) {
+                tmp = pheno_data_aligned[i] - geno_1_median;
+                tmp = (tmp < 0) ? -tmp : tmp;
+                pheno_data_aligned[i] = tmp;
+            } else {
+                tmp = pheno_data_aligned[i] - geno_2_median;
+                tmp = (tmp < 0) ? -tmp : tmp;
+                pheno_data_aligned[i] = tmp;
+            }
+       }
 
         linner_regression(geno_data_aligned, pheno_data_aligned,
                           align_len_rm_missing, &c1_res, &stdev_res,
                           &p_value_res);
-
+    
     /*    
         printf("%u %u %lf %lf %lf\n", args_in->probe_offset,
            variant_slice_start + i, c1_res, stdev_res, p_value_res);
@@ -2027,7 +2107,8 @@ drm_thread_worker(void *args) {
         result[i * 3 + 2] = (float)p_value_res;
         
     }
-    printf("<%d\n", args_in->thread_index);
+    clock_t t2 = clock();
+    printf("<%d   %ld\n", args_in->thread_index, t2 - t1);
     return NULL;
 }
 
