@@ -90,8 +90,10 @@ int main(int argc, char * argv[])
 
     int module_status = 0;
 #ifdef MODULE_VQTL_DRM_SVLM
+    fclose(logfile);
     module_status += Module_vqtl_drm(argc, argv);
     module_status += Module_vqtl_svlm(argc, argv);
+    logfile = fopen(logfname.c_str(), "a");
 #endif
     if (!module_status) {
         option(argc, argv);
