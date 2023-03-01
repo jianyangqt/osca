@@ -496,9 +496,48 @@ Module_vqtl_drm(int argc, char *argv[])
             } else {
                 sprintf(chrom, "%d", bim_line.chrom);
             }
+            char *allel1 = NULL;
+            char *allel2 = NULL;
+            uint32_t line_index = plink_data.current_bim_line_index - 1;
+            struct Allel_trimed_stu *trimed_allel_tmp = NULL;
+            uint32_t trimed_list_len = plink_data.trimed_allel_list_len;
+            if (strlen(bim_line.allel1) == 0) {
+                trimed_allel_tmp = plink_data.trime_allel_list;
+                for (int i = 0; i < trimed_list_len; i++) {
+                    if (trimed_allel_tmp->allel_choose == 1 &&
+                        trimed_allel_tmp->line_index == line_index) {
+                        allel1 = trimed_allel_tmp->allel_ptr;
+                        break;
+                    }
+                    trimed_allel_tmp = trimed_allel_tmp->next;
+                }
+                if (!allel1) {
+                    fprintf(stderr, "can not find trimed allel.\n");
+                    return 1;
+                }
+            } else {
+                allel1 = bim_line.allel1;
+            }
+            if (strlen(bim_line.allel2) == 0) {
+                trimed_allel_tmp = plink_data.trime_allel_list;
+                for (int i = 0; i < trimed_list_len; i++) {
+                    if (trimed_allel_tmp->allel_choose == 2 &&
+                        trimed_allel_tmp->line_index == line_index) {
+                        allel2 = trimed_allel_tmp->allel_ptr;
+                        break;
+                    }
+                    trimed_allel_tmp = trimed_allel_tmp->next;
+                }
+                if (!allel2) {
+                    fprintf(stderr, "can not find trimed allel.\n");
+                    return 1;
+                }
+            } else {
+                allel2 = bim_line.allel2;
+            }
             fprintf(esi_fout, "%s\t%s\t%f\t%u\t%s\t%s\t%f\n", chrom, bim_line.rsid,
-                bim_line.phy_pos, bim_line.pos, bim_line.allel1,
-                bim_line.allel2, first_allel_freq);            
+                bim_line.phy_pos, bim_line.pos, allel1,
+                allel2, first_allel_freq);            
             variant_data_ptr += indi_num_fam;
         }
 
