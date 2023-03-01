@@ -34,13 +34,17 @@
 #define PLINK_FILE_READ_FAIL 6
 #define PLINK_MEGIC_NUM_FAIL 4
 #define PLINK_MALLOC_BUF_FAIL 5
+#define PLINK_BUFFER_OVERFLOW 6
 #define PLINK_MEGIC_NUM_LEN 3
-#define PLINK_LINE_BUF_LEN 2048
+#define PLINK_LINE_BUF_LEN 4096
 
 
-struct Allel_trimed {
+struct Allel_trimed_stu {
+    uint32_t line_index;
+    // 1 for first allel, 2 for seconde allel.
+    char allel_choose;
     char *allel_ptr;
-    struct Allel_trimed *next;
+    struct Allel_trimed_stu *next;
 };
 
 typedef struct plinkfile_stu {
@@ -66,10 +70,9 @@ typedef struct plinkfile_stu {
     char *line_buf;
     char status;
 
-    struct Allel_trimed *trime_allel_list;
-    uint64_t trimed_allel_len;
-    struct Allel_trimed *trimed_current_ptr;
-    uint64_t current_trimed_allel_index;
+    struct Allel_trimed_stu *trime_allel_list;
+    uint64_t trimed_allel_list_len;
+    struct Allel_trimed_stu *trimed_allel_tail;
 
 } PLINKFILE, *PLINKFILE_ptr;
 
@@ -89,22 +92,18 @@ typedef struct fam_line_stu {
 #define PLINK_X_CHROM 201
 #define PLINK_Y_CHROM 202
 #define PLINK_MT_CHROM 203
-#define PLINE_BIM_POS_NA 0
-#define PLINE_MAX_ALLEL_LEN 8
+#define PLINK_BIM_POS_NA 0
+#define PLINK_MAX_ALLEL_LEN 8
 
-struct allel_stu {
-    char trimed_flag;
-    char allel[PLINE_MAX_ALLEL_LEN];
-    uint64_t trime_allel_index;
-};
 
 typedef struct bim_line_stu {
     unsigned char chrom;
     char rsid[64];
     float phy_pos;
     uint32_t pos;
-    char allel1[PLINE_MAX_ALLEL_LEN];
-    char allel2[PLINE_MAX_ALLEL_LEN];
+    // if allel overflowed, need to lookup Allel_trim_stu to get the allel.
+    char allel1[PLINK_MAX_ALLEL_LEN];
+    char allel2[PLINK_MAX_ALLEL_LEN];
 
 } BIM_LINE, *BIM_LINE_ptr;
 

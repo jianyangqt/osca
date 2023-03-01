@@ -32,6 +32,10 @@ plinkopen(const char *filename)
     data_out.line_buf_len = PLINK_LINE_BUF_LEN;
     data_out.line_buf = NULL;
 
+    data_out.trime_allel_list = NULL;
+    data_out.trimed_allel_list_len = 0;
+    data_out.trimed_allel_tail = NULL;
+
     int filename_len = strlen(filename);
     char *filename_full = (char *)malloc(sizeof(char) * (filename_len + 5));
     strcpy(filename_full, filename);
@@ -117,6 +121,121 @@ plinkopen(const char *filename)
     }
     data_out.variant_num = line_counter;
     rewind(fin);
+
+    // make trime_allel_list for allel longer than PLINE_MAX_ALLEL_LEN - 1
+    char line_buf[PLINK_LINE_BUF_LEN];
+    line_buf[PLINK_LINE_BUF_LEN - 1] = 1;
+    char chrom[16];
+    chrom[15] = '\0';
+    char rsid[64];
+    rsid[63] = '\0';
+    char phy_pos[16];
+    phy_pos[15] = '\0';
+    char pos[16];
+    pos[15] = '\0';
+    char allel1[1024];
+    allel1[1023] = '\0';
+    char allel2[1024];
+    allel2[1023] = '\0';
+
+    fin = data_out.bim_file;
+    uint32_t line_index = 0;
+    while (fgets(line_buf, PLINK_LINE_BUF_LEN, fin)) {
+        if (line_buf[PLINK_LINE_BUF_LEN - 1] == 1) {
+            if (sscanf(line_buf, "%s %s %s %s %s %s",
+                chrom, rsid, phy_pos, pos, allel1, allel2) == 6) {
+                if (allel1[1023] == '\0') {
+                    uint32_t allel_len = strlen(allel1);
+                    if (allel_len >= PLINK_MAX_ALLEL_LEN) {
+                        struct Allel_trimed_stu *new_node =
+                            (struct Allel_trimed_stu *)malloc(sizeof(struct Allel_trimed_stu));
+                        new_node->allel_choose = 1;
+                        new_node->next =NULL;
+                        new_node->allel_ptr = NULL;
+                        new_node->line_index = line_index;
+                        char *allel_mem = (char *)malloc(sizeof(char) * (allel_len + 1));
+                        if (!allel_mem) {
+                            fprintf(stderr, "malloc failed.\n");
+                            data_out.status = PLINK_MALLOC_BUF_FAIL;
+                            return data_out;
+                        }
+                        strcpy(allel_mem, allel1);
+                        new_node->allel_ptr = allel_mem;
+                        if (data_out.trime_allel_list) {
+                            data_out.trimed_allel_tail->next = new_node;
+                            data_out.trimed_allel_tail = new_node;
+                            data_out.trimed_allel_list_len++;
+                        } else {
+                            data_out.trime_allel_list = new_node;
+                            data_out.trimed_allel_tail = new_node;
+                            data_out.trimed_allel_list_len++;
+                        }
+                    } 
+                } else {
+                    fprintf(stderr, "allel1 field buffer overflow.\n");
+                    data_out.status = PLINK_BUFFER_OVERFLOW;
+                    return data_out;
+                }
+
+                if (allel2[1023] == '\0') {
+                    uint32_t allel_len = strlen(allel2);
+                    if (allel_len >= PLINK_MAX_ALLEL_LEN) {
+                        struct Allel_trimed_stu *new_node =
+                            (struct Allel_trimed_stu *)malloc(
+                                sizeof(struct Allel_trimed_stu));
+                        new_node->allel_choose = 2;
+                        new_node->next = NULL;
+                        new_node->allel_ptr = NULL;
+                        new_node->line_index = line_index;
+                        char *allel_mem =
+                            (char *)malloc(sizeof(char) * (allel_len + 1));
+                        if (!allel_mem) {
+                            fprintf(stderr, "malloc failed.\n");
+                            data_out.status = PLINK_MALLOC_BUF_FAIL;
+                            return data_out;
+                        }
+                        strcpy(allel_mem, allel2);
+                        new_node->allel_ptr = allel_mem;
+                        if (data_out.trime_allel_list) {
+                            data_out.trimed_allel_tail->next = new_node;
+                            data_out.trimed_allel_tail = new_node;
+                            data_out.trimed_allel_list_len++;
+                        } else {
+                            data_out.trime_allel_list = new_node;
+                            data_out.trimed_allel_tail = new_node;
+                            data_out.trimed_allel_list_len++;
+                        }
+                    }
+                } else {
+                    fprintf(stderr, "allle2 field buffer overflow.\n");
+                    data_out.status = PLINK_BUFFER_OVERFLOW;
+                    return data_out;
+                }
+            } else {
+                fprintf(stderr, "split bim failed failed.\n");
+                data_out.status = PLINK_FAIL;
+                return data_out;
+            }
+
+        } else {
+            fprintf(stderr, "bim line buf overflow.\n");
+            data_out.status = PLINK_BUFFER_OVERFLOW;
+            return data_out;
+        }
+        line_index++;
+    }
+    rewind(fin);
+
+    /*
+        struct Allel_trimed_stu *trim_tmp = NULL;
+        trim_tmp = data_out.trime_allel_list;
+        uint32_t trim_len = data_out.trimed_allel_list_len;
+        for (int i = 0; i < trim_len; i++) {
+            printf("%d %u %s\n", trim_tmp->allel_choose, trim_tmp->line_index,
+                   trim_tmp->allel_ptr);
+            trim_tmp = trim_tmp->next;
+        }
+    */
 
     //handle bed file.
     char megic_num[3];
@@ -398,7 +517,7 @@ bimreadline(PLINKFILE_ptr plink_dara, BIM_LINE_ptr bim_line)
     char *char_ptr = NULL;
 
     if (fgets(line_buf, PLINK_LINE_BUF_LEN, fin)) {
-        
+        //PLINK_LINE_BUF_LEN - 2 != '\n', but just ignore this for speed.
         if (line_buf[PLINK_LINE_BUF_LEN - 1] != 1) {
             fprintf(stderr, "bim file line buf overflow.\n");
             return 1;
@@ -454,7 +573,7 @@ bimreadline(PLINKFILE_ptr plink_dara, BIM_LINE_ptr bim_line)
             if (!str_len) {
                 bim_line->pos = (uint32_t)atol(pos);
             } else if (strcmp(pos, "NA") == 0) {
-                bim_line->pos = PLINE_BIM_POS_NA;
+                bim_line->pos = PLINK_BIM_POS_NA;
             } else {
                 fprintf(stderr, "bim pos not recognized.\n");
                 return 1;
@@ -465,12 +584,12 @@ bimreadline(PLINKFILE_ptr plink_dara, BIM_LINE_ptr bim_line)
         }
         if (allel1[1023] == '\0') {
             str_len = strlen(allel1);
-            if (str_len >= PLINE_MAX_ALLEL_LEN) {
-                //fprintf(stderr, "allel %s trimed\n", allel1);
-                ;
+            if (str_len >= PLINK_MAX_ALLEL_LEN) {
+                // lookup Allel_trimed_stu recall allel string.
+                (bim_line->allel1)[0] = '\0';
+            } else {
+                strcpy(bim_line->allel1, allel1);
             }
-            (bim_line->allel1)[PLINE_MAX_ALLEL_LEN - 1] = '\0';
-            strncpy(bim_line->allel1, allel1, PLINE_MAX_ALLEL_LEN - 1);
             
         } else {
             fprintf(stderr, "bim allel failed.\n");
@@ -479,12 +598,12 @@ bimreadline(PLINKFILE_ptr plink_dara, BIM_LINE_ptr bim_line)
 
         if (allel2[1023] == '\0') {
             str_len = strlen(allel2);
-            if (str_len >= PLINE_MAX_ALLEL_LEN) {
-                //fprintf(stderr, "allel %s trimed\n", allel2);
-                ;
+            if (str_len >= PLINK_MAX_ALLEL_LEN) {
+                (bim_line->allel2)[0] = '\0';
+            } else {
+                strcpy(bim_line->allel2, allel2);
             }
-            bim_line->allel2[PLINE_MAX_ALLEL_LEN - 1] = '\0';
-            strncpy(bim_line->allel2, allel2, PLINE_MAX_ALLEL_LEN - 1);
+
         } else {
             fprintf(stderr, "bim allel failed.\n");
             return 1;
