@@ -401,7 +401,16 @@ Module_vqtl_drm(int argc, char *argv[])
         threads_args);
 
     // creat tmp directory
-    char tmp_dir_name[] = "oscatmp";
+    char tmp_dir_name[256];
+    time_t sec = time(NULL);
+    if (task_num > 0 && task_id > 0) {
+        sprintf(tmp_dir_name, "oscatmp_%lu_%d_%d", sec, task_num, task_id);
+    } else if (task_num > 0) {
+        sprintf(tmp_dir_name, "oscatmp_%lu_%d_%d", sec, task_num, 1);
+    } else {
+        sprintf(tmp_dir_name, "oscatmp_%lu", sec);
+    }
+    
     char tmp_fname[1024];
     if (access(tmp_dir_name, F_OK)) {
         mkdir(tmp_dir_name, S_IRWXU);
@@ -1000,7 +1009,15 @@ Module_vqtl_svlm(int argc, char *argv[])
                           variant_data_len, variant_load_len, threads_args);
 
     // creat tmp directory
-    char tmp_dir_name[] = "oscatmp";
+    char tmp_dir_name[256];
+    time_t sec = time(NULL);
+    if (task_num > 0 && task_id > 0) {
+        sprintf(tmp_dir_name, "oscatmp_%lu_%d_%d", sec, task_num, task_id);
+    } else if (task_num > 0) {
+        sprintf(tmp_dir_name, "oscatmp_%lu_%d_%d", sec, task_num, 1);
+    } else {
+        sprintf(tmp_dir_name, "oscatmp_%lu", sec);
+    }
     char tmp_fname[1024];
     if (access(tmp_dir_name, F_OK)) {
         mkdir(tmp_dir_name, S_IRWXU);
@@ -1374,8 +1391,8 @@ help_legacy(void)
 {
     printf(
         "\nHelp:\n"
-        "--help,        flag, print this message and exit.\n"
-        "--vqtl,        flag, use vqtl module.\n"
+        "--help         flag, print this message and exit.\n"
+        "--vqtl         flag, use vqtl module.\n"
         "--method        STR, vqtl methods. 'drm' for method DRM, 'svlm' for SVLM.\n"
         "--geno          STR, plink genotype files.\n"
         "--pheno         STR, phenotype file in plain text.(not supported yet)\n"
@@ -1387,7 +1404,7 @@ help_legacy(void)
         "--end-probe     INT, last probe, defaulte is last probe.(not supported yet)\n"
         "--tast-num      INT, task number would like to divide.\n"
         "--tast-id       INT, task id.\n"
-        "--trans,       flag, only calculate trans region.(not supported yet)\n"
+        "--trans        flag, only calculate trans region.(not supported yet)\n"
         "--trans-distance-bp\n"
         "                INT, distance from probe in basepair to define as trans.(not supported yet)\n"
         "--cis           INT, only calculate cis region.(not supported yet)\n"
@@ -1705,6 +1722,9 @@ vqtl_parse_args_legacy(int argc, char *argv[], const char *method, VQTL_ARGS_ptr
         }
     }
     fclose(flog);
+    if (!args->arg_geno_file || (!args->opt_pheno_bod && !args->opt_pheno_txt)) {
+        args->flag_help = true;
+    }
     return args;
 }
 
