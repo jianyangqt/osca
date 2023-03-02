@@ -2096,10 +2096,7 @@ drm_thread_worker(void *args) {
     float *result = args_in->result;
 
     for (int i = 0; i < variant_slice_len; i++) {
-
-        double geno_0_median = 0.0, geno_1_median = 0.0, geno_2_median = 0.0;
         uint32_t align_len_rm_missing = 0;
-
         char *current_geno_one = variant_data_loaded + i * fam_num;
         uint32_t g0_num = 0, g1_num = 0, g2_num = 0;
 
@@ -2128,14 +2125,14 @@ drm_thread_worker(void *args) {
                     fprintf(stderr, "geno value can not be others.\n");
                     return NULL;
                 }
-                geno_data_aligned[align_len_rm_missing] = (double)geno_value;
-                pheno_data_aligned[align_len_rm_missing] = pheno_value;
+
                 align_len_rm_missing++;
             }
         }
 
         /*new method to get median.*/
         if (g0_num > 0) {
+            double geno_0_median = 0.0;
             if (g0_num % 2) {
                 geno_0_median = qmedian(g0_array, 0, g0_num - 1, g0_num / 2);
             } else {
@@ -2144,8 +2141,18 @@ drm_thread_worker(void *args) {
                      qmedian(g0_array, 0, g0_num - 1, g0_num / 2)) /
                     2;
             }
+            uint32_t copy_len = 0;
+            for (uint32_t i = 0; i < g0_num; i++) {
+                double tmp = 0;
+                geno_data_aligned[copy_len] = (double)0.0;
+                tmp = g0_array[i] - geno_0_median;
+                pheno_data_aligned[copy_len] = (tmp < 0)? -tmp: tmp;
+                copy_len++;
+            }
         }
+
         if (g1_num > 0) {
+            double geno_1_median = 0.0;
             if (g1_num % 2) {
                 geno_1_median = qmedian(g1_array, 0, g1_num - 1, g1_num / 2);
             } else {
@@ -2154,8 +2161,17 @@ drm_thread_worker(void *args) {
                      qmedian(g1_array, 0, g1_num - 1, g1_num / 2)) /
                     2;
             }
+            uint32_t copy_len = g0_num;
+            for (uint32_t i = 0; i < g1_num; i++) {
+                double tmp = 0.0;
+                geno_data_aligned[copy_len] = (double)1.0;
+                tmp = g1_array[i] - geno_1_median;
+                pheno_data_aligned[copy_len] = (tmp < 0)? -tmp: tmp;
+                copy_len++;
+            }
         }
         if (g2_num > 0) {
+            double geno_2_median = 0.0;
             if (g2_num % 2) {
                 geno_2_median = qmedian(g2_array, 0, g2_num - 1, g2_num / 2);
             } else {
@@ -2164,22 +2180,13 @@ drm_thread_worker(void *args) {
                      qmedian(g2_array, 0, g2_num - 1, g2_num / 2)) /
                     2;
             }
-        }
-
-        for (int k = 0; k < align_len_rm_missing; k++) {
-            double tmp;
-            if (geno_data_aligned[k] == 0.0) {
-                tmp = pheno_data_aligned[k] - geno_0_median;
-                tmp = (tmp < 0)? -tmp: tmp;
-                pheno_data_aligned[k] = tmp;
-            } else if (geno_data_aligned[k] == 1.0) {
-                tmp = pheno_data_aligned[k] - geno_1_median;
-                tmp = (tmp < 0)? -tmp : tmp;
-                pheno_data_aligned[k] = tmp;
-            } else {
-                tmp = pheno_data_aligned[k] - geno_2_median;
-                tmp = (tmp < 0)? -tmp : tmp;
-                pheno_data_aligned[k] = tmp;
+            uint32_t copy_len = g0_num + g1_num;
+            for (uint32_t i = 0; i < g2_num; i++) {
+                double tmp = 0.0;
+                geno_data_aligned[copy_len] = (double)2.0;
+                tmp = g2_array[i] - geno_2_median;
+                pheno_data_aligned[copy_len] = (tmp < 0)? -tmp: tmp;
+                copy_len++;
             }
         }
 
