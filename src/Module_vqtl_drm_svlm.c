@@ -159,8 +159,6 @@ static void get_logfilename(int argc, char *argv[], char *fname);
 static int compare_uint32(const void *a, const void *b);
 static double qmedian(double *array, int p, int r, int pos);
 static unsigned int BKDRHash(char *str);
-static int linner_regression(const double *x, const double *y, uint32_t array_len,
-    double *beta1, double *beta1_se, double *p_beta1);
 
 static int align_fam_oii_ids(FAM_LINE_ptr fam_lines, uint32_t fam_line_num,
                              OII_LINE_ptr oii_lines, uint32_t oii_line_num,
@@ -1756,51 +1754,6 @@ BKDRHash(char *str)
         hash = hash * seed + (*str++);
     }
     return (hash & 0x7FFFFFFF);
-}
-
-
-static int
-linner_regression(const double *x, const double *y, uint32_t array_len, double *beta1,
-    double *se_beta1, double *p_beta1)
-{
-    //printf("%lf %lf %u\n", x[0], y[0], array_len);
-    double c0, c1, cov00, cov01, cov11, sumsq;
-    gsl_fit_linear(x, 1, y, 1, array_len, &c0, &c1, &cov00, &cov01, &cov11, &sumsq);
-
-/*
-    double stdev0 = sqrt(cov00);
-    double t0 = c0 / stdev0;
-    double pv0 = (t0 < 0)? 2 * (1 - gsl_cdf_tdist_P(-t0, array_len - 2)): 2 *
-        (1 - gsl_cdf_tdist_P(t0, array_len - 2));
-*/
-    double stdev1 = sqrt(cov11);
-    double t1 = c1 / stdev1;
-    double pv1 = t1 < 0 ? 2 * (1 - gsl_cdf_tdist_P(-t1, array_len - 2)): 2 *
-        (1 - gsl_cdf_tdist_P(t1, array_len - 2));
-/*
-    int i = 0;
-    double dl = array_len - 2;
-    double y_mean = 0;
-    for (i = 0; i < array_len; i++) {
-        y_mean += y[i];
-    }
-    y_mean = y_mean / array_len;
-
-    double y_var = 0;
-    for (i = 0; i < array_len; i++) {
-        y_var += pow(y[i] - y_mean, 2);
-    }
-
-    double R2 = 1 - sumsq / y_var;
-    double F = R2 * dl / (1 - R2);
-    double p_value = 1 - gsl_cdf_fdist_P(F, 1, dl);
-*/
-    //printf("%le %le %le %le\n", c1, stdev1, t1, p_value);
-    *beta1 = c1;
-    *se_beta1 = stdev1;
-    *p_beta1 = pv1;
-
-    return 0;
 }
 
 
