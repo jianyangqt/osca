@@ -15,6 +15,7 @@
 #include "l3_efile.h"
 #include "l3_gwas.hpp"
 #include "l3_permutation.hpp"
+#include "../lib/sysinfo.h"
 
 void option(int option_num, char* option_str[]);
 

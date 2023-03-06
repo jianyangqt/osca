@@ -62,13 +62,27 @@ int main(int argc, char * argv[])
         }
     }
 
+    //if out file name contain a directory name, creat it recursively if not exist.
+    char logfname_c[1024];
+    strcpy(logfname_c, logfname.c_str());
+    int logfname_c_len = strlen(logfname_c);
+    int slash_pos = 0;
+    for (int i = 0; i < logfname_c_len; i++) {
+        if (logfname_c[i] == '/') {
+            slash_pos = i;
+        }
+    }
+    if (slash_pos > 0 && logfname_c[slash_pos - 1] != '.') {
+        logfname_c[slash_pos] = '\0';
+        mkdir_p(logfname_c, S_IRWXU);
+    }
+
     logfile = fopen(logfname.c_str(),"w");
     if (!logfile) {
         printf("Error: Failed to open log file %s.\n", logfname.c_str());
         exit(EXIT_FAILURE);
     }
     printf("Logging to %s.\n", logfname.c_str());
-
 
     FLAGS_VALID_CK(argc, argv);
 
