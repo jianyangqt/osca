@@ -7,8 +7,13 @@
 #define SYSINFO_EXTERN
 #endif
 
-#include <stdint.h>
+#ifdef __linux__
 
+#include <stdint.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #define CPU_ARCH_X86 1
 #define CPU_ARCH_ARM 2
@@ -16,7 +21,7 @@
 #define OS_LINUX 1
 #define OS_MACOS 2
 #define OS_WINDOWS 3
-
+#define PATH_MAX_STRING_SIZE 1024
 
 typedef struct sysinfo {
     char cpu_arch;
@@ -26,7 +31,19 @@ typedef struct sysinfo {
     uint32_t cpu_available; 
 } SYSINFO, *SYSINFO_ptr;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 SYSINFO_EXTERN void get_sysinfo(SYSINFO_ptr sysinfo_data);
+
+SYSINFO_EXTERN int mkdir_p(const char *dir, const mode_t mode);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif
 
 #endif
 
