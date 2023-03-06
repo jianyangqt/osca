@@ -186,7 +186,7 @@ static SVLM_THREAD_ARGS_ptr make_svlm_threads_args(
     uint32_t variant_load_len, SVLM_THREAD_ARGS_ptr thread_args);
 static void free_svlm_threads_args_malloc(SVLM_THREAD_ARGS_ptr thread_args,
     int thread_num);
-static void * svlm_thread_worker(void *args);
+static void *svlm_thread_worker(void *args);
 
 static void write_tmp_data(void *thread_args_ori, char *args_type,
                                 int thread_num, FILE *fout, float pthresh,
@@ -428,6 +428,8 @@ Module_vqtl_drm(int argc, char *argv[])
             }
         }
     }
+    printf("temporary direcoty %s was created.\n", tmp_dir_name);
+    fprintf(flog, "temporary direcotyr %s was created.\n", tmp_dir_name);
 
     // malloc buffer for drm_write_tmp_data funtion.
     uint32_t *variant_index_pass_thresh = (uint32_t *)malloc(sizeof(uint32_t) *
@@ -458,8 +460,7 @@ Module_vqtl_drm(int argc, char *argv[])
         } else {
             variant_slice_len = variant_load_len;
         }
-        printf(">>variant slice<< %u to %u\n", variant_slice_start,
-            variant_slice_start + variant_slice_len);
+
 
         strcpy(tmp_fname, tmp_dir_name);
         strcat(tmp_fname, "/");
@@ -479,6 +480,13 @@ Module_vqtl_drm(int argc, char *argv[])
         variant_data_len_real = variant_slice_len * indi_num_fam;
         bedloaddata_n(&plink_data, variant_data, variant_data_len_real,
             variant_slice_start, variant_slice_len);
+
+        printf("\nvariant slice %u to %u was loaded.\n", variant_slice_start,
+               variant_slice_start + variant_slice_len);
+        fprintf(flog, "\nvariant slice %u to %u was loaded.\n", variant_slice_start,
+               variant_slice_start + variant_slice_len);
+
+        //write esi file
         char *variant_data_ptr = variant_data;
         for (int i = 0; i < variant_slice_len; i++) {
             float first_allel_freq = 0;
@@ -561,10 +569,9 @@ Module_vqtl_drm(int argc, char *argv[])
         uint32_t j = 0;
         
         bodfileseek(&bod_data, probe_start_offset);
-        printf("progress by probe of this variant slice: %10u/%-10u", 0, probe_slice_len);
+        printf("progress by probe of this variant slice:\n");
         for (j = probe_start_offset; j < j_limit; j += thread_num) {
-            printf("\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b");
-            printf("%10u/%-10u", j, probe_slice_len);
+            printf("%10u/%-10u\n", j - probe_start_offset, probe_slice_len);
             fflush(stdout);
 
             for (int n = 0; n < thread_num; n++) {
@@ -619,8 +626,7 @@ Module_vqtl_drm(int argc, char *argv[])
             }
         }
         for (int p = 0; p < left_probe_n; p++) {
-            printf("\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b");
-            printf("%10u/%-10u", j_keep + p, probe_slice_len);
+            printf("%10u/%-10u\n", j_keep + p - probe_start_offset, probe_slice_len);
             fflush(stdout);
 
             int join_status = pthread_join(thread_ids[p], NULL);
@@ -635,7 +641,6 @@ Module_vqtl_drm(int argc, char *argv[])
                            se_value_pass_thresh);
 
         fclose(fout);
-        printf("\n");
     }
     fclose(esi_fout);
     printf("\nesi file was writen.\n");
@@ -1035,6 +1040,8 @@ Module_vqtl_svlm(int argc, char *argv[])
             }
         }
     }
+    printf("temporary file %s was created.\n", tmp_dir_name);
+    fprintf(flog, "temporary file %s was created.\n", tmp_dir_name);
 
     // malloc buffer for drm_write_tmp_data funtion.
     uint32_t *variant_index_pass_thresh =
@@ -1067,7 +1074,9 @@ Module_vqtl_svlm(int argc, char *argv[])
         } else {
             variant_slice_len = variant_load_len;
         }
-        printf(">>variant slice<< %u to %u\n", variant_slice_start,
+        printf("\nvariant slice %u to %u was loaded.\n", variant_slice_start,
+               variant_slice_start + variant_slice_len);
+        fprintf(flog, "\nvariant slice %u to %u was loaded.\n", variant_slice_start,
                variant_slice_start + variant_slice_len);
 
         strcpy(tmp_fname, tmp_dir_name);
@@ -1130,11 +1139,9 @@ Module_vqtl_svlm(int argc, char *argv[])
         uint32_t j = 0;
         
         bodfileseek(&bod_data, probe_start_offset);
-        printf("progress by probe of this variant slice: %10u/%-10u", 0,
-               probe_slice_len);
+        printf("progress by probe of this variant slice:\n");
         for (j = probe_start_offset; j < j_limit; j += thread_num) {
-            printf("\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b");
-            printf("%10u/%-10u", j, probe_slice_len);
+            printf("%10u/%-10u\n", j - probe_start_offset, probe_slice_len);
             fflush(stdout);
 #if defined VQTL_DEBUG_INFO || DEBUG_INFO
             printf("\n");
@@ -1189,8 +1196,8 @@ Module_vqtl_svlm(int argc, char *argv[])
             }
         }
         for (int p = 0; p < left_probe_n; p++) {
-            printf("\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b");
-            printf("%10u/%-10u", j_keep + p, probe_slice_len);
+            printf("%10u/%-10u\n", j_keep + p - probe_start_offset,
+                   probe_slice_len);
             fflush(stdout);
 
             int join_status = pthread_join(thread_ids[p], NULL);
@@ -1204,7 +1211,7 @@ Module_vqtl_svlm(int argc, char *argv[])
         write_tmp_data(threads_args, VQTL_SVLM_METHOD, left_probe_n, fout, pthresh,
                            variant_index_pass_thresh, beta_value_pass_thresh,
                            se_value_pass_thresh);
-        printf("\n");
+
         fclose(fout);
     }
     printf("\nesi file was writen.\n");
