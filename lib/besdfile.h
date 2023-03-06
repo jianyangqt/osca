@@ -23,3 +23,4 @@ BESDFILE_EXTERN int besd_sparse_write_beta_se_data(float *beta, float *se,
                                                    FILE *fout);
 
 #endif
+
