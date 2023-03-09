@@ -279,14 +279,14 @@ Module_vqtl_drm(int argc, char *argv[])
         strcpy(res_fname, "out");
     }
     if (task_id > task_num) {
-        fprintf(stderr, "task id should less than task number.\n");
+        fprintf(stderr, "task id should less equal than task number.\n");
         return 1;
     }
     int task_len = 0;
-    if (task_num > 1) {
+    if (task_num > 0) {
         char sufix[1000];
         task_len = ceil((double)probe_num / task_num);
-        if (task_id > 1 && task_id <= task_num) {
+        if (task_id > 0 && task_id <= task_num) {
             sprintf(sufix, "_%d_%d", task_num, task_id);
             strcat(res_fname, sufix);
             probe_start_offset = task_len * (task_id - 1);
@@ -898,14 +898,14 @@ Module_vqtl_svlm(int argc, char *argv[])
         strcpy(res_fname, "out");
     }
     if (task_id > task_num) {
-        fprintf(stderr, "task id should less than task number.\n");
+        fprintf(stderr, "task id should less equal than task number.\n");
         return 1;
     }
     int task_len = 0;
-    if (task_num > 1) {
+    if (task_num > 0) {
         char sufix[1000];
         task_len = ceil((double)probe_num / task_num);
-        if (task_id > 1 && task_id <= task_num) {
+        if (task_id > 0 && task_id <= task_num) {
             sprintf(sufix, "_%d_%d", task_num, task_id);
             strcat(res_fname, sufix);
             probe_start_offset = task_len * (task_id - 1);
@@ -1440,8 +1440,8 @@ vqtl_parse_args_legacy(int argc, char *argv[], const char *method, VQTL_ARGS_ptr
     args->opt_end_variant = -1;
     args->opt_start_probe = -1;
     args->opt_end_probe = -1;
-    args->opt_tast_num = 1;
-    args->opt_tast_id = 1;
+    args->opt_tast_num = -1;
+    args->opt_tast_id = -1;
 
     args->flag_trans = false;
     args->opt_trans_distance_bp = 5000000;
@@ -1950,9 +1950,9 @@ get_logfilename(int argc, char *argv[], char *fname)
             continue;
         }
     }
-    if (task_num > 0 && task_id > 0) {
+    if (outname && task_num > 0 && task_id > 0) {
         sprintf(fname, "%s_%d_%d.log", outname, task_num, task_id);
-    } else if (task_num > 0) {
+    } else if (outname && task_num > 0) {
         sprintf(fname, "%s_%d_1.log", outname, task_num);
     } else if (outname){
         sprintf(fname, "%s.log", outname);
