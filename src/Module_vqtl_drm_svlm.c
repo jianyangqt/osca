@@ -355,7 +355,7 @@ Module_vqtl_drm(int argc, char *argv[])
     if (mem == 0.0) {
         SYSINFO sysinfo_dt;
         get_sysinfo(&sysinfo_dt);
-        mem_size = sysinfo_dt.mem_size_byte * (3 / 4);
+        mem_size = sysinfo_dt.mem_size_byte * (3.0 / 4.0);
     } else {
         mem_size = (uint64_t)floor((double)mem * 1024 * 1024 * 1024);
     }
@@ -972,7 +972,7 @@ Module_vqtl_svlm(int argc, char *argv[])
     if (mem == 0.0) {
         SYSINFO sysinfo_dt;
         get_sysinfo(&sysinfo_dt);
-        mem_size = sysinfo_dt.mem_size_byte * (3 / 4);
+        mem_size = sysinfo_dt.mem_size_byte * (3.0 / 4.0);
     } else {
         mem_size = (uint64_t)floor((double)mem * 1024 * 1024 * 1024);
     }
