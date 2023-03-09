@@ -52,7 +52,7 @@ int main(int argc, char * argv[])
     }
     else {
         if (task_num == "") {
-            logfname = outname + "_" + "1" + "_" + "1" + ".log";
+            logfname = outname + ".log";
         } else {
             if (task_id == "") {
                 logfname = outname + "_" + task_num + "_" + "1" + ".log";
