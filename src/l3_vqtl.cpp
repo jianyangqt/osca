@@ -3772,10 +3772,10 @@ output_beta_se(const double pdev, string snprs, string prbid, vector< double > b
             MatrixXd cor_null_clean(numTrans, numTrans);
             MatrixXd eqtlb_clean(numSNP, numTrans);
             MatrixXd eqtls_clean(numSNP, numTrans);
-            k = 0;
             if (need_remove.size() > 0 && numTrans > 1) {
-                l = 0;
+                k = 0;
                 for (i = 0; i < cor_null.rows(); i++){
+                    l = 0;
                     it = find(need_remove.begin(), need_remove.end(), i);
                     if (it != need_remove.end()){
                         k++;
